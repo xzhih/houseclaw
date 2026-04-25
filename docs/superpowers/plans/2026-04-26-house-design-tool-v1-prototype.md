@@ -6,7 +6,7 @@
 
 **Architecture:** Use one authoritative `HouseProject` domain model. 2D floor/elevation views and the Three.js preview are projections of that model, never separate sources of truth. Keep geometry generation separate from rendering so wall/opening behavior can be tested without WebGL.
 
-**Tech Stack:** Vite, React, TypeScript, Vitest, React Testing Library, Three.js, SVG for 2D editing, local JSON persistence.
+**Tech Stack:** Bun, Vite, React, TypeScript, Vitest, React Testing Library, Three.js, SVG for 2D editing, local JSON persistence. Install frontend dependencies with `@latest` during Task 1 so the project uses the current stable package releases at implementation time.
 
 ---
 
@@ -30,10 +30,10 @@ Create this project structure:
 
 ```text
 package.json
+bun.lock
 index.html
 vite.config.ts
 tsconfig.json
-tsconfig.node.json
 src/
   App.tsx
   main.tsx
@@ -100,10 +100,10 @@ Each file has one responsibility:
 
 **Files:**
 - Create: `package.json`
+- Create: `bun.lock`
 - Create: `index.html`
 - Create: `vite.config.ts`
 - Create: `tsconfig.json`
-- Create: `tsconfig.node.json`
 - Create: `src/main.tsx`
 - Create: `src/App.tsx`
 - Create: `src/styles.css`
@@ -123,28 +123,22 @@ Each file has one responsibility:
     "test": "vitest run --passWithNoTests",
     "test:watch": "vitest",
     "lint": "tsc --noEmit"
-  },
-  "dependencies": {
-    "@vitejs/plugin-react": "^5.0.0",
-    "vite": "^7.0.0",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
-    "three": "^0.180.0"
-  },
-  "devDependencies": {
-    "@testing-library/jest-dom": "^6.6.0",
-    "@testing-library/react": "^16.0.0",
-    "@types/react": "^19.0.0",
-    "@types/react-dom": "^19.0.0",
-    "@types/three": "^0.180.0",
-    "jsdom": "^27.0.0",
-    "typescript": "^5.9.0",
-    "vitest": "^3.2.0"
   }
 }
 ```
 
-- [ ] **Step 2: Create Vite and TypeScript config files**
+- [ ] **Step 2: Install the latest Bun/Vite/React/TypeScript dependencies**
+
+Run:
+
+```bash
+bun add react@latest react-dom@latest three@latest
+bun add -d @vitejs/plugin-react@latest vite@latest typescript@latest vitest@latest jsdom@latest @testing-library/react@latest @testing-library/jest-dom@latest @testing-library/user-event@latest @types/react@latest @types/react-dom@latest @types/three@latest
+```
+
+Expected: `bun.lock` is created and `package.json` contains the current latest versions resolved by Bun.
+
+- [ ] **Step 3: Create Vite and TypeScript config files**
 
 Create `vite.config.ts`:
 
@@ -187,24 +181,7 @@ Create `tsconfig.json`:
 }
 ```
 
-Create `tsconfig.node.json`:
-
-```json
-{
-  "compilerOptions": {
-    "target": "ES2022",
-    "lib": ["ES2022"],
-    "module": "ESNext",
-    "moduleResolution": "Bundler",
-    "allowSyntheticDefaultImports": true,
-    "strict": true,
-    "noEmit": true
-  },
-  "include": ["vite.config.ts"]
-}
-```
-
-- [ ] **Step 3: Create the HTML and React entry files**
+- [ ] **Step 4: Create the HTML and React entry files**
 
 Create `index.html`:
 
@@ -292,31 +269,21 @@ Create `src/test/setup.ts`:
 import "@testing-library/jest-dom/vitest";
 ```
 
-- [ ] **Step 4: Install dependencies**
-
-Run:
-
-```bash
-npm install
-```
-
-Expected: `package-lock.json` is created and install exits with code `0`.
-
 - [ ] **Step 5: Verify the scaffold**
 
 Run:
 
 ```bash
-npm run build
-npm test
+bun run build
+bun run test
 ```
 
-Expected: build succeeds. The first `npm test` run reports no test files or exits successfully after Vitest initializes.
+Expected: build succeeds. The first `bun run test` run exits successfully after Vitest initializes.
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add package.json package-lock.json index.html vite.config.ts tsconfig.json tsconfig.node.json src/main.tsx src/App.tsx src/styles.css src/test/setup.ts
+git add package.json bun.lock index.html vite.config.ts tsconfig.json src/main.tsx src/App.tsx src/styles.css src/test/setup.ts
 git commit -m "chore: scaffold house design app"
 ```
 
@@ -365,7 +332,7 @@ describe("house domain model", () => {
 Run:
 
 ```bash
-npm test -- src/__tests__/domain.test.ts
+bun run test -- src/__tests__/domain.test.ts
 ```
 
 Expected: fail with missing modules for `../domain/measurements` and `../domain/sampleProject`.
@@ -587,7 +554,7 @@ export function createSampleProject(): HouseProject {
 Run:
 
 ```bash
-npm test -- src/__tests__/domain.test.ts
+bun run test -- src/__tests__/domain.test.ts
 ```
 
 Expected: both tests pass.
@@ -673,7 +640,7 @@ describe("house constraints", () => {
 Run:
 
 ```bash
-npm test -- src/__tests__/constraints.test.ts
+bun run test -- src/__tests__/constraints.test.ts
 ```
 
 Expected: fail with missing modules for `constraints` and `mutations`.
@@ -835,7 +802,7 @@ export function applyWallMaterial(
 Run:
 
 ```bash
-npm test -- src/__tests__/constraints.test.ts
+bun run test -- src/__tests__/constraints.test.ts
 ```
 
 Expected: all constraint tests pass.
@@ -902,7 +869,7 @@ describe("2D projections", () => {
 Run:
 
 ```bash
-npm test -- src/__tests__/projection.test.ts
+bun run test -- src/__tests__/projection.test.ts
 ```
 
 Expected: fail with missing projection modules.
@@ -1061,7 +1028,7 @@ export function projectElevationView(
 Run:
 
 ```bash
-npm test -- src/__tests__/projection.test.ts
+bun run test -- src/__tests__/projection.test.ts
 ```
 
 Expected: all projection tests pass.
@@ -1131,7 +1098,7 @@ describe("house geometry descriptors", () => {
 Run:
 
 ```bash
-npm test -- src/__tests__/geometry.test.ts
+bun run test -- src/__tests__/geometry.test.ts
 ```
 
 Expected: fail with missing geometry modules.
@@ -1259,7 +1226,7 @@ export function buildHouseGeometry(project: HouseProject): HouseGeometry {
 Run:
 
 ```bash
-npm test -- src/__tests__/geometry.test.ts
+bun run test -- src/__tests__/geometry.test.ts
 ```
 
 Expected: all geometry tests pass.
@@ -1334,7 +1301,7 @@ describe("project persistence", () => {
 Run:
 
 ```bash
-npm test -- src/__tests__/reducer.test.ts src/__tests__/persistence.test.ts
+bun run test -- src/__tests__/reducer.test.ts src/__tests__/persistence.test.ts
 ```
 
 Expected: fail with missing app modules.
@@ -1417,7 +1384,7 @@ export function loadProjectFromLocalStorage(key = "houseclaw.project"): HousePro
 Run:
 
 ```bash
-npm test -- src/__tests__/reducer.test.ts src/__tests__/persistence.test.ts
+bun run test -- src/__tests__/reducer.test.ts src/__tests__/persistence.test.ts
 ```
 
 Expected: all reducer and persistence tests pass.
@@ -1476,27 +1443,17 @@ describe("HouseClaw UI", () => {
 });
 ```
 
-- [ ] **Step 2: Install user-event for UI tests**
+- [ ] **Step 2: Run the UI test to verify failure**
 
 Run:
 
 ```bash
-npm install -D @testing-library/user-event
-```
-
-Expected: install exits with code `0`.
-
-- [ ] **Step 3: Run the UI test to verify failure**
-
-Run:
-
-```bash
-npm test -- src/__tests__/ui.test.tsx
+bun run test -- src/__tests__/ui.test.tsx
 ```
 
 Expected: fail because `App` still renders only the scaffold landing copy.
 
-- [ ] **Step 4: Add shell components**
+- [ ] **Step 3: Add shell components**
 
 Create `src/components/ModeSwitch.tsx`:
 
@@ -1771,7 +1728,7 @@ export function AppShell() {
 }
 ```
 
-- [ ] **Step 5: Replace `App` and layout CSS**
+- [ ] **Step 4: Replace `App` and layout CSS**
 
 Modify `src/App.tsx`:
 
@@ -1927,20 +1884,20 @@ button[aria-pressed="true"] {
 }
 ```
 
-- [ ] **Step 6: Verify UI tests pass**
+- [ ] **Step 5: Verify UI tests pass**
 
 Run:
 
 ```bash
-npm test -- src/__tests__/ui.test.tsx
+bun run test -- src/__tests__/ui.test.tsx
 ```
 
 Expected: both UI tests pass.
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 6: Commit**
 
 ```bash
-git add package.json package-lock.json src/App.tsx src/styles.css src/components src/__tests__/ui.test.tsx
+git add package.json bun.lock src/App.tsx src/styles.css src/components src/__tests__/ui.test.tsx
 git commit -m "feat: add 2d and 3d application shell"
 ```
 
@@ -1974,7 +1931,7 @@ Modify the second test in `src/__tests__/ui.test.tsx`:
 Run:
 
 ```bash
-npm test -- src/__tests__/ui.test.tsx
+bun run test -- src/__tests__/ui.test.tsx
 ```
 
 Expected: fail because the Three.js preview host has not been added.
@@ -2140,8 +2097,8 @@ Add this block to `src/styles.css`:
 Run:
 
 ```bash
-npm test -- src/__tests__/ui.test.tsx src/__tests__/geometry.test.ts
-npm run build
+bun run test -- src/__tests__/ui.test.tsx src/__tests__/geometry.test.ts
+bun run build
 ```
 
 Expected: UI and geometry tests pass, production build succeeds.
@@ -2183,7 +2140,7 @@ Append this test to `src/__tests__/ui.test.tsx`:
 Run:
 
 ```bash
-npm test -- src/__tests__/ui.test.tsx
+bun run test -- src/__tests__/ui.test.tsx
 ```
 
 Expected: fail because the material catalog UI is not visible.
@@ -2407,8 +2364,8 @@ Add this block to `src/styles.css`:
 Run:
 
 ```bash
-npm test -- src/__tests__/ui.test.tsx src/__tests__/domain.test.ts src/__tests__/constraints.test.ts
-npm run build
+bun run test -- src/__tests__/ui.test.tsx src/__tests__/domain.test.ts src/__tests__/constraints.test.ts
+bun run build
 ```
 
 Expected: tests pass and build succeeds.
@@ -2448,7 +2405,7 @@ Append this test to `src/__tests__/ui.test.tsx`:
 Run:
 
 ```bash
-npm test -- src/__tests__/ui.test.tsx
+bun run test -- src/__tests__/ui.test.tsx
 ```
 
 Expected: fail because export/import controls are not present.
@@ -2581,8 +2538,8 @@ Add this block to `src/styles.css`:
 Run:
 
 ```bash
-npm test -- src/__tests__/ui.test.tsx src/__tests__/persistence.test.ts
-npm run build
+bun run test -- src/__tests__/ui.test.tsx src/__tests__/persistence.test.ts
+bun run build
 ```
 
 Expected: tests pass and build succeeds.
@@ -2606,8 +2563,8 @@ git commit -m "feat: add project json import export"
 Run:
 
 ```bash
-npm test
-npm run build
+bun run test
+bun run build
 ```
 
 Expected: all tests pass and production build succeeds.
@@ -2617,7 +2574,7 @@ Expected: all tests pass and production build succeeds.
 Run:
 
 ```bash
-npm run dev -- --host 127.0.0.1
+bun run dev -- --host 127.0.0.1
 ```
 
 Expected: Vite prints a local URL such as `http://127.0.0.1:5173/`.
