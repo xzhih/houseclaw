@@ -261,45 +261,8 @@ select {
   overflow: hidden;
   border: 1px solid #d0d8df;
   background: #f5f8fa;
-}
-
-.stage-house {
-  position: relative;
-  width: min(380px, 70vw);
-  height: 280px;
-}
-
-.stage-roof {
-  position: absolute;
-  left: 52px;
-  top: 18px;
-  width: 276px;
-  height: 92px;
-  transform: skewX(-18deg);
-  border: 1px solid #8f4017;
-  background: #bf6130;
-}
-
-.stage-floor {
-  position: absolute;
-  left: 70px;
-  width: 240px;
-  height: 58px;
-  border: 1px solid #2f3a42;
-  background: #eee8dc;
-  box-shadow: inset 0 0 0 10px #ffffff;
-}
-
-.stage-floor-top {
-  top: 96px;
-}
-
-.stage-floor-mid {
-  top: 154px;
-}
-
-.stage-floor-base {
-  top: 212px;
+  color: #5f6c76;
+  font-weight: 700;
 }
 
 @media (max-width: 860px) {

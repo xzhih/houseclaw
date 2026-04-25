@@ -12,12 +12,7 @@ export function Preview3D({ project }: Preview3DProps) {
         <p>{project.name}</p>
       </div>
       <div className="preview-stage" aria-label="3D preview stage">
-        <div className="stage-house" aria-hidden="true">
-          <div className="stage-roof" />
-          <div className="stage-floor stage-floor-top" />
-          <div className="stage-floor stage-floor-mid" />
-          <div className="stage-floor stage-floor-base" />
-        </div>
+        3D preview shell
       </div>
     </section>
   );
