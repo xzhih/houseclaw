@@ -103,8 +103,8 @@ export function createSampleProject(): HouseProject {
   ];
 
   return {
-    id: "sample-project",
-    name: "Sample House",
+    id: "sample-house",
+    name: "三层别墅草案",
     unitSystem: "metric",
     defaultWallThickness: DEFAULT_WALL_THICKNESS,
     defaultStoreyHeight: DEFAULT_STOREY_HEIGHT,

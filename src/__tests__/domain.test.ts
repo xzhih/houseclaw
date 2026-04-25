@@ -6,6 +6,8 @@ describe("house domain model", () => {
   it("creates a three-storey sample project with deterministic elevations", () => {
     const project = createSampleProject();
 
+    expect(project.id).toBe("sample-house");
+    expect(project.name).toBe("三层别墅草案");
     expect(project.storeys.map((storey) => storey.id)).toEqual(["1f", "2f", "3f"]);
     expect(project.storeys.map((storey) => storey.elevation)).toEqual([0, 3.2, 6.4]);
     expect(project.storeys.every((storey) => storey.height === 3.2)).toBe(true);
