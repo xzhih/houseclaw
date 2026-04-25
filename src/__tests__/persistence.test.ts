@@ -53,6 +53,10 @@ describe("project persistence", () => {
     expect(() => importProjectJson("{}")).toThrow(/^Invalid project JSON:/);
   });
 
+  it("rejects invalid optional selected object values", () => {
+    expectInvalidProjectJson({ ...createSampleProject(), selectedObjectId: 42 });
+  });
+
   it("rejects invalid nested wall items", () => {
     expectInvalidProjectJson({ ...createSampleProject(), walls: [null] });
   });

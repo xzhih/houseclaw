@@ -172,6 +172,8 @@ function assertImportedProjectShape(value: unknown): asserts value is HouseProje
     assertPositiveNumberField(value, field);
   }
 
+  assertOptionalStringField(value, "selectedObjectId");
+
   if (value.unitSystem !== "metric") {
     invalidProjectJson("unitSystem must be metric.");
   }
