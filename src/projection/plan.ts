@@ -6,11 +6,11 @@ export function projectPlanView(project: HouseProject, storeyId: string): PlanPr
   const wallIds = new Set(walls.map((wall) => wall.id));
 
   return {
-    viewId: `plan-${storeyId}` as PlanProjection["viewId"],
+    viewId: `plan-${storeyId}`,
     wallSegments: walls.map((wall) => ({
       wallId: wall.id,
-      start: wall.start,
-      end: wall.end,
+      start: { ...wall.start },
+      end: { ...wall.end },
       thickness: wall.thickness,
     })),
     openings: project.openings

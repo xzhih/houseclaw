@@ -1,4 +1,6 @@
-import type { Point2, ViewId } from "../domain/types";
+import type { Point2 } from "../domain/types";
+
+export type PlanViewId = `plan-${string}`;
 
 export type PlanWallSegment = {
   wallId: string;
@@ -15,12 +17,13 @@ export type PlanOpeningGlyph = {
 };
 
 export type PlanProjection = {
-  viewId: ViewId;
+  viewId: PlanViewId;
   wallSegments: PlanWallSegment[];
   openings: PlanOpeningGlyph[];
 };
 
 export type ElevationSide = "front" | "back" | "left" | "right";
+export type ElevationViewId = `elevation-${ElevationSide}`;
 
 export type ElevationWallBand = {
   wallId: string;
@@ -41,7 +44,7 @@ export type ElevationOpeningRect = {
 };
 
 export type ElevationProjection = {
-  viewId: ViewId;
+  viewId: ElevationViewId;
   side: ElevationSide;
   wallBands: ElevationWallBand[];
   openings: ElevationOpeningRect[];
