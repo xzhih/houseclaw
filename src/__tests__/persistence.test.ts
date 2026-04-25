@@ -7,6 +7,10 @@ import {
 } from "../app/persistence";
 import { createSampleProject } from "../domain/sampleProject";
 
+function expectInvalidProjectJson(value: unknown): void {
+  expect(() => importProjectJson(JSON.stringify(value))).toThrow(/^Invalid project JSON:/);
+}
+
 describe("project persistence", () => {
   beforeEach(() => {
     const entries = new Map<string, string>();
@@ -47,6 +51,58 @@ describe("project persistence", () => {
   it("rejects null and missing project shapes", () => {
     expect(() => importProjectJson("null")).toThrow(/^Invalid project JSON:/);
     expect(() => importProjectJson("{}")).toThrow(/^Invalid project JSON:/);
+  });
+
+  it("rejects invalid nested wall items", () => {
+    expectInvalidProjectJson({ ...createSampleProject(), walls: [null] });
+  });
+
+  it("rejects invalid material kinds", () => {
+    const project = createSampleProject();
+
+    expectInvalidProjectJson({
+      ...project,
+      materials: project.materials.map((material, index) =>
+        index === 0 ? { ...material, kind: "paint" } : material,
+      ),
+    });
+  });
+
+  it("rejects invalid opening types", () => {
+    const project = createSampleProject();
+
+    expectInvalidProjectJson({ ...project, openings: [{ ...project.openings[0], type: "skylight" }] });
+  });
+
+  it("rejects non-positive top-level dimensions", () => {
+    expectInvalidProjectJson({ ...createSampleProject(), defaultWallThickness: -0.1 });
+  });
+
+  it("rejects non-positive storey heights", () => {
+    const project = createSampleProject();
+
+    expectInvalidProjectJson({
+      ...project,
+      storeys: project.storeys.map((storey, index) => (index === 0 ? { ...storey, height: -1 } : storey)),
+    });
+  });
+
+  it("rejects invalid wall exterior values", () => {
+    const project = createSampleProject();
+
+    expectInvalidProjectJson({ ...project, walls: [{ ...project.walls[0], exterior: "yes" }] });
+  });
+
+  it("wraps domain invariant errors from imported JSON", () => {
+    const project = createSampleProject();
+    const json = exportProjectJson({
+      ...project,
+      openings: [{ ...project.openings[0], wallId: "missing-wall" }],
+    });
+
+    expect(() => importProjectJson(json)).toThrow(
+      /Invalid project JSON:[\s\S]*Opening window-front-1f references missing wall missing-wall\./,
+    );
   });
 
   it("saves and loads project JSON from localStorage", () => {
