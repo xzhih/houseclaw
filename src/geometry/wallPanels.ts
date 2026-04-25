@@ -3,15 +3,21 @@ import type { Opening, Wall } from "../domain/types";
 import type { WallPanel } from "./types";
 
 function positivePanel(panel: WallPanel): WallPanel | undefined {
-  if (panel.width <= 0 || panel.height <= 0) return undefined;
+  if (![panel.x, panel.y, panel.width, panel.height].every(Number.isFinite)) {
+    return undefined;
+  }
 
-  return {
+  const roundedPanel = {
     ...panel,
     x: Number(panel.x.toFixed(4)),
     y: Number(panel.y.toFixed(4)),
     width: Number(panel.width.toFixed(4)),
     height: Number(panel.height.toFixed(4)),
   };
+
+  if (roundedPanel.width <= 0 || roundedPanel.height <= 0) return undefined;
+
+  return roundedPanel;
 }
 
 export function buildWallPanels(wall: Wall, openings: Opening[]): WallPanel[] {
