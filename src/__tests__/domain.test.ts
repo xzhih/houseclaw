@@ -22,4 +22,22 @@ describe("house domain model", () => {
     expect(frontWall!.thickness).toBe(0.24);
     expect(frontWall!.storeyId).toBe("1f");
   });
+
+  it("uses the planned sample material definitions", () => {
+    const project = createSampleProject();
+    const wallMaterial = project.materials.find((material) => material.id === "mat-white-render");
+    const frameMaterial = project.materials.find((material) => material.id === "mat-dark-frame");
+
+    expect(wallMaterial).toMatchObject({
+      name: "白色外墙涂料",
+      kind: "wall",
+      color: "#f2eee6",
+      repeat: { x: 2, y: 2 },
+    });
+    expect(frameMaterial).toMatchObject({
+      name: "深灰窗框",
+      kind: "frame",
+      color: "#263238",
+    });
+  });
 });

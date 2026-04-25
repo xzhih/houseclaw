@@ -10,15 +10,16 @@ export function createSampleProject(): HouseProject {
   const materials: Material[] = [
     {
       id: WALL_MATERIAL_ID,
-      name: "White Render",
+      name: "白色外墙涂料",
       kind: "wall",
-      color: "#f7f5ef",
+      color: "#f2eee6",
+      repeat: { x: 2, y: 2 },
     },
     {
       id: FRAME_MATERIAL_ID,
-      name: "Dark Frame",
+      name: "深灰窗框",
       kind: "frame",
-      color: "#1f2933",
+      color: "#263238",
     },
   ];
 
