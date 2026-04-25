@@ -18,4 +18,14 @@ describe("project reducer", () => {
 
     expect(project.openings.find((opening) => opening.id === "window-front-1f")!.sillHeight).toBe(1.1);
   });
+
+  it("propagates domain validation errors from opening edits", () => {
+    expect(() =>
+      projectReducer(createSampleProject(), {
+        type: "update-opening",
+        openingId: "window-front-1f",
+        patch: { sillHeight: 3 },
+      }),
+    ).toThrow("Opening window-front-1f exceeds wall wall-front-1f height.");
+  });
 });
