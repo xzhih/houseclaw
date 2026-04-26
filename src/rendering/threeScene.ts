@@ -50,7 +50,7 @@ function createRenderer(container: HTMLElement) {
   renderer.setSize(width, height, false);
   renderer.setClearColor(BACKGROUND_COLOR);
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.0;
+  renderer.toneMappingExposure = 1.15;
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.domElement.setAttribute("aria-hidden", "true");
@@ -541,12 +541,17 @@ export function mountHouseScene(
     bounds.maxZ - bounds.minZ,
     bounds.maxY,
   );
-  const shadowSpan = Math.max(buildingExtent, 12);
+  const shadowSpan = Math.max(buildingExtent * 2, 24);
 
-  const ambient = new THREE.HemisphereLight("#cfd9d2", "#3a4138", 0.55);
+  // Hemi stays low so it does not flood out the directional contrast.
+  const ambient = new THREE.HemisphereLight("#cfd9d2", "#37413a", 0.28);
 
-  const keyLight = new THREE.DirectionalLight("#fff4dc", 2.6);
-  keyLight.position.copy(buildingCenter).add(new THREE.Vector3(8, 14, 6));
+  // Key = afternoon sun from the south-west, ~40° altitude. Front facade
+  // (−Z normal) gets cosine ≈ 0.5; left wall (−X) ≈ 0.5; right wall (+X)
+  // sits in self-shadow. With the default orbit camera viewing from the
+  // south-east, the front-right corner reads as the dramatic edge.
+  const keyLight = new THREE.DirectionalLight("#fff1d4", 3.4);
+  keyLight.position.copy(buildingCenter).add(new THREE.Vector3(-7, 9, -7));
   keyLight.target.position.copy(buildingCenter);
   keyLight.castShadow = true;
   keyLight.shadow.mapSize.set(2048, 2048);
@@ -559,8 +564,10 @@ export function mountHouseScene(
   keyLight.shadow.bias = -0.0002;
   keyLight.shadow.normalBias = 0.02;
 
-  const fillLight = new THREE.DirectionalLight("#a9c4e0", 0.55);
-  fillLight.position.copy(buildingCenter).add(new THREE.Vector3(-9, 6, -10));
+  // Cool fill from the opposite quadrant (NE) at low intensity — keeps the
+  // shadowed wall from going completely flat without erasing the contrast.
+  const fillLight = new THREE.DirectionalLight("#9cb8d6", 0.4);
+  fillLight.position.copy(buildingCenter).add(new THREE.Vector3(8, 5, 8));
   fillLight.target.position.copy(buildingCenter);
 
   const meshes = [...wallMeshes, ...balconyMeshes, ...slabMeshes];
