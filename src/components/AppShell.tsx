@@ -421,8 +421,11 @@ export function AppShell() {
             <StoreyHeightStrip
               storeys={project.storeys}
               activeView={project.activeView}
+              currentStoreyId={activeStoreyId(project)}
               onSelectStorey={(storeyId) => {
-                setView(`plan-${storeyId}` as ViewId);
+                if (PLAN_STOREY_BY_VIEW[project.activeView]) {
+                  setView(`plan-${storeyId}` as ViewId);
+                }
                 select({ kind: "storey", id: storeyId });
               }}
             />

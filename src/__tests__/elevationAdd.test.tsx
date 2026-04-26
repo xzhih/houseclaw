@@ -72,4 +72,21 @@ describe("Add components from elevation views", () => {
       screen.getByRole("button", { name: /^选择开孔 door-wall-front-2f-/ }),
     ).toBeInTheDocument();
   });
+
+  it("clicking a storey pill in elevation switches the target storey without leaving the view", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: "正面" }));
+    await user.click(screen.getByRole("button", { name: "2F" }));
+
+    expect(screen.getByRole("button", { name: "正面" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "2F" })).toHaveAttribute("aria-pressed", "true");
+
+    await clickAddMenu("添加门", user);
+
+    expect(
+      screen.getByRole("button", { name: /^选择开孔 door-wall-front-2f-/ }),
+    ).toBeInTheDocument();
+  });
 });
