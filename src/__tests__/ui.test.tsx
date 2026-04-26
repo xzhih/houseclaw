@@ -162,8 +162,8 @@ describe("HouseClaw UI", () => {
   it("shows a reusable material catalog", () => {
     render(<App />);
 
-    expect(screen.getByText("白色外墙涂料")).toBeInTheDocument();
-    expect(screen.getByText("灰色石材")).toBeInTheDocument();
+    expect(screen.getByText("暖白外墙涂料")).toBeInTheDocument();
+    expect(screen.getByText("深灰混凝土")).toBeInTheDocument();
   });
 
   it("applies a wall material from the catalog after selecting a wall", async () => {
@@ -174,8 +174,8 @@ describe("HouseClaw UI", () => {
     wall.focus();
     await user.keyboard("{Enter}");
 
-    const whiteRender = screen.getByRole("button", { name: "白色外墙涂料" });
-    const grayStone = screen.getByRole("button", { name: "灰色石材" });
+    const whiteRender = screen.getByRole("button", { name: "暖白外墙涂料" });
+    const grayStone = screen.getByRole("button", { name: "深灰混凝土" });
 
     expect(whiteRender).toHaveAttribute("aria-pressed", "true");
     expect(grayStone).toHaveAttribute("aria-pressed", "false");

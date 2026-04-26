@@ -63,7 +63,7 @@ describe("PropertyPanel editing", () => {
     wall.focus();
     await user.keyboard("{Enter}");
 
-    const grayStone = screen.getByRole("button", { name: "灰色石材" });
+    const grayStone = screen.getByRole("button", { name: "深灰混凝土" });
     await user.click(grayStone);
 
     expect(grayStone).toHaveAttribute("aria-pressed", "true");

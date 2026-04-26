@@ -46,9 +46,9 @@ describe("house domain model", () => {
     const frameMaterial = project.materials.find((material) => material.id === "mat-dark-frame");
 
     expect(wallMaterial).toMatchObject({
-      name: "白色外墙涂料",
+      name: "暖白外墙涂料",
       kind: "wall",
-      color: "#f2eee6",
+      color: "#e6ddc6",
       repeat: { x: 2, y: 2 },
     });
     expect(frameMaterial).toMatchObject({
