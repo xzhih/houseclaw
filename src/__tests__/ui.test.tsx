@@ -19,8 +19,8 @@ describe("HouseClaw UI", () => {
     render(<App />);
 
     expect(screen.getByRole("button", { name: "2D" })).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getByText("墙")).toBeInTheDocument();
-    expect(screen.getByText("阳台")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "添加墙" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "添加阳台" })).toBeInTheDocument();
     expect(screen.getByLabelText("2D drawing surface")).toBeInTheDocument();
   });
 
@@ -230,16 +230,4 @@ describe("HouseClaw UI", () => {
     expect(screen.queryByRole("group", { name: "楼层高度" })).not.toBeInTheDocument();
   });
 
-  it("shows a wall-tool banner only while the wall tool is active in a plan view", async () => {
-    const user = userEvent.setup();
-    render(<App />);
-
-    expect(screen.queryByText("墙工具：点击两点画墙；按 Esc 取消")).not.toBeInTheDocument();
-
-    await user.click(screen.getByRole("button", { name: "墙" }));
-    expect(screen.getByText("墙工具：点击两点画墙；按 Esc 取消")).toBeInTheDocument();
-
-    await user.click(screen.getByRole("button", { name: "正面" }));
-    expect(screen.queryByText("墙工具：点击两点画墙；按 Esc 取消")).not.toBeInTheDocument();
-  });
 });

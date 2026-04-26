@@ -59,42 +59,34 @@ const TOOLS: { id: ToolId; label: string; icon: ReactNode }[] = [
       </svg>
     ),
   },
-  {
-    id: "material",
-    label: "材质",
-    icon: (
-      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-        <circle cx="12" cy="12" r="8" />
-        <circle cx="9" cy="9.5" r="1" fill="currentColor" stroke="none" />
-        <circle cx="14.5" cy="9" r="1" fill="currentColor" stroke="none" />
-        <circle cx="16" cy="13" r="1" fill="currentColor" stroke="none" />
-      </svg>
-    ),
-  },
 ];
 
 type ToolPaletteProps = {
   activeTool: ToolId;
-  onToolChange: (toolId: ToolId) => void;
+  onToolButtonClick: (toolId: ToolId) => void;
 };
 
-export function ToolPalette({ activeTool, onToolChange }: ToolPaletteProps) {
+export function ToolPalette({ activeTool, onToolButtonClick }: ToolPaletteProps) {
   return (
     <aside className="tool-palette" aria-label="2D tools">
-      {TOOLS.map((tool) => (
-        <button
-          key={tool.id}
-          type="button"
-          className="tool-button"
-          aria-label={tool.label}
-          aria-pressed={activeTool === tool.id}
-          title={tool.label}
-          onClick={() => onToolChange(tool.id)}
-        >
-          {tool.icon}
-          <span className="tool-button-label">{tool.label}</span>
-        </button>
-      ))}
+      {TOOLS.map((tool) => {
+        const isSelectTool = tool.id === "select";
+        const showLabel = isSelectTool ? tool.label : `添加${tool.label}`;
+        return (
+          <button
+            key={tool.id}
+            type="button"
+            className={isSelectTool ? "tool-button" : "tool-button tool-button-add"}
+            aria-label={showLabel}
+            aria-pressed={isSelectTool ? activeTool === "select" : undefined}
+            title={showLabel}
+            onClick={() => onToolButtonClick(tool.id)}
+          >
+            {tool.icon}
+            <span className="tool-button-label">{tool.label}</span>
+          </button>
+        );
+      })}
     </aside>
   );
 }

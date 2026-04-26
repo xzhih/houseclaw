@@ -61,8 +61,6 @@ type PropertyPanelProps = {
   onApplyWallMaterial: (wallId: string, materialId: string) => void;
   onProjectChange: (project: HouseProject) => void;
   onDeleteSelection: () => void;
-  activeMaterialId: string;
-  onActiveMaterialChange: (materialId: string) => void;
 };
 
 function tryMutate(fn: () => HouseProject): HouseProject | string {
@@ -89,8 +87,6 @@ export function PropertyPanel({
   onApplyWallMaterial,
   onProjectChange,
   onDeleteSelection,
-  activeMaterialId,
-  onActiveMaterialChange,
 }: PropertyPanelProps) {
   const selection = project.selection;
   const targetWall =
@@ -100,8 +96,6 @@ export function PropertyPanel({
 
   const isDeletable =
     selection?.kind === "wall" || selection?.kind === "opening" || selection?.kind === "balcony";
-
-  const materialBrushMode = project.activeTool === "material";
 
   return (
     <aside className="property-panel" aria-label="Properties">
@@ -130,41 +124,26 @@ export function PropertyPanel({
       <section className="material-catalog" aria-labelledby="material-catalog-heading">
         <h3 id="material-catalog-heading">材质库</h3>
         <p className="material-target">
-          {materialBrushMode
-            ? "材质刷子已激活：点击任意墙应用当前材质。"
-            : targetWall
-              ? `应用到：${targetWall.id}`
-              : "选择一面墙后应用材质。"}
+          {targetWall ? `应用到：${targetWall.id}` : "选择一面墙后应用材质。"}
         </p>
         <div className="material-list">
-          {wallMaterials.map((material) => {
-            const pressed = materialBrushMode
-              ? activeMaterialId === material.id
-              : targetWall?.materialId === material.id;
-            return (
-              <button
-                aria-pressed={pressed}
-                className="material-swatch"
-                disabled={!materialBrushMode && !targetWall}
-                key={material.id}
-                onClick={() => {
-                  if (materialBrushMode) {
-                    onActiveMaterialChange(material.id);
-                    return;
-                  }
-                  if (targetWall) onApplyWallMaterial(targetWall.id, material.id);
-                }}
-                type="button"
-              >
-                <span
-                  aria-hidden="true"
-                  className="material-swatch-color"
-                  style={{ backgroundColor: material.color }}
-                />
-                <span>{material.name}</span>
-              </button>
-            );
-          })}
+          {wallMaterials.map((material) => (
+            <button
+              aria-pressed={targetWall?.materialId === material.id}
+              className="material-swatch"
+              disabled={!targetWall}
+              key={material.id}
+              onClick={() => targetWall && onApplyWallMaterial(targetWall.id, material.id)}
+              type="button"
+            >
+              <span
+                aria-hidden="true"
+                className="material-swatch-color"
+                style={{ backgroundColor: material.color }}
+              />
+              <span>{material.name}</span>
+            </button>
+          ))}
         </div>
       </section>
     </aside>
