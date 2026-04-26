@@ -5,22 +5,12 @@ import type { FootprintQuad } from "./wallNetwork";
 
 const ROOF_PLACEHOLDER_THICKNESS = 0.2;
 
-const COORD_PRECISION = 1e6;
-
-function roundCoord(v: number): number {
-  return Math.round(v * COORD_PRECISION) / COORD_PRECISION;
-}
-
 function holeFromOpening(opening: { x: number; y: number; width: number; depth: number }): Point2[] {
-  const x1 = opening.x;
-  const y1 = opening.y;
-  const x2 = roundCoord(opening.x + opening.width);
-  const y2 = roundCoord(opening.y + opening.depth);
   return [
-    { x: x1, y: y1 },
-    { x: x2, y: y1 },
-    { x: x2, y: y2 },
-    { x: x1, y: y2 },
+    { x: opening.x, y: opening.y },
+    { x: opening.x + opening.width, y: opening.y },
+    { x: opening.x + opening.width, y: opening.y + opening.depth },
+    { x: opening.x, y: opening.y + opening.depth },
   ];
 }
 

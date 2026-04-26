@@ -67,12 +67,17 @@ describe("buildSlabGeometry", () => {
 
     expect(slab).toBeDefined();
     expect(slab!.hole).toBeDefined();
-    expect(slab!.hole!).toEqual([
+    expect(slab!.hole).toHaveLength(4);
+    const expected = [
       { x: 0.6, y: 5.0 },
       { x: 1.8, y: 5.0 },
       { x: 1.8, y: 7.5 },
       { x: 0.6, y: 7.5 },
-    ]);
+    ];
+    expected.forEach((point, i) => {
+      expect(slab!.hole![i].x).toBeCloseTo(point.x, 4);
+      expect(slab!.hole![i].y).toBeCloseTo(point.y, 4);
+    });
     expect(slab!.topY).toBeCloseTo(3.2, 4);
   });
 
