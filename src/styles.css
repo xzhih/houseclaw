@@ -524,6 +524,15 @@ select {
   stroke: none;
 }
 
+.plan-wall-ghost {
+  fill: none;
+  stroke: #6b7a82;
+  stroke-width: 1.2;
+  stroke-dasharray: 6 4;
+  opacity: 0.45;
+  pointer-events: none;
+}
+
 .plan-opening {
   stroke: #008577;
   stroke-linecap: butt;
@@ -542,6 +551,12 @@ select {
   fill: #f1ede5;
   stroke: #2f3a42;
   stroke-width: 2;
+  cursor: grab;
+}
+
+.elevation-wall.is-selected {
+  stroke: #1f6feb;
+  stroke-width: 2.5;
 }
 
 .elevation-opening {

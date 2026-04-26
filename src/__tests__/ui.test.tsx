@@ -236,4 +236,17 @@ describe("HouseClaw UI", () => {
     expect(screen.queryByRole("group", { name: "楼层" })).not.toBeInTheDocument();
   });
 
+  it("draws ghost wall outlines of the storey below in plan view", async () => {
+    const user = userEvent.setup();
+    const { container } = render(<App />);
+
+    // 1F has no storey below: no ghost lines.
+    await user.click(screen.getByRole("button", { name: "1F" }));
+    expect(container.querySelectorAll(".plan-wall-ghost")).toHaveLength(0);
+
+    // 2F should render ghost lines for 1F's walls.
+    await user.click(screen.getByRole("button", { name: "2F" }));
+    expect(container.querySelectorAll(".plan-wall-ghost").length).toBeGreaterThan(0);
+  });
+
 });

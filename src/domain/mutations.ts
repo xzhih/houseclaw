@@ -114,6 +114,109 @@ export function moveWall(project: HouseProject, wallId: string, start: Point2, e
   });
 }
 
+export function resizeStoreyExtent(
+  project: HouseProject,
+  storeyId: string,
+  axis: "x" | "y",
+  newSize: number,
+): HouseProject {
+  if (!Number.isFinite(newSize) || newSize <= 0) {
+    throw new Error(`Storey ${storeyId} ${axis} extent must be positive.`);
+  }
+
+  const storeyWalls = project.walls.filter((wall) => wall.storeyId === storeyId);
+  if (storeyWalls.length === 0) return project;
+
+  const coords = storeyWalls.flatMap((wall) =>
+    axis === "x" ? [wall.start.x, wall.end.x] : [wall.start.y, wall.end.y],
+  );
+  const minCoord = Math.min(...coords);
+  const maxCoord = Math.max(...coords);
+  const oldSize = maxCoord - minCoord;
+  if (oldSize <= 0) {
+    throw new Error(`Storey ${storeyId} has zero ${axis} extent and cannot be resized.`);
+  }
+
+  const factor = newSize / oldSize;
+  if (factor === 1) return project;
+
+  const scaleAlong = (value: number) => minCoord + (value - minCoord) * factor;
+
+  return assertValidProject({
+    ...project,
+    walls: project.walls.map((wall) => {
+      if (wall.storeyId !== storeyId) return wall;
+      if (axis === "x") {
+        return {
+          ...wall,
+          start: { x: scaleAlong(wall.start.x), y: wall.start.y },
+          end: { x: scaleAlong(wall.end.x), y: wall.end.y },
+        };
+      }
+      return {
+        ...wall,
+        start: { x: wall.start.x, y: scaleAlong(wall.start.y) },
+        end: { x: wall.end.x, y: scaleAlong(wall.end.y) },
+      };
+    }),
+    storeys: project.storeys.map((storey) => {
+      if (storey.id !== storeyId || !storey.stairOpening) return storey;
+      const opening = storey.stairOpening;
+      if (axis === "x") {
+        return {
+          ...storey,
+          stairOpening: {
+            ...opening,
+            x: scaleAlong(opening.x),
+            width: opening.width * factor,
+          },
+        };
+      }
+      return {
+        ...storey,
+        stairOpening: {
+          ...opening,
+          y: scaleAlong(opening.y),
+          depth: opening.depth * factor,
+        },
+      };
+    }),
+  });
+}
+
+export function translateStorey(
+  project: HouseProject,
+  storeyId: string,
+  dx: number,
+  dy: number,
+): HouseProject {
+  if (dx === 0 && dy === 0) return project;
+  return assertValidProject({
+    ...project,
+    walls: project.walls.map((wall) =>
+      wall.storeyId === storeyId
+        ? {
+            ...wall,
+            start: { x: wall.start.x + dx, y: wall.start.y + dy },
+            end: { x: wall.end.x + dx, y: wall.end.y + dy },
+          }
+        : wall,
+    ),
+    storeys: project.storeys.map((storey) =>
+      storey.id === storeyId && storey.stairOpening
+        ? {
+            ...storey,
+            stairOpening: {
+              ...storey.stairOpening,
+              x: storey.stairOpening.x + dx,
+              y: storey.stairOpening.y + dy,
+            },
+          }
+        : storey,
+    ),
+  });
+}
+
 export function removeWall(project: HouseProject, wallId: string): HouseProject {
   return assertValidProject({
     ...project,

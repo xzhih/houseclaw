@@ -30,6 +30,7 @@ function MmField({ label, value, step = 10, min, max, onCommit }: MmFieldProps) 
 }
 import {
   moveWall,
+  resizeStoreyExtent,
   updateBalcony,
   updateOpening,
   updateStorey,
@@ -240,11 +241,26 @@ function StoreyEditor({ project, id, onProjectChange }: EditorProps) {
   const apply = (patch: StoreyPatch) =>
     commit(onProjectChange, patch, (final) => updateStorey(project, id, final));
 
+  const storeyWalls = project.walls.filter((wall) => wall.storeyId === id);
+  const xs = storeyWalls.flatMap((wall) => [wall.start.x, wall.end.x]);
+  const ys = storeyWalls.flatMap((wall) => [wall.start.y, wall.end.y]);
+  const widthExtent = xs.length > 0 ? Math.max(...xs) - Math.min(...xs) : 0;
+  const depthExtent = ys.length > 0 ? Math.max(...ys) - Math.min(...ys) : 0;
+
+  const applyExtent = (axis: "x" | "y", newSize: number) =>
+    commit(onProjectChange, newSize, (final) => resizeStoreyExtent(project, id, axis, final));
+
   return (
     <section className="property-section" aria-labelledby="storey-heading">
       <h3 id="storey-heading">楼层 · {storey.label}</h3>
       <MmField label="层高" value={storey.height} min={2} onCommit={(height) => apply({ height })} />
       <MmField label="楼板厚度" value={storey.slabThickness} min={0.05} onCommit={(slabThickness) => apply({ slabThickness })} />
+      {widthExtent > 0 ? (
+        <MmField label="面宽" value={widthExtent} min={0.5} onCommit={(width) => applyExtent("x", width)} />
+      ) : null}
+      {depthExtent > 0 ? (
+        <MmField label="进深" value={depthExtent} min={0.5} onCommit={(depth) => applyExtent("y", depth)} />
+      ) : null}
     </section>
   );
 }
