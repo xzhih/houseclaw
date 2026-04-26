@@ -76,6 +76,16 @@ describe("buildStairGeometry — straight", () => {
     expect(first.sz).toBeCloseTo(rot.depth, 4);
   });
 
+  it("bottomEdge='-x': climb in +x direction (first tread at low-x edge)", () => {
+    const stair: Stair = { ...BASE_STAIR, bottomEdge: "-x", width: 5.0, depth: 1.2 };
+    const geom = buildStairGeometry(stair, STOREY, 0);
+    const first = geom.treads[0];
+    expect(first.cx).toBeCloseTo(0.27 / 2, 4);
+    expect(first.sx).toBeCloseTo(0.27, 4);
+    expect(first.cz).toBeCloseTo(stair.depth / 2, 4);
+    expect(first.sz).toBeCloseTo(stair.depth, 4);
+  });
+
   it("uses lowerStoreyTopY for vertical offset", () => {
     // 拿 lowerStoreyTopY=1.0 的非零起点；climb = 3.2 - 1.0 = 2.2
     const geom = buildStairGeometry(BASE_STAIR, STOREY, 1.0);
@@ -91,12 +101,71 @@ describe("buildStairGeometry — straight", () => {
   });
 });
 
-describe("buildStairGeometry — L (placeholder for T7)", () => {
-  it("returns empty arrays for L until T7 implements it", () => {
-    const stair: Stair = { ...BASE_STAIR, shape: "l", turn: "right" };
-    const geom = buildStairGeometry(stair, STOREY, 0);
-    expect(geom.treads).toEqual([]);
-    expect(geom.landings).toEqual([]);
+describe("buildStairGeometry — L", () => {
+  const STAIR: Stair = {
+    x: 0, y: 0, width: 5.0, depth: 5.0,
+    shape: "l", treadDepth: 0.27,
+    bottomEdge: "+y", turn: "right",
+    materialId: "mat-dark-frame",
+  };
+
+  it("emits nLow + nUp tread boxes + 1 landing", () => {
+    const geom = buildStairGeometry(STAIR, STOREY, 0);
+    // riserCount=19, treadCount=18, nLow=9, nUp=8
+    expect(geom.treads).toHaveLength(9 + 8);
+    expect(geom.landings).toHaveLength(1);
+  });
+
+  it("landing is square LW = 2.5, top at (nLow+1)*riserHeight", () => {
+    const geom = buildStairGeometry(STAIR, STOREY, 0);
+    const lw = 2.5;
+    const r = 3.2 / 19;
+    const landing = geom.landings[0];
+    expect(landing.sx).toBeCloseTo(lw, 4);
+    expect(landing.sz).toBeCloseTo(lw, 4);
+    expect(landing.cy + landing.sy / 2).toBeCloseTo(10 * r, 4);
+  });
+
+  it("turn='right' puts the lower flight on the -x (cross-low) half", () => {
+    const geom = buildStairGeometry(STAIR, STOREY, 0);
+    const lw = 2.5;
+    const lower0 = geom.treads[0];
+    expect(lower0.cx).toBeCloseTo(STAIR.x + lw / 2, 4);
+    expect(lower0.sx).toBeCloseTo(lw, 4);
+    expect(lower0.sz).toBeCloseTo(0.27, 4);
+  });
+
+  it("turn='left' mirrors the lower flight to the +x (cross-high) half", () => {
+    const geom = buildStairGeometry({ ...STAIR, turn: "left" }, STOREY, 0);
+    const lw = 2.5;
+    const lower0 = geom.treads[0];
+    expect(lower0.cx).toBeCloseTo(STAIR.x + STAIR.width - lw / 2, 4);
+  });
+
+  it("upper flight (turn='right') runs in +x from cross=LW", () => {
+    const geom = buildStairGeometry(STAIR, STOREY, 0);
+    const lw = 2.5;
+    const td = 0.27;
+    const upper0 = geom.treads[9];  // first upper-flight tread (after 9 lower)
+    expect(upper0.cx).toBeCloseTo(STAIR.x + lw + 0.5 * td, 4);
+    expect(upper0.sx).toBeCloseTo(td, 4);   // upper flight's "run" along cross axis = treadDepth wide
+    expect(upper0.sz).toBeCloseTo(lw, 4);   // upper flight's "width" perpendicular = LW
+  });
+
+  it("upper flight last tread top y = treadCount * riserHeight (one riser below upper floor)", () => {
+    const geom = buildStairGeometry(STAIR, STOREY, 0);
+    const r = 3.2 / 19;
+    const top = geom.treads[geom.treads.length - 1];
+    expect(top.cy + top.sy / 2).toBeCloseTo(18 * r, 4);
+  });
+
+  it("turn='left' upper flight runs in -x direction", () => {
+    const geom = buildStairGeometry({ ...STAIR, turn: "left" }, STOREY, 0);
+    const lw = 2.5;
+    const td = 0.27;
+    const upper0 = geom.treads[9];
+    // For turn=left, upper starts at cross=crossLength-LW=2.5, climbs in -x
+    expect(upper0.cx).toBeCloseTo(STAIR.x + (STAIR.width - lw) - 0.5 * td, 4);
   });
 });
 
