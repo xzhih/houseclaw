@@ -129,6 +129,7 @@ export function Preview3D({ project }: Preview3DProps) {
         </button>
       </div>
 
+      {cameraMode === "orbit" && (
       <div className="lighting-controls" aria-hidden={mountFailed}>
         {lightingPanelOpen && (
           <div className="lighting-panel" role="group" aria-label="光照调整">
@@ -198,7 +199,6 @@ export function Preview3D({ project }: Preview3DProps) {
         <button
           type="button"
           className="lighting-toggle"
-          aria-label="光照"
           aria-expanded={lightingPanelOpen}
           onClick={() => setLightingPanelOpen((open) => !open)}
         >
@@ -206,14 +206,16 @@ export function Preview3D({ project }: Preview3DProps) {
             <circle cx="12" cy="12" r="4" />
             <path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.93 4.93l2.12 2.12M16.95 16.95l2.12 2.12M4.93 19.07l2.12-2.12M16.95 7.05l2.12-2.12" />
           </svg>
+          <span>光照</span>
         </button>
       </div>
+      )}
 
       {cameraMode === "orbit" && (
-        <div className="preview-overlay" aria-hidden="true">
+        <div className="preview-overlay">
           <div className="preview-badge">
             <p className="preview-name">{project.name}</p>
-            <p className="preview-hint">拖拽旋转 · 滚轮缩放</p>
+            <p className="preview-hint" aria-hidden="true">拖拽旋转 · 滚轮缩放</p>
           </div>
         </div>
       )}
