@@ -5,6 +5,15 @@ import { exportProjectJson } from "../app/persistence";
 import App from "../App";
 import { createSampleProject } from "../domain/sampleProject";
 
+function restoreUrlProperty(name: "createObjectURL" | "revokeObjectURL", descriptor?: PropertyDescriptor): void {
+  if (descriptor) {
+    Object.defineProperty(URL, name, descriptor);
+    return;
+  }
+
+  delete (URL as unknown as Record<string, unknown>)[name];
+}
+
 describe("HouseClaw UI", () => {
   it("shows 2d plan tools by default", () => {
     render(<App />);
@@ -27,8 +36,8 @@ describe("HouseClaw UI", () => {
     const createObjectURL = vi.fn(() => "blob:houseclaw-project");
     const revokeObjectURL = vi.fn();
     const anchorClick = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
-    const originalCreateObjectURL = URL.createObjectURL;
-    const originalRevokeObjectURL = URL.revokeObjectURL;
+    const createObjectURLDescriptor = Object.getOwnPropertyDescriptor(URL, "createObjectURL");
+    const revokeObjectURLDescriptor = Object.getOwnPropertyDescriptor(URL, "revokeObjectURL");
     Object.defineProperty(URL, "createObjectURL", { configurable: true, value: createObjectURL });
     Object.defineProperty(URL, "revokeObjectURL", { configurable: true, value: revokeObjectURL });
 
@@ -41,8 +50,8 @@ describe("HouseClaw UI", () => {
       expect(anchorClick).toHaveBeenCalledTimes(1);
       expect(revokeObjectURL).toHaveBeenCalledWith("blob:houseclaw-project");
     } finally {
-      Object.defineProperty(URL, "createObjectURL", { configurable: true, value: originalCreateObjectURL });
-      Object.defineProperty(URL, "revokeObjectURL", { configurable: true, value: originalRevokeObjectURL });
+      restoreUrlProperty("createObjectURL", createObjectURLDescriptor);
+      restoreUrlProperty("revokeObjectURL", revokeObjectURLDescriptor);
       anchorClick.mockRestore();
     }
   });
