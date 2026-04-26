@@ -37,4 +37,34 @@ describe("project reducer", () => {
 
     expect(project.selection).toEqual({ kind: "wall", id: "wall-front-1f" });
   });
+
+  it("updates a wall thickness through update-wall", () => {
+    const project = projectReducer(createSampleProject(), {
+      type: "update-wall",
+      wallId: "wall-front-1f",
+      patch: { thickness: 0.3 },
+    });
+
+    expect(project.walls.find((wall) => wall.id === "wall-front-1f")!.thickness).toBe(0.3);
+  });
+
+  it("updates a balcony depth through update-balcony", () => {
+    const project = projectReducer(createSampleProject(), {
+      type: "update-balcony",
+      balconyId: "balcony-front-2f",
+      patch: { depth: 1.5 },
+    });
+
+    expect(project.balconies.find((balcony) => balcony.id === "balcony-front-2f")!.depth).toBe(1.5);
+  });
+
+  it("updates a storey height through update-storey and renormalizes elevations", () => {
+    const project = projectReducer(createSampleProject(), {
+      type: "update-storey",
+      storeyId: "1f",
+      patch: { height: 3.5 },
+    });
+
+    expect(project.storeys.map((storey) => storey.elevation)).toEqual([0, 3.5, 6.7]);
+  });
 });
