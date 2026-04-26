@@ -136,3 +136,39 @@ export function removeBalcony(project: HouseProject, balconyId: string): HousePr
     balconies: project.balconies.filter((balcony) => balcony.id !== balconyId),
   });
 }
+
+export function removeStorey(project: HouseProject, storeyId: string): HouseProject {
+  if (project.storeys.length <= 1) {
+    throw new Error("Cannot remove the last storey.");
+  }
+  if (!project.storeys.some((storey) => storey.id === storeyId)) {
+    return project;
+  }
+
+  const remainingWalls = project.walls.filter((wall) => wall.storeyId !== storeyId);
+  const remainingWallIds = new Set(remainingWalls.map((wall) => wall.id));
+  const remainingOpenings = project.openings.filter((opening) =>
+    remainingWallIds.has(opening.wallId),
+  );
+  const remainingBalconies = project.balconies.filter(
+    (balcony) =>
+      balcony.storeyId !== storeyId && remainingWallIds.has(balcony.attachedWallId),
+  );
+
+  let nextElevation = 0;
+  const remainingStoreys = project.storeys
+    .filter((storey) => storey.id !== storeyId)
+    .map((storey) => {
+      const next: Storey = { ...storey, elevation: nextElevation };
+      nextElevation = storeyTop(nextElevation, next.height);
+      return next;
+    });
+
+  return assertValidProject({
+    ...project,
+    storeys: remainingStoreys,
+    walls: remainingWalls,
+    openings: remainingOpenings,
+    balconies: remainingBalconies,
+  });
+}

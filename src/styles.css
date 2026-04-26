@@ -286,6 +286,68 @@ select {
   transform: translateY(-50%) translateX(0);
 }
 
+/* --- Add menu --- */
+.add-menu-anchor {
+  position: relative;
+  display: block;
+}
+
+.add-menu {
+  position: absolute;
+  left: calc(100% + 10px);
+  top: 0;
+  min-width: 132px;
+  padding: 4px;
+  background: var(--panel-strong);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-md);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  z-index: 30;
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.35);
+}
+
+.add-menu-item {
+  width: 100%;
+  padding: 7px 12px;
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 0.83rem;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+
+.add-menu-item:hover,
+.add-menu-item:focus-visible {
+  background: var(--accent-bg);
+  outline: none;
+}
+
+/* --- Undo/Redo icon buttons --- */
+.icon-action {
+  width: 34px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.icon-action:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.icon-action:disabled:hover {
+  border-color: var(--panel-border);
+  background: var(--panel);
+}
+
 /* --- Bottom overlay (storey + view tabs) --- */
 .bottom-overlay {
   position: absolute;
@@ -499,6 +561,14 @@ select {
   stroke: #c75300;
   stroke-width: 2.5;
   cursor: grab;
+}
+
+.snap-indicator {
+  fill: none;
+  stroke: #2563eb;
+  stroke-width: 2.5;
+  pointer-events: none;
+  filter: drop-shadow(0 0 4px rgba(37, 99, 235, 0.6));
 }
 
 .wall-endpoint-handle:hover,

@@ -393,6 +393,7 @@ function renderPlan(
   onSelect: DrawingSurface2DProps["onSelect"],
   activeTool: ToolId,
   footprints: Map<string, WallFootprint>,
+  snapHit: Point2D | null,
   handlers?: PlanDragHandlers,
 ) {
   const { project: projectPoint } = createPointMapping(planBounds(projection));
@@ -526,6 +527,15 @@ function renderPlan(
             }
           />
         </>
+      ) : null}
+      {snapHit ? (
+        <circle
+          className="snap-indicator"
+          cx={projectPoint(snapHit).x}
+          cy={projectPoint(snapHit).y}
+          r={9}
+          aria-hidden="true"
+        />
       ) : null}
     </>
   );
@@ -693,6 +703,7 @@ export function DrawingSurface2D({
   const panLastPos = useRef({ x: 0, y: 0 });
   const panPointerId = useRef<number | null>(null);
   const [dragState, setDragState] = useState<DragState | undefined>(undefined);
+  const [activeSnap, setActiveSnap] = useState<Point2D | null>(null);
 
   useEffect(() => {
     setViewport(DEFAULT_VIEWPORT);
@@ -1037,16 +1048,20 @@ export function DrawingSurface2D({
 
           let finalDx: number;
           let finalDy: number;
+          let snapHit: Point2D | null = null;
           if (snapStart && distStart <= distEnd) {
             finalDx = snapStart.x - state.origStart.x;
             finalDy = snapStart.y - state.origStart.y;
+            snapHit = snapStart;
           } else if (snapEnd) {
             finalDx = snapEnd.x - state.origEnd.x;
             finalDy = snapEnd.y - state.origEnd.y;
+            snapHit = snapEnd;
           } else {
             finalDx = snapToGrid(dx);
             finalDy = snapToGrid(dy);
           }
+          setActiveSnap(snapHit);
 
           const newStart = roundPointToMm({ x: state.origStart.x + finalDx, y: state.origStart.y + finalDy });
           const newEnd = roundPointToMm({ x: state.origEnd.x + finalDx, y: state.origEnd.y + finalDy });
@@ -1056,6 +1071,8 @@ export function DrawingSurface2D({
         case "wall-endpoint": {
           const others = otherWallSegments(state.wallId);
           const candidate = { x: state.origPoint.x + dx, y: state.origPoint.y + dy };
+          const endpointSnap = snapToEndpoint(candidate, others, PLAN_ENDPOINT_THRESHOLD);
+          setActiveSnap(endpointSnap ?? null);
           const newPt = roundPointToMm(
             snapPlanPoint(candidate, others, {
               gridSize: PLAN_GRID_SIZE,
@@ -1218,6 +1235,7 @@ export function DrawingSurface2D({
       const wasMoved = dragState.moved;
       const finished = dragState;
       setDragState(undefined);
+      setActiveSnap(null);
       if (svgRef.current?.hasPointerCapture(event.pointerId)) {
         svgRef.current.releasePointerCapture(event.pointerId);
       }
@@ -1288,6 +1306,7 @@ export function DrawingSurface2D({
               onSelect,
               project.activeTool,
               planFootprints,
+              activeSnap,
               planDragHandlers,
             )
           : elevationProjection
