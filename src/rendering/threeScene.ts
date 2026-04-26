@@ -23,7 +23,7 @@ export const DEFAULT_LIGHTING: LightingParams = {
   exposure: 1.0,
   hemiIntensity: 0.7,
   keyIntensity: 1.5,
-  fillIntensity: 1.3,
+  fillIntensity: 0.6,
   sunAzimuthDeg: 200,
   sunAltitudeDeg: 36,
 };
@@ -596,12 +596,10 @@ export function mountHouseScene(
   keyLight.shadow.bias = -0.0002;
   keyLight.shadow.normalBias = 0.02;
 
-  // Fill always opposes the sun in azimuth, sits at modest altitude.
-  const fillLight = new THREE.DirectionalLight("#aac6dc", initialLighting.fillIntensity);
-  fillLight.position
-    .copy(buildingCenter)
-    .add(sunOffsetFrom((initialLighting.sunAzimuthDeg + 180) % 360, 25, 12));
-  fillLight.target.position.copy(buildingCenter);
+  // Fill is omnidirectional (AmbientLight) so interior walls and
+  // ceilings receive the same lift regardless of orientation. Slight
+  // cool tint keeps the fresh palette consistent.
+  const fillLight = new THREE.AmbientLight("#e8edf0", initialLighting.fillIntensity);
 
   renderer.toneMappingExposure = initialLighting.exposure;
 
@@ -619,7 +617,6 @@ export function mountHouseScene(
     keyLight,
     keyLight.target,
     fillLight,
-    fillLight.target,
     ground,
     grid,
     ...meshes,
@@ -692,9 +689,6 @@ export function mountHouseScene(
       .copy(buildingCenter)
       .add(sunOffsetFrom(params.sunAzimuthDeg, params.sunAltitudeDeg, 14));
     fillLight.intensity = params.fillIntensity;
-    fillLight.position
-      .copy(buildingCenter)
-      .add(sunOffsetFrom((params.sunAzimuthDeg + 180) % 360, 25, 12));
   };
 
   return {

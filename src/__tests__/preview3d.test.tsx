@@ -12,7 +12,7 @@ vi.mock("../rendering/threeScene", () => ({
     exposure: 1.0,
     hemiIntensity: 0.7,
     keyIntensity: 1.5,
-    fillIntensity: 1.3,
+    fillIntensity: 0.6,
     sunAzimuthDeg: 200,
     sunAltitudeDeg: 36,
   },
