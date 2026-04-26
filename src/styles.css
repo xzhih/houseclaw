@@ -367,6 +367,29 @@ select {
   z-index: 10;
 }
 
+.overhead-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-md);
+  color: var(--text);
+  font-size: 0.82rem;
+  cursor: pointer;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  transition:
+    border-color 0.15s,
+    background 0.15s;
+}
+
+.overhead-button:hover {
+  border-color: var(--panel-border-hover);
+  background: var(--panel-strong);
+}
+
 .view-tabs {
   display: inline-flex;
   flex-wrap: wrap;

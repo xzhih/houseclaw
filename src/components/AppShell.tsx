@@ -98,7 +98,10 @@ function historyReducer(state: HistoryState, action: HistoryAction): HistoryStat
 
 const roundToMm = (value: number) => Math.round(value * 1000) / 1000;
 
-function activeStoreyId(project: HouseProject): string | undefined {
+function activeStoreyId(
+  project: HouseProject,
+  fallbackStoreyId?: string,
+): string | undefined {
   const planStorey = PLAN_STOREY_BY_VIEW[project.activeView];
   if (planStorey) return planStorey;
 
@@ -115,7 +118,9 @@ function activeStoreyId(project: HouseProject): string | undefined {
     return project.balconies.find((entry) => entry.id === sel.id)?.storeyId;
   }
 
-  if (ELEVATION_SIDE_BY_VIEW[project.activeView]) return project.storeys[0]?.id;
+  if (ELEVATION_SIDE_BY_VIEW[project.activeView]) {
+    return fallbackStoreyId ?? project.storeys[0]?.id;
+  }
   return undefined;
 }
 
@@ -166,6 +171,14 @@ export function AppShell() {
 
   const [importError, setImportError] = useState<string | undefined>();
   const [addError, setAddError] = useState<string | undefined>();
+  const [lastPlanStorey, setLastPlanStorey] = useState<string>(
+    () => PLAN_STOREY_BY_VIEW[project.activeView] ?? project.storeys[0]?.id ?? "1f",
+  );
+
+  useEffect(() => {
+    const planStorey = PLAN_STOREY_BY_VIEW[project.activeView];
+    if (planStorey) setLastPlanStorey(planStorey);
+  }, [project.activeView]);
 
   const dispatch = (action: ProjectAction) => dispatchHistory(action);
   const undo = () => dispatchHistory({ type: "undo" });
@@ -249,7 +262,7 @@ export function AppShell() {
 
   const handleAddComponent = (toolId: ToolId) => {
     setAddError(undefined);
-    const storeyId = activeStoreyId(project);
+    const storeyId = activeStoreyId(project, lastPlanStorey);
     if (!storeyId) {
       setAddError("请先选择一个楼层视图后再添加组件。");
       return;
@@ -418,17 +431,30 @@ export function AppShell() {
           />
 
           <div className="storey-overlay">
-            <StoreyHeightStrip
-              storeys={project.storeys}
-              activeView={project.activeView}
-              currentStoreyId={activeStoreyId(project)}
-              onSelectStorey={(storeyId) => {
-                if (PLAN_STOREY_BY_VIEW[project.activeView]) {
+            {PLAN_STOREY_BY_VIEW[project.activeView] ? (
+              <StoreyHeightStrip
+                storeys={project.storeys}
+                activeView={project.activeView}
+                currentStoreyId={activeStoreyId(project, lastPlanStorey)}
+                onSelectStorey={(storeyId) => {
                   setView(`plan-${storeyId}` as ViewId);
-                }
-                select({ kind: "storey", id: storeyId });
-              }}
-            />
+                  select({ kind: "storey", id: storeyId });
+                }}
+              />
+            ) : (
+              <button
+                type="button"
+                className="overhead-button"
+                onClick={() => setView(`plan-${lastPlanStorey}` as ViewId)}
+                aria-label="俯视"
+              >
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <rect x="5" y="5" width="14" height="14" rx="1" />
+                  <path d="M5 12h14M12 5v14" />
+                </svg>
+                俯视
+              </button>
+            )}
           </div>
 
           <div className="bottom-overlay">
