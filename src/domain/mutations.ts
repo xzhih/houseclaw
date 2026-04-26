@@ -1,11 +1,12 @@
 import { storeyTop } from "./measurements";
 import { assertValidProject } from "./constraints";
-import type { Balcony, HouseProject, Opening, Point2, Storey, Wall } from "./types";
+import type { Balcony, HouseProject, Opening, Point2, Stair, Storey, Wall } from "./types";
 
 export type OpeningPatch = Partial<Omit<Opening, "id" | "wallId">>;
 export type WallPatch = Partial<Omit<Wall, "id" | "storeyId" | "start" | "end">>;
 export type BalconyPatch = Partial<Omit<Balcony, "id" | "storeyId" | "attachedWallId">>;
 export type StoreyPatch = Partial<Omit<Storey, "id" | "elevation">>;
+export type StairPatch = Partial<Omit<Stair, never>>;
 
 type UnsafeOpeningPatch = OpeningPatch & Partial<Pick<Opening, "id" | "wallId">>;
 type UnsafeWallPatch = WallPatch & Partial<Pick<Wall, "id" | "storeyId" | "start" | "end">>;
@@ -170,5 +171,36 @@ export function removeStorey(project: HouseProject, storeyId: string): HouseProj
     walls: remainingWalls,
     openings: remainingOpenings,
     balconies: remainingBalconies,
+  });
+}
+
+export function addStair(project: HouseProject, storeyId: string, stair: Stair): HouseProject {
+  return assertValidProject({
+    ...project,
+    storeys: project.storeys.map((storey) =>
+      storey.id === storeyId ? { ...storey, stair } : storey,
+    ),
+  });
+}
+
+export function updateStair(project: HouseProject, storeyId: string, patch: StairPatch): HouseProject {
+  return assertValidProject({
+    ...project,
+    storeys: project.storeys.map((storey) => {
+      if (storey.id !== storeyId) return storey;
+      if (!storey.stair) return storey;
+      return { ...storey, stair: { ...storey.stair, ...patch } };
+    }),
+  });
+}
+
+export function removeStair(project: HouseProject, storeyId: string): HouseProject {
+  return assertValidProject({
+    ...project,
+    storeys: project.storeys.map((storey) => {
+      if (storey.id !== storeyId) return storey;
+      const { stair: _ignored, ...rest } = storey;
+      return rest as Storey;
+    }),
   });
 }
