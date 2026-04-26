@@ -81,6 +81,8 @@ export function buildExteriorRing(
   const ring: Point2[] = [];
   const visited = new Set<string>();
 
+  const startSegmentKey = `${start.wallId}|${start.startKey}`;
+
   let current = start;
   while (true) {
     const segmentKey = `${current.wallId}|${current.startKey}`;
@@ -99,7 +101,9 @@ export function buildExteriorRing(
     const next = pickRightmost(choices, current.wallId, incomingReverse);
     if (!next) return undefined;
 
-    if (next === start) {
+    // Use key-based closure check rather than object identity, so the
+    // termination is stable regardless of how `start` was obtained.
+    if (`${next.wallId}|${next.startKey}` === startSegmentKey) {
       break;
     }
 

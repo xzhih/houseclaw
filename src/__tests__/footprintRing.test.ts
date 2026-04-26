@@ -68,7 +68,18 @@ describe("buildExteriorRing", () => {
     const ring = buildExteriorRing(walls, indexFootprints(walls));
 
     expect(ring).toBeDefined();
-    expect(ring!).toHaveLength(6);
+    // The outer ring walks CCW along the mitered exterior boundary.
+    // At the re-entrant junction (world 4,4) the miter intersection lands at
+    // (4.12, 4.12) — inside the notch — rather than (3.88, 4.12), because
+    // buildWallNetwork computes the miter of the two outer faces there.
+    expectClosePolygon(ring!, [
+      { x: -0.12, y: -0.12 },
+      { x: 8.12, y: -0.12 },
+      { x: 8.12, y: 4.12 },
+      { x: 4.12, y: 4.12 },
+      { x: 4.12, y: 8.12 },
+      { x: -0.12, y: 8.12 },
+    ]);
   });
 
   it("ignores interior walls", () => {
