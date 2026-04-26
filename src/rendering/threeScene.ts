@@ -61,9 +61,9 @@ type SceneBounds = {
   maxY: number;
 };
 
-const FALLBACK_WALL_COLOR = "#d8d2c4";
-const GROUND_COLOR = "#9c9a93";
-const BACKGROUND_COLOR = "#c5cccf";
+const FALLBACK_WALL_COLOR = "#dedbd2";
+const GROUND_COLOR = "#a3a8a4";
+const BACKGROUND_COLOR = "#d9e1e4";
 
 function requireWebGL() {
   if (!("WebGLRenderingContext" in globalThis)) {
@@ -578,9 +578,9 @@ export function mountHouseScene(
 
   const initialLighting: LightingParams = options?.lighting ?? DEFAULT_LIGHTING;
 
-  const ambient = new THREE.HemisphereLight("#cfd9d2", "#37413a", initialLighting.hemiIntensity);
+  const ambient = new THREE.HemisphereLight("#d8e3eb", "#3c4348", initialLighting.hemiIntensity);
 
-  const keyLight = new THREE.DirectionalLight("#fff1d4", initialLighting.keyIntensity);
+  const keyLight = new THREE.DirectionalLight("#fdfcff", initialLighting.keyIntensity);
   keyLight.position
     .copy(buildingCenter)
     .add(sunOffsetFrom(initialLighting.sunAzimuthDeg, initialLighting.sunAltitudeDeg, 14));
@@ -597,7 +597,7 @@ export function mountHouseScene(
   keyLight.shadow.normalBias = 0.02;
 
   // Fill always opposes the sun in azimuth, sits at modest altitude.
-  const fillLight = new THREE.DirectionalLight("#9cb8d6", initialLighting.fillIntensity);
+  const fillLight = new THREE.DirectionalLight("#aac6dc", initialLighting.fillIntensity);
   fillLight.position
     .copy(buildingCenter)
     .add(sunOffsetFrom((initialLighting.sunAzimuthDeg + 180) % 360, 25, 12));

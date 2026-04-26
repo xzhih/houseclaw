@@ -3,18 +3,18 @@ import type { Material } from "../domain/types";
 export const materialCatalog: readonly Material[] = [
   {
     id: "mat-white-render",
-    name: "暖白外墙涂料",
+    name: "外墙涂料",
     kind: "wall",
-    // Desaturated warm white — neutral cream, not yellow-cream.
-    color: "#d8d2c4",
+    // Eggshell white with a faint cool tint — fresh, not yellow.
+    color: "#dedbd2",
     repeat: { x: 2, y: 2 },
   },
   {
     id: "mat-gray-stone",
-    name: "深灰混凝土",
+    name: "中性混凝土",
     kind: "wall",
-    // Slightly cooler dark gray, less brown saturation.
-    color: "#6c6c69",
+    // Cooler neutral gray for slabs / roof / balcony.
+    color: "#6e7173",
     repeat: { x: 1.5, y: 1.5 },
   },
   {
