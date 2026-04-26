@@ -3,6 +3,7 @@ import { wallLength } from "../domain/measurements";
 import type { HouseProject, Wall } from "../domain/types";
 import { buildHouseGeometry } from "../geometry/houseGeometry";
 import type { BalconyGeometry, HouseGeometry, WallGeometry, WallPanel } from "../geometry/types";
+import { slicePanelFootprint } from "../geometry/wallNetwork";
 
 type MountedScene = {
   dispose: () => void;
@@ -111,7 +112,145 @@ function createCamera(bounds: SceneBounds, aspect: number) {
   camera.position.copy(center).addScaledVector(direction, distance);
   camera.lookAt(center);
 
-  return camera;
+  return { camera, center, distance };
+}
+
+type OrbitControls = {
+  dispose: () => void;
+};
+
+function attachOrbitControls(
+  renderer: THREE.WebGLRenderer,
+  camera: THREE.PerspectiveCamera,
+  scene: THREE.Scene,
+  center: THREE.Vector3,
+  initialDistance: number,
+  container: HTMLElement,
+): OrbitControls {
+  const canvas = renderer.domElement;
+  const offset = new THREE.Vector3().subVectors(camera.position, center);
+  let distance = offset.length();
+  let yaw = Math.atan2(offset.x, offset.z);
+  let pitch = Math.asin(Math.max(-1, Math.min(1, offset.y / distance)));
+
+  let targetYaw = yaw;
+  let targetPitch = pitch;
+  let targetDistance = distance;
+  let velYaw = 0;
+  let velPitch = 0;
+
+  const minPitch = THREE.MathUtils.degToRad(-10);
+  const maxPitch = THREE.MathUtils.degToRad(82);
+  const minDistance = Math.max(initialDistance * 0.35, 1.2);
+  const maxDistance = initialDistance * 4.5;
+  const damping = 0.16;
+  const friction = 0.9;
+  const sensitivity = 0.0055;
+
+  let dragging = false;
+  let activePointerId: number | null = null;
+  let lastX = 0;
+  let lastY = 0;
+
+  const onPointerDown = (event: PointerEvent) => {
+    if (event.pointerType === "mouse" && event.button !== 0) return;
+    dragging = true;
+    activePointerId = event.pointerId;
+    canvas.setPointerCapture(event.pointerId);
+    lastX = event.clientX;
+    lastY = event.clientY;
+    velYaw = 0;
+    velPitch = 0;
+  };
+
+  const onPointerMove = (event: PointerEvent) => {
+    if (!dragging || event.pointerId !== activePointerId) return;
+    const dx = event.clientX - lastX;
+    const dy = event.clientY - lastY;
+    lastX = event.clientX;
+    lastY = event.clientY;
+    const dyaw = -dx * sensitivity;
+    const dpitch = dy * sensitivity;
+    targetYaw += dyaw;
+    targetPitch = Math.max(minPitch, Math.min(maxPitch, targetPitch + dpitch));
+    velYaw = dyaw;
+    velPitch = dpitch;
+  };
+
+  const onPointerUp = (event: PointerEvent) => {
+    if (event.pointerId !== activePointerId) return;
+    dragging = false;
+    activePointerId = null;
+    if (canvas.hasPointerCapture(event.pointerId)) {
+      canvas.releasePointerCapture(event.pointerId);
+    }
+  };
+
+  const onWheel = (event: WheelEvent) => {
+    event.preventDefault();
+    const factor = Math.exp(event.deltaY * 0.0012);
+    targetDistance = Math.max(minDistance, Math.min(maxDistance, targetDistance * factor));
+  };
+
+  canvas.addEventListener("pointerdown", onPointerDown);
+  canvas.addEventListener("pointermove", onPointerMove);
+  canvas.addEventListener("pointerup", onPointerUp);
+  canvas.addEventListener("pointercancel", onPointerUp);
+  canvas.addEventListener("wheel", onWheel, { passive: false });
+  canvas.style.touchAction = "none";
+  canvas.style.cursor = "grab";
+
+  let rafId = 0;
+  const tick = () => {
+    if (!dragging && (Math.abs(velYaw) > 1e-5 || Math.abs(velPitch) > 1e-5)) {
+      targetYaw += velYaw;
+      targetPitch = Math.max(minPitch, Math.min(maxPitch, targetPitch + velPitch));
+      velYaw *= friction;
+      velPitch *= friction;
+    }
+    yaw += (targetYaw - yaw) * damping;
+    pitch += (targetPitch - pitch) * damping;
+    distance += (targetDistance - distance) * damping;
+
+    const cosP = Math.cos(pitch);
+    camera.position.set(
+      center.x + distance * cosP * Math.sin(yaw),
+      center.y + distance * Math.sin(pitch),
+      center.z + distance * cosP * Math.cos(yaw),
+    );
+    camera.lookAt(center);
+    renderer.render(scene, camera);
+
+    rafId = requestAnimationFrame(tick);
+  };
+  rafId = requestAnimationFrame(tick);
+
+  const resize = () => {
+    const rect = container.getBoundingClientRect();
+    const width = Math.max(320, Math.floor(rect.width || container.clientWidth || 960));
+    const height = Math.max(360, Math.floor(rect.height || container.clientHeight || 520));
+    renderer.setSize(width, height, false);
+    camera.aspect = width / height;
+    camera.updateProjectionMatrix();
+  };
+
+  let resizeObserver: ResizeObserver | undefined;
+  if (typeof ResizeObserver !== "undefined") {
+    resizeObserver = new ResizeObserver(resize);
+    resizeObserver.observe(container);
+  }
+
+  return {
+    dispose: () => {
+      cancelAnimationFrame(rafId);
+      canvas.removeEventListener("pointerdown", onPointerDown);
+      canvas.removeEventListener("pointermove", onPointerMove);
+      canvas.removeEventListener("pointerup", onPointerUp);
+      canvas.removeEventListener("pointercancel", onPointerUp);
+      canvas.removeEventListener("wheel", onWheel);
+      resizeObserver?.disconnect();
+    },
+  };
 }
 
 function createMaterial(project: HouseProject, materialId: string) {
@@ -126,40 +265,58 @@ function createMaterial(project: HouseProject, materialId: string) {
 
 function createWallPanelMesh(
   wallGeometry: WallGeometry,
-  wall: Wall,
   panel: WallPanel,
   storeyElevation: number,
   material: THREE.Material,
 ) {
-  const length = wallLength(wall);
-  if (length <= 0) return undefined;
+  const slice = slicePanelFootprint(wallGeometry.footprint, wallGeometry, panel);
+  const baseY = storeyElevation + panel.y;
+  const topY = baseY + panel.height;
 
-  const directionX = (wall.end.x - wall.start.x) / length;
-  const directionZ = (wall.end.y - wall.start.y) / length;
-  const centerOffset = panel.x + panel.width / 2;
-  const geometry = new THREE.BoxGeometry(panel.width, panel.height, wallGeometry.thickness);
-  const mesh = new THREE.Mesh(geometry, material);
+  const brs: [number, number, number] = [slice.rightStart.x, baseY, slice.rightStart.y];
+  const bre: [number, number, number] = [slice.rightEnd.x, baseY, slice.rightEnd.y];
+  const ble: [number, number, number] = [slice.leftEnd.x, baseY, slice.leftEnd.y];
+  const bls: [number, number, number] = [slice.leftStart.x, baseY, slice.leftStart.y];
+  const trs: [number, number, number] = [slice.rightStart.x, topY, slice.rightStart.y];
+  const tre: [number, number, number] = [slice.rightEnd.x, topY, slice.rightEnd.y];
+  const tle: [number, number, number] = [slice.leftEnd.x, topY, slice.leftEnd.y];
+  const tls: [number, number, number] = [slice.leftStart.x, topY, slice.leftStart.y];
 
-  mesh.position.set(
-    wallGeometry.start.x + directionX * centerOffset,
-    storeyElevation + panel.y + panel.height / 2,
-    wallGeometry.start.y + directionZ * centerOffset,
-  );
-  mesh.rotation.y = -Math.atan2(directionZ, directionX);
+  const positions: number[] = [];
+  const indices: number[] = [];
+  const addFace = (
+    a: [number, number, number],
+    b: [number, number, number],
+    c: [number, number, number],
+    d: [number, number, number],
+  ) => {
+    const base = positions.length / 3;
+    positions.push(...a, ...b, ...c, ...d);
+    indices.push(base, base + 1, base + 2, base, base + 2, base + 3);
+  };
 
-  return mesh;
+  // CCW from each face's outward side:
+  addFace(brs, trs, tre, bre); // wall right side
+  addFace(bls, ble, tle, tls); // wall left side
+  addFace(trs, tls, tle, tre); // top
+  addFace(brs, bre, ble, bls); // bottom
+  addFace(brs, bls, tls, trs); // start cap
+  addFace(bre, tre, tle, ble); // end cap
+
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setIndex(indices);
+  geometry.computeVertexNormals();
+
+  return new THREE.Mesh(geometry, material);
 }
 
 function createWallMeshes(project: HouseProject, geometry: HouseGeometry) {
-  const wallsById = new Map(project.walls.map((wall) => [wall.id, wall]));
   const storeyElevations = new Map(project.storeys.map((storey) => [storey.id, storey.elevation]));
   const materials = new Map<string, THREE.MeshStandardMaterial>();
   const meshes: THREE.Mesh[] = [];
 
   for (const wallGeometry of geometry.walls) {
-    const wall = wallsById.get(wallGeometry.wallId);
-    if (!wall) continue;
-
     let material = materials.get(wallGeometry.materialId);
     if (!material) {
       material = createMaterial(project, wallGeometry.materialId);
@@ -169,8 +326,7 @@ function createWallMeshes(project: HouseProject, geometry: HouseGeometry) {
     const storeyElevation = storeyElevations.get(wallGeometry.storeyId) ?? 0;
 
     for (const panel of wallGeometry.panels) {
-      const mesh = createWallPanelMesh(wallGeometry, wall, panel, storeyElevation, material);
-      if (mesh) meshes.push(mesh);
+      meshes.push(createWallPanelMesh(wallGeometry, panel, storeyElevation, material));
     }
   }
 
@@ -288,7 +444,7 @@ export function mountHouseScene(container: HTMLElement, project: HouseProject): 
   const scene = new THREE.Scene();
   const houseGeometry = buildHouseGeometry(project);
   const bounds = projectBounds(project);
-  const camera = createCamera(bounds, width / height);
+  const { camera, center, distance } = createCamera(bounds, width / height);
   const { meshes: wallMeshes, materials: wallMaterials } = createWallMeshes(project, houseGeometry);
   const { meshes: balconyMeshes, materials: balconyMaterials } = createBalconyMeshes(project, houseGeometry);
   const { ground, geometry: groundGeometry, material: groundMaterial } = createGround(bounds);
@@ -303,8 +459,11 @@ export function mountHouseScene(container: HTMLElement, project: HouseProject): 
   container.replaceChildren(renderer.domElement);
   renderer.render(scene, camera);
 
+  const controls = attachOrbitControls(renderer, camera, scene, center, distance, container);
+
   return {
     dispose: () => {
+      controls.dispose();
       for (const mesh of meshes) {
         mesh.geometry.dispose();
       }

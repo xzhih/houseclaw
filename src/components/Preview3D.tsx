@@ -27,12 +27,14 @@ export function Preview3D({ project }: Preview3DProps) {
   }, [project]);
 
   return (
-    <section className="preview-shell" aria-label="3D preview">
-      <div className="preview-header">
-        <h2>3D 外观预览</h2>
-        <p>{project.name}</p>
-      </div>
+    <div className="preview-shell" aria-label="3D preview">
       <div ref={hostRef} className="three-host" aria-label="Three.js house preview" />
-    </section>
+      <div className="preview-overlay" aria-hidden="true">
+        <div className="preview-badge">
+          <p className="preview-name">{project.name}</p>
+          <p className="preview-hint">拖拽旋转 · 滚轮缩放</p>
+        </div>
+      </div>
+    </div>
   );
 }
