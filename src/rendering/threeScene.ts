@@ -474,19 +474,30 @@ function createSlabMeshes(project: HouseProject, geometry: HouseGeometry) {
 function createGround(bounds: SceneBounds) {
   const width = bounds.maxX - bounds.minX;
   const depth = bounds.maxZ - bounds.minZ;
-  const size = Math.max(width, depth, 8) * 1.5;
-  const geometry = new THREE.PlaneGeometry(size, size);
+  const size = Math.max(width, depth, 8) * 6;
+  const finalSize = Math.max(size, 40);
+  const centerX = (bounds.minX + bounds.maxX) / 2;
+  const centerZ = (bounds.minZ + bounds.maxZ) / 2;
+
+  const geometry = new THREE.PlaneGeometry(finalSize, finalSize);
   const material = new THREE.MeshStandardMaterial({
     color: GROUND_COLOR,
-    roughness: 0.9,
+    roughness: 0.92,
     metalness: 0,
   });
   const ground = new THREE.Mesh(geometry, material);
-
   ground.rotation.x = -Math.PI / 2;
-  ground.position.set((bounds.minX + bounds.maxX) / 2, -0.02, (bounds.minZ + bounds.maxZ) / 2);
+  ground.position.set(centerX, -0.001, centerZ);
 
-  return { ground, geometry, material };
+  const grid = new THREE.GridHelper(
+    finalSize,
+    Math.max(1, Math.round(finalSize / 0.8)),
+    "#a8b2ad",
+    "#c8d0cb",
+  );
+  grid.position.set(centerX, 0.001, centerZ);
+
+  return { ground, grid, geometry, material };
 }
 
 export function mountHouseScene(container: HTMLElement, project: HouseProject): MountedScene {
@@ -498,14 +509,14 @@ export function mountHouseScene(container: HTMLElement, project: HouseProject): 
   const { meshes: wallMeshes, materials: wallMaterials } = createWallMeshes(project, houseGeometry);
   const { meshes: balconyMeshes, materials: balconyMaterials } = createBalconyMeshes(project, houseGeometry);
   const { meshes: slabMeshes, materials: slabMaterials } = createSlabMeshes(project, houseGeometry);
-  const { ground, geometry: groundGeometry, material: groundMaterial } = createGround(bounds);
+  const { ground, grid, geometry: groundGeometry, material: groundMaterial } = createGround(bounds);
   const ambient = new THREE.HemisphereLight("#ffffff", "#9aa7a0", 1.6);
   const keyLight = new THREE.DirectionalLight("#ffffff", 2.4);
   const meshes = [...wallMeshes, ...balconyMeshes, ...slabMeshes];
   const materials = [...wallMaterials, ...balconyMaterials, ...slabMaterials];
 
   keyLight.position.set(5, 9, 6);
-  scene.add(ambient, keyLight, ground, ...meshes);
+  scene.add(ambient, keyLight, ground, grid, ...meshes);
 
   container.replaceChildren(renderer.domElement);
   renderer.render(scene, camera);
@@ -525,6 +536,13 @@ export function mountHouseScene(container: HTMLElement, project: HouseProject): 
 
       groundGeometry.dispose();
       groundMaterial.dispose();
+      grid.geometry.dispose();
+      const gridMaterial = grid.material;
+      if (Array.isArray(gridMaterial)) {
+        gridMaterial.forEach((m) => m.dispose());
+      } else {
+        gridMaterial.dispose();
+      }
       renderer.dispose();
       renderer.forceContextLoss();
       container.replaceChildren();
