@@ -564,7 +564,7 @@ export function mountHouseScene(
     if (mode === "walk") {
       currentOrbit?.dispose();
       currentOrbit = null;
-      walkControls.enable(computeSpawn("1f"));
+      walkControls.enable(computeSpawn(project.storeys[0]?.id ?? ""));
     } else {
       walkControls.disable();
       camera.position.copy(center).addScaledVector(new THREE.Vector3(0.85, 0.62, -1).normalize(), distance);
