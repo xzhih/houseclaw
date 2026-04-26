@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isSelected } from "../domain/selection";
+import { isSelected, type ObjectSelection } from "../domain/selection";
 
 describe("selection helpers", () => {
   it("matches a selection by kind and id", () => {
@@ -16,5 +16,14 @@ describe("selection helpers", () => {
 
   it("treats undefined selection as not selected", () => {
     expect(isSelected(undefined, "wall", "wall-front-1f")).toBe(false);
+  });
+});
+
+describe("stair selection", () => {
+  it("isSelected matches stair kind by storey id", () => {
+    const sel: ObjectSelection = { kind: "stair", id: "2f" };
+    expect(isSelected(sel, "stair", "2f")).toBe(true);
+    expect(isSelected(sel, "stair", "3f")).toBe(false);
+    expect(isSelected(sel, "wall", "2f")).toBe(false);
   });
 });

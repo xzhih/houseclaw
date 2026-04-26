@@ -2,7 +2,8 @@ export type ObjectSelection =
   | { kind: "wall"; id: string }
   | { kind: "opening"; id: string }
   | { kind: "balcony"; id: string }
-  | { kind: "storey"; id: string };
+  | { kind: "storey"; id: string }
+  | { kind: "stair"; id: string };  // id = storeyId
 
 export type ObjectSelectionKind = ObjectSelection["kind"];
 
