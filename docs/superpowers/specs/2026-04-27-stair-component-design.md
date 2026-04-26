@@ -14,9 +14,9 @@
 
 1. 数据模型：`Storey.stairOpening` 改名 `Storey.stair` 并扩字段（shape / treadDepth / bottomEdge / turn / materialId）。
 2. 自动计算：踢踏数 / 踢踏高度 / 踏步数从 storeyHeight + treadDepth 派生。
-3. 几何：三种形状（straight / L / U）的视觉踏步 + 配套的隐形斜面碰撞体。
+3. 几何：三种形状（straight / L / U）的视觉踏步 + L/U 平台。
 4. 平面图：跨上下两层渲染楼梯符号（UP / DN + 折线）。
-5. 3D 漫游：把视觉踏步与隐形斜面都加入 `collidables`，沿用现有 walk physics，零物理代码修改。
+5. 3D 漫游：踏步 + 平台 mesh 加入 `collidables`，沿用现有 walk physics，零物理代码修改。
 6. UI：ToolPalette 加 `stair` 工具；PropertyPanel 选中楼梯时编辑形状/踏步深度/朝向/转向/材质；只读显示派生值。
 7. 数据迁移：`stairOpening` → `stair` 一刀切，sample data + 现有 tests + 切洞代码同步改。
 
@@ -152,9 +152,12 @@ L/U 的折线放在转角平台位置；箭头沿主跑方向。
 
 ### 5. 3D 漫游（`src/rendering/threeScene.ts`）
 
-`threeScene.ts:631` 的 `collidables` 数组追加：
-- 视觉踏步 meshes（vertical probe 落在每级台阶顶）
-- 隐形斜面 meshes（horizontal probe 命中后被推上）
+`threeScene.ts:631` 的 `collidables` 数组追加每架楼梯的所有踏步 + 平台 mesh。
+
+**为什么只用 box 不需要斜面**：
+- chest probe 高度 = `EYE_HEIGHT - CHEST_OFFSET = 1.0m`，远高于单级 `riserHeight ≈ 0.165m`。
+- 要把多级踏步累计到 chest 高度（1m）需要 6+ 级，对应运行距离 ≥ 6 × treadDepth ≈ 1.6m，远超 chest probe 的最大射程（`movement + PLAYER_RADIUS ≈ 0.3m`）。所以走路时 chest probe 永远不会撞到踏步立面。
+- `SNAP_THRESHOLD = 0.2 > riserHeight = 0.165`，且 `resolveVerticalState` 的 snap 逻辑对 negative drop 也生效——所以踩级时会被自动拉上下一级。
 
 物理代码（`walkControls.ts` / `walkPhysics.ts`）零修改。
 
@@ -220,13 +223,13 @@ stair 选中时显示：
 新增：
 - `src/__tests__/stairs.test.ts`：
   - `computeStairConfig` 各种 storeyHeight × treadDepth 边界
-  - `buildStairGeometry` × 三形状：踏步坐标、斜面 collider 位置、最顶级踏步与上层楼板对齐
+  - `buildStairGeometry` × 三形状：踏步坐标、L/U 平台位置、最顶级踏步与上层楼板对齐
   - 最底层 storey `addStair` 被拒（沿用现有 constraints 规则）
 - `src/__tests__/walkPhysics.test.ts` 加：
   - 直跑楼梯：模拟相机水平推进 + 重力，期望 cameraY 单调递增直到上层标高
   - 上层落点：从楼梯顶踏出后 cameraY 稳定在 `upperStoreyTopY + EYE_HEIGHT`
 - `src/__tests__/preview3d.test.tsx` 或新文件：
-  - 创建含 stair 的项目 → 渲染 → `collidables` 包含视觉踏步 + 斜面 mesh
+  - 创建含 stair 的项目 → 渲染 → `collidables` 包含所有踏步与平台 mesh
 - `src/__tests__/wallDrawing.test.tsx` 类比扩展：
   - 选 stair 工具 → 拖矩形 → 项目里 storey.stair 出现，参数 = 默认值
 
