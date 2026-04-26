@@ -1,4 +1,4 @@
-import { useEffect, useId, useState, type KeyboardEvent } from "react";
+import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
 
 type NumberFieldProps = {
   label: string;
@@ -21,10 +21,14 @@ export function NumberField({
 }: NumberFieldProps) {
   const inputId = useId();
   const errorId = `${inputId}-error`;
+  const inputRef = useRef<HTMLInputElement | null>(null);
   const [text, setText] = useState(() => String(value));
   const [error, setError] = useState<string | undefined>(undefined);
 
   useEffect(() => {
+    if (inputRef.current !== null && document.activeElement === inputRef.current) {
+      return;
+    }
     setText(String(value));
     setError(undefined);
   }, [value]);
@@ -52,7 +56,6 @@ export function NumberField({
       return;
     }
     setError(undefined);
-    setText(String(parsed));
   };
 
   const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
@@ -67,6 +70,7 @@ export function NumberField({
       <label htmlFor={inputId}>{label}</label>
       <div className="number-field-row">
         <input
+          ref={inputRef}
           id={inputId}
           type="number"
           step={step}

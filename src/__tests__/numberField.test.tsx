@@ -7,7 +7,7 @@ describe("NumberField", () => {
   it("renders the label, current value, and unit", () => {
     render(<NumberField label="厚度" value={0.24} onCommit={() => undefined} />);
 
-    const input = screen.getByLabelText("厚度") as HTMLInputElement;
+    const input = screen.getByLabelText<HTMLInputElement>("厚度");
     expect(input.value).toBe("0.24");
     expect(screen.getByText("m")).toBeInTheDocument();
   });
@@ -72,12 +72,49 @@ describe("NumberField", () => {
     const user = userEvent.setup();
     const { rerender } = render(<NumberField label="厚度" value={0.24} onCommit={() => undefined} />);
 
-    const input = screen.getByLabelText("厚度") as HTMLInputElement;
+    const input = screen.getByLabelText<HTMLInputElement>("厚度");
     await user.clear(input);
     await user.type(input, "0.3");
     await user.tab();
 
     rerender(<NumberField label="厚度" value={0.3} onCommit={() => undefined} />);
+
+    expect(input.value).toBe("0.3");
+  });
+
+  it("preserves in-flight text when the parent re-renders while the input is focused", async () => {
+    const user = userEvent.setup();
+    const { rerender } = render(
+      <NumberField label="厚度" value={0.24} onCommit={() => undefined} />,
+    );
+
+    const input = screen.getByLabelText<HTMLInputElement>("厚度");
+    await user.click(input);
+    await user.clear(input);
+    await user.type(input, "0.5");
+
+    rerender(<NumberField label="厚度" value={0.4} onCommit={() => undefined} />);
+
+    expect(input.value).toBe("0.5");
+    expect(document.activeElement).toBe(input);
+  });
+
+  it("canonicalises text from the parent value after blur when the value matches the committed parsed number", async () => {
+    const user = userEvent.setup();
+    let stored = 0.24;
+    const onCommit = (next: number) => {
+      stored = next;
+      return undefined;
+    };
+    const { rerender } = render(<NumberField label="厚度" value={stored} onCommit={onCommit} />);
+
+    const input = screen.getByLabelText<HTMLInputElement>("厚度");
+    await user.click(input);
+    await user.clear(input);
+    await user.type(input, "0.30");
+    await user.tab();
+
+    rerender(<NumberField label="厚度" value={stored} onCommit={onCommit} />);
 
     expect(input.value).toBe("0.3");
   });
