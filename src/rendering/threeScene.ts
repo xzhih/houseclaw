@@ -4,9 +4,19 @@ import type { HouseProject, Wall } from "../domain/types";
 import { buildHouseGeometry } from "../geometry/houseGeometry";
 import type { BalconyGeometry, HouseGeometry, SlabGeometry, WallGeometry, WallPanel } from "../geometry/types";
 import { slicePanelFootprint } from "../geometry/wallNetwork";
+import { attachWalkControls, type WalkCallbacks, type WalkSpawn } from "./walkControls";
 
-type MountedScene = {
-  dispose: () => void;
+export type CameraMode = "orbit" | "walk";
+
+export type MountedSceneOptions = {
+  onWalkExit?: () => void;
+  onDigitKey?: (digit: number) => void;
+};
+
+export type MountedScene = {
+  setCameraMode(mode: CameraMode): void;
+  setActiveStorey(storeyId: string): void;
+  dispose(): void;
 };
 
 type SceneBounds = {
@@ -500,7 +510,11 @@ function createGround(bounds: SceneBounds) {
   return { ground, grid, geometry, material };
 }
 
-export function mountHouseScene(container: HTMLElement, project: HouseProject): MountedScene {
+export function mountHouseScene(
+  container: HTMLElement,
+  project: HouseProject,
+  options?: MountedSceneOptions,
+): MountedScene {
   const { renderer, width, height } = createRenderer(container);
   const scene = new THREE.Scene();
   const houseGeometry = buildHouseGeometry(project);
@@ -521,28 +535,63 @@ export function mountHouseScene(container: HTMLElement, project: HouseProject): 
   container.replaceChildren(renderer.domElement);
   renderer.render(scene, camera);
 
-  const controls = attachOrbitControls(renderer, camera, scene, center, distance, container);
+  const collidables: THREE.Object3D[] = [...wallMeshes, ...slabMeshes];
+
+  const callbacks: WalkCallbacks = {
+    onWalkExit: () => options?.onWalkExit?.(),
+    onDigitKey: (digit) => options?.onDigitKey?.(digit),
+  };
+
+  const walkControls = attachWalkControls(renderer, camera, collidables, callbacks);
+
+  const computeSpawn = (storeyId: string): WalkSpawn => {
+    const storey = project.storeys.find((s) => s.id === storeyId) ?? project.storeys[0];
+    return {
+      x: (bounds.minX + bounds.maxX) / 2,
+      z: (bounds.minZ + bounds.maxZ) / 2,
+      y: storey.elevation + 1.6,
+      yaw: 0,
+      pitch: 0,
+    };
+  };
+
+  let currentOrbit: OrbitControls | null = attachOrbitControls(renderer, camera, scene, center, distance, container);
+  let activeMode: CameraMode = "orbit";
+
+  const setCameraMode = (mode: CameraMode) => {
+    if (mode === activeMode) return;
+    activeMode = mode;
+    if (mode === "walk") {
+      currentOrbit?.dispose();
+      currentOrbit = null;
+      walkControls.enable(computeSpawn("1f"));
+    } else {
+      walkControls.disable();
+      camera.position.copy(center).addScaledVector(new THREE.Vector3(0.85, 0.62, -1).normalize(), distance);
+      camera.lookAt(center);
+      currentOrbit = attachOrbitControls(renderer, camera, scene, center, distance, container);
+    }
+  };
+
+  const setActiveStorey = (storeyId: string) => {
+    if (activeMode !== "walk") return;
+    walkControls.setSpawn(computeSpawn(storeyId));
+  };
 
   return {
+    setCameraMode,
+    setActiveStorey,
     dispose: () => {
-      controls.dispose();
-      for (const mesh of meshes) {
-        mesh.geometry.dispose();
-      }
-
-      for (const material of materials) {
-        material.dispose();
-      }
-
+      walkControls.dispose();
+      currentOrbit?.dispose();
+      for (const mesh of meshes) mesh.geometry.dispose();
+      for (const material of materials) material.dispose();
       groundGeometry.dispose();
       groundMaterial.dispose();
       grid.geometry.dispose();
       const gridMaterial = grid.material;
-      if (Array.isArray(gridMaterial)) {
-        gridMaterial.forEach((m) => m.dispose());
-      } else {
-        gridMaterial.dispose();
-      }
+      if (Array.isArray(gridMaterial)) gridMaterial.forEach((m) => m.dispose());
+      else gridMaterial.dispose();
       renderer.dispose();
       renderer.forceContextLoss();
       container.replaceChildren();
