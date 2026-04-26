@@ -26,9 +26,13 @@ const PLUS_ICON: ReactNode = (
 type ToolPaletteProps = {
   activeTool: ToolId;
   onToolButtonClick: (toolId: ToolId) => void;
+  allowWallAdd: boolean;
 };
 
-export function ToolPalette({ activeTool, onToolButtonClick }: ToolPaletteProps) {
+export function ToolPalette({ activeTool, onToolButtonClick, allowWallAdd }: ToolPaletteProps) {
+  const visibleAddOptions = allowWallAdd
+    ? ADD_OPTIONS
+    : ADD_OPTIONS.filter((option) => option.id !== "wall");
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
 
@@ -82,7 +86,7 @@ export function ToolPalette({ activeTool, onToolButtonClick }: ToolPaletteProps)
 
         {menuOpen ? (
           <div className="add-menu" role="menu" aria-label="添加组件">
-            {ADD_OPTIONS.map((option) => (
+            {visibleAddOptions.map((option) => (
               <button
                 key={option.id}
                 type="button"

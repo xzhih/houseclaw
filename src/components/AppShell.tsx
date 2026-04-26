@@ -101,7 +101,20 @@ const roundToMm = (value: number) => Math.round(value * 1000) / 1000;
 function activeStoreyId(project: HouseProject): string | undefined {
   const planStorey = PLAN_STOREY_BY_VIEW[project.activeView];
   if (planStorey) return planStorey;
-  if (project.selection?.kind === "storey") return project.selection.id;
+
+  const sel = project.selection;
+  if (sel?.kind === "storey") return sel.id;
+  if (sel?.kind === "wall") {
+    return project.walls.find((wall) => wall.id === sel.id)?.storeyId;
+  }
+  if (sel?.kind === "opening") {
+    const opening = project.openings.find((entry) => entry.id === sel.id);
+    if (opening) return project.walls.find((wall) => wall.id === opening.wallId)?.storeyId;
+  }
+  if (sel?.kind === "balcony") {
+    return project.balconies.find((entry) => entry.id === sel.id)?.storeyId;
+  }
+
   if (ELEVATION_SIDE_BY_VIEW[project.activeView]) return project.storeys[0]?.id;
   return undefined;
 }
@@ -398,7 +411,11 @@ export function AppShell() {
 
       {isPlanMode ? (
         <>
-          <ToolPalette activeTool={project.activeTool} onToolButtonClick={handleToolButtonClick} />
+          <ToolPalette
+            activeTool={project.activeTool}
+            onToolButtonClick={handleToolButtonClick}
+            allowWallAdd={PLAN_STOREY_BY_VIEW[project.activeView] !== undefined}
+          />
 
           <div className="storey-overlay">
             <StoreyHeightStrip
