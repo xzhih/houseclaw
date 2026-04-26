@@ -28,12 +28,20 @@ export type Point2 = {
   y: number;
 };
 
+export type StairOpening = {
+  x: number;
+  y: number;
+  width: number;
+  depth: number;
+};
+
 export type Storey = {
   id: string;
   label: string;
   elevation: number;
   height: number;
   slabThickness: number;
+  stairOpening?: StairOpening;
 };
 
 export type MaterialKind = "wall" | "roof" | "frame" | "railing" | "decor";
