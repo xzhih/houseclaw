@@ -65,6 +65,47 @@ function clampOffset(centerOffset: number, total: number, width: number): number
   return Math.max(0, Math.min(maxOffset, centerOffset - width / 2));
 }
 
+function findFreeCenter(
+  total: number,
+  occupied: readonly { offset: number; width: number }[],
+  newWidth: number,
+): number | undefined {
+  if (total < newWidth) return undefined;
+  const sorted = [...occupied].sort((a, b) => a.offset - b.offset);
+  const gaps: Array<{ start: number; end: number }> = [];
+  let cursor = 0;
+  for (const item of sorted) {
+    if (item.offset > cursor) gaps.push({ start: cursor, end: item.offset });
+    cursor = Math.max(cursor, item.offset + item.width);
+  }
+  if (cursor < total) gaps.push({ start: cursor, end: total });
+
+  const fits = gaps.filter((gap) => gap.end - gap.start >= newWidth);
+  if (fits.length === 0) return undefined;
+  const largest = fits.reduce((best, gap) =>
+    gap.end - gap.start > best.end - best.start ? gap : best,
+  );
+  return (largest.start + largest.end) / 2;
+}
+
+export function findOpeningInsertionCenter(
+  wall: Wall,
+  type: OpeningType,
+  openings: readonly Opening[],
+): number | undefined {
+  const width = OPENING_DEFAULTS[type].width;
+  const occupied = openings.filter((opening) => opening.wallId === wall.id);
+  return findFreeCenter(wallLength(wall), occupied, width);
+}
+
+export function findBalconyInsertionCenter(
+  wall: Wall,
+  balconies: readonly Balcony[],
+): number | undefined {
+  const occupied = balconies.filter((balcony) => balcony.attachedWallId === wall.id);
+  return findFreeCenter(wallLength(wall), occupied, BALCONY_DEFAULTS.width);
+}
+
 export function createOpeningDraft(
   project: HouseProject,
   wall: Wall,

@@ -1,8 +1,12 @@
 import { type ChangeEvent, useEffect, useReducer, useState } from "react";
 import { exportProjectJson, importProjectJson } from "../app/persistence";
 import { projectReducer, type ProjectAction } from "../app/projectReducer";
-import { createBalconyDraft, createOpeningDraft } from "../domain/drafts";
-import { wallLength } from "../domain/measurements";
+import {
+  createBalconyDraft,
+  createOpeningDraft,
+  findBalconyInsertionCenter,
+  findOpeningInsertionCenter,
+} from "../domain/drafts";
 import {
   addBalcony,
   addOpening,
@@ -257,9 +261,13 @@ export function AppShell() {
         setAddError("当前楼层没有可附着的墙,先添加一面墙。");
         return;
       }
-      const center = wallLength(wall) / 2;
 
       if (toolId === "balcony") {
+        const center = findBalconyInsertionCenter(wall, project.balconies);
+        if (center === undefined) {
+          setAddError("当前墙上没有空位放阳台,先调整或删除其他阳台。");
+          return;
+        }
         const draft = createBalconyDraft(project, wall, center);
         const next = addBalcony(project, draft);
         dispatch({ type: "replace-project", project: next });
@@ -268,6 +276,11 @@ export function AppShell() {
       }
 
       const openingType: OpeningType = toolId === "door" ? "door" : toolId === "window" ? "window" : "void";
+      const center = findOpeningInsertionCenter(wall, openingType, project.openings);
+      if (center === undefined) {
+        setAddError("当前墙上没有空位放该开孔,先调整或删除其他开孔。");
+        return;
+      }
       const draft = createOpeningDraft(project, wall, openingType, center);
       const next = addOpening(project, draft);
       dispatch({ type: "replace-project", project: next });
