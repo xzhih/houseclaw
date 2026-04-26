@@ -69,7 +69,7 @@ export type Storey = {
 
 **归属规则**：楼梯挂在它**通往的那一层**（上层）。即 stair 在 storey N 上意味着"从 storey N-1 顶面爬到 storey N 顶面"。
 
-**禁用规则**：最顶层 storey 不能有 stair；`mutations.ts` 在 `addStair` / `setStair` 时拒绝。
+**禁用规则**：**最底层** storey 不能有 stair（脚下没楼层来），由 `constraints.ts` 现有规则继续强制。最顶层 storey **可以**有 stair（即顶层的入口楼梯，从下层爬上来）。
 
 ### 2. 自动计算（`src/domain/stairs.ts`）
 
@@ -207,7 +207,7 @@ stair 选中时显示：
 #### Mutations（`src/domain/mutations.ts`）
 
 新增：
-- `addStair(state, storeyId, rect)`：创建 stair（默认参数），拒绝最顶层。
+- `addStair(state, storeyId, rect)`：创建 stair（默认参数）。最底层 storey 由现有 `constraints.ts` 校验拒绝（无须额外检查）。
 - `setStair(state, storeyId, patch)`：partial 更新。
 - `removeStair(state, storeyId)`：删除。
 
@@ -231,7 +231,7 @@ stair 选中时显示：
 - `src/__tests__/stairs.test.ts`：
   - `computeStairConfig` 各种 storeyHeight × treadDepth 边界
   - `buildStairGeometry` × 三形状：踏步坐标、斜面 collider 位置、最顶级踏步与上层楼板对齐
-  - 顶层 storey `addStair` 被拒
+  - 最底层 storey `addStair` 被拒（沿用现有 constraints 规则）
 - `src/__tests__/walkPhysics.test.ts` 加：
   - 直跑楼梯：模拟相机水平推进 + 重力，期望 cameraY 单调递增直到上层标高
   - 上层落点：从楼梯顶踏出后 cameraY 稳定在 `upperStoreyTopY + EYE_HEIGHT`
