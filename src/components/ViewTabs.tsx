@@ -1,9 +1,6 @@
 import type { ViewId } from "../domain/types";
 
 const VIEW_TABS: { id: ViewId; label: string }[] = [
-  { id: "plan-1f", label: "1F" },
-  { id: "plan-2f", label: "2F" },
-  { id: "plan-3f", label: "3F" },
   { id: "elevation-front", label: "正面" },
   { id: "elevation-back", label: "背面" },
   { id: "elevation-left", label: "左侧" },

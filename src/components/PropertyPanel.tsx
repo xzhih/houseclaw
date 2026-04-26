@@ -1,4 +1,33 @@
 import { NumberField } from "./NumberField";
+
+const MM_PER_M = 1000;
+
+function mmToM(mm: number): number {
+  return Math.round(mm) / MM_PER_M;
+}
+
+type MmFieldProps = {
+  label: string;
+  value: number;
+  step?: number;
+  min?: number;
+  max?: number;
+  onCommit: (next: number) => string | undefined;
+};
+
+function MmField({ label, value, step = 10, min, max, onCommit }: MmFieldProps) {
+  return (
+    <NumberField
+      label={label}
+      value={Math.round(value * MM_PER_M)}
+      step={step}
+      min={min !== undefined ? Math.round(min * MM_PER_M) : undefined}
+      max={max !== undefined ? Math.round(max * MM_PER_M) : undefined}
+      unit="mm"
+      onCommit={(mm) => onCommit(mmToM(mm))}
+    />
+  );
+}
 import {
   updateBalcony,
   updateOpening,
@@ -31,6 +60,9 @@ type PropertyPanelProps = {
   project: HouseProject;
   onApplyWallMaterial: (wallId: string, materialId: string) => void;
   onProjectChange: (project: HouseProject) => void;
+  onDeleteSelection: () => void;
+  activeMaterialId: string;
+  onActiveMaterialChange: (materialId: string) => void;
 };
 
 function tryMutate(fn: () => HouseProject): HouseProject | string {
@@ -52,12 +84,24 @@ function commit<T>(
   return undefined;
 }
 
-export function PropertyPanel({ project, onApplyWallMaterial, onProjectChange }: PropertyPanelProps) {
+export function PropertyPanel({
+  project,
+  onApplyWallMaterial,
+  onProjectChange,
+  onDeleteSelection,
+  activeMaterialId,
+  onActiveMaterialChange,
+}: PropertyPanelProps) {
   const selection = project.selection;
   const targetWall =
     selection?.kind === "wall"
       ? project.walls.find((wall) => wall.id === selection.id)
       : undefined;
+
+  const isDeletable =
+    selection?.kind === "wall" || selection?.kind === "opening" || selection?.kind === "balcony";
+
+  const materialBrushMode = project.activeTool === "material";
 
   return (
     <aside className="property-panel" aria-label="Properties">
@@ -77,25 +121,50 @@ export function PropertyPanel({ project, onApplyWallMaterial, onProjectChange }:
         <StoreyEditor project={project} id={selection.id} onProjectChange={onProjectChange} />
       ) : null}
 
+      {isDeletable ? (
+        <button type="button" className="property-delete" onClick={onDeleteSelection}>
+          删除
+        </button>
+      ) : null}
+
       <section className="material-catalog" aria-labelledby="material-catalog-heading">
         <h3 id="material-catalog-heading">材质库</h3>
         <p className="material-target">
-          {targetWall ? `应用到：${targetWall.id}` : "选择一面墙后应用材质。"}
+          {materialBrushMode
+            ? "材质刷子已激活：点击任意墙应用当前材质。"
+            : targetWall
+              ? `应用到：${targetWall.id}`
+              : "选择一面墙后应用材质。"}
         </p>
         <div className="material-list">
-          {wallMaterials.map((material) => (
-            <button
-              aria-pressed={targetWall?.materialId === material.id}
-              className="material-swatch"
-              disabled={!targetWall}
-              key={material.id}
-              onClick={() => targetWall && onApplyWallMaterial(targetWall.id, material.id)}
-              type="button"
-            >
-              <span aria-hidden="true" className="material-swatch-color" style={{ backgroundColor: material.color }} />
-              <span>{material.name}</span>
-            </button>
-          ))}
+          {wallMaterials.map((material) => {
+            const pressed = materialBrushMode
+              ? activeMaterialId === material.id
+              : targetWall?.materialId === material.id;
+            return (
+              <button
+                aria-pressed={pressed}
+                className="material-swatch"
+                disabled={!materialBrushMode && !targetWall}
+                key={material.id}
+                onClick={() => {
+                  if (materialBrushMode) {
+                    onActiveMaterialChange(material.id);
+                    return;
+                  }
+                  if (targetWall) onApplyWallMaterial(targetWall.id, material.id);
+                }}
+                type="button"
+              >
+                <span
+                  aria-hidden="true"
+                  className="material-swatch-color"
+                  style={{ backgroundColor: material.color }}
+                />
+                <span>{material.name}</span>
+              </button>
+            );
+          })}
         </div>
       </section>
     </aside>
@@ -113,10 +182,10 @@ function OpeningEditor({ project, id, onProjectChange }: EditorProps) {
   return (
     <section className="property-section" aria-labelledby="opening-heading">
       <h3 id="opening-heading">{OPENING_LABELS[opening.type]} · {opening.id}</h3>
-      <NumberField label={widthLabel} value={opening.width} min={0.01} onCommit={(width) => apply({ width })} />
-      <NumberField label="高度" value={opening.height} min={0.01} onCommit={(height) => apply({ height })} />
-      <NumberField label="离地高度" value={opening.sillHeight} min={0} onCommit={(sillHeight) => apply({ sillHeight })} />
-      <NumberField label="距墙起点" value={opening.offset} min={0} onCommit={(offset) => apply({ offset })} />
+      <MmField label={widthLabel} value={opening.width} min={0.01} onCommit={(width) => apply({ width })} />
+      <MmField label="高度" value={opening.height} min={0.01} onCommit={(height) => apply({ height })} />
+      <MmField label="离地高度" value={opening.sillHeight} min={0} onCommit={(sillHeight) => apply({ sillHeight })} />
+      <MmField label="距墙起点" value={opening.offset} min={0} onCommit={(offset) => apply({ offset })} />
     </section>
   );
 }
@@ -134,11 +203,11 @@ function WallEditor({ project, id, onProjectChange }: EditorProps) {
       <dl className="property-list">
         <div>
           <dt>墙长</dt>
-          <dd>{wallLength(wall).toFixed(2)} m</dd>
+          <dd>{Math.round(wallLength(wall) * MM_PER_M)} mm</dd>
         </div>
       </dl>
-      <NumberField label="墙厚" value={wall.thickness} min={0.05} onCommit={(thickness) => apply({ thickness })} />
-      <NumberField label="墙高" value={wall.height} min={0.5} onCommit={(height) => apply({ height })} />
+      <MmField label="墙厚" value={wall.thickness} min={0.05} onCommit={(thickness) => apply({ thickness })} />
+      <MmField label="墙高" value={wall.height} min={0.5} onCommit={(height) => apply({ height })} />
     </section>
   );
 }
@@ -153,11 +222,11 @@ function BalconyEditor({ project, id, onProjectChange }: EditorProps) {
   return (
     <section className="property-section" aria-labelledby="balcony-heading">
       <h3 id="balcony-heading">阳台 · {balcony.id}</h3>
-      <NumberField label="宽度" value={balcony.width} min={0.3} onCommit={(width) => apply({ width })} />
-      <NumberField label="进深" value={balcony.depth} min={0.3} onCommit={(depth) => apply({ depth })} />
-      <NumberField label="距墙起点" value={balcony.offset} min={0} onCommit={(offset) => apply({ offset })} />
-      <NumberField label="栏杆高度" value={balcony.railingHeight} min={0.3} onCommit={(railingHeight) => apply({ railingHeight })} />
-      <NumberField label="楼板厚度" value={balcony.slabThickness} min={0.05} onCommit={(slabThickness) => apply({ slabThickness })} />
+      <MmField label="宽度" value={balcony.width} min={0.3} onCommit={(width) => apply({ width })} />
+      <MmField label="进深" value={balcony.depth} min={0.3} onCommit={(depth) => apply({ depth })} />
+      <MmField label="距墙起点" value={balcony.offset} min={0} onCommit={(offset) => apply({ offset })} />
+      <MmField label="栏杆高度" value={balcony.railingHeight} min={0.3} onCommit={(railingHeight) => apply({ railingHeight })} />
+      <MmField label="楼板厚度" value={balcony.slabThickness} min={0.05} onCommit={(slabThickness) => apply({ slabThickness })} />
     </section>
   );
 }
@@ -172,8 +241,8 @@ function StoreyEditor({ project, id, onProjectChange }: EditorProps) {
   return (
     <section className="property-section" aria-labelledby="storey-heading">
       <h3 id="storey-heading">楼层 · {storey.label}</h3>
-      <NumberField label="层高" value={storey.height} min={2} onCommit={(height) => apply({ height })} />
-      <NumberField label="楼板厚度" value={storey.slabThickness} min={0.05} onCommit={(slabThickness) => apply({ slabThickness })} />
+      <MmField label="层高" value={storey.height} min={2} onCommit={(height) => apply({ height })} />
+      <MmField label="楼板厚度" value={storey.slabThickness} min={0.05} onCommit={(slabThickness) => apply({ slabThickness })} />
     </section>
   );
 }

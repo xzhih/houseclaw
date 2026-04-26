@@ -1,6 +1,6 @@
 import { storeyTop } from "./measurements";
 import { assertValidProject } from "./constraints";
-import type { Balcony, HouseProject, Opening, Storey, Wall } from "./types";
+import type { Balcony, HouseProject, Opening, Point2, Storey, Wall } from "./types";
 
 export type OpeningPatch = Partial<Omit<Opening, "id" | "wallId">>;
 export type WallPatch = Partial<Omit<Wall, "id" | "storeyId" | "start" | "end">>;
@@ -23,6 +23,13 @@ export function addOpening(project: HouseProject, opening: Opening): HouseProjec
   return assertValidProject({
     ...project,
     openings: [...project.openings, opening],
+  });
+}
+
+export function addBalcony(project: HouseProject, balcony: Balcony): HouseProject {
+  return assertValidProject({
+    ...project,
+    balconies: [...project.balconies, balcony],
   });
 }
 
@@ -97,5 +104,35 @@ export function applyWallMaterial(project: HouseProject, wallId: string, materia
   return assertValidProject({
     ...project,
     walls: project.walls.map((wall) => (wall.id === wallId ? { ...wall, materialId } : wall)),
+  });
+}
+
+export function moveWall(project: HouseProject, wallId: string, start: Point2, end: Point2): HouseProject {
+  return assertValidProject({
+    ...project,
+    walls: project.walls.map((wall) => (wall.id === wallId ? { ...wall, start, end } : wall)),
+  });
+}
+
+export function removeWall(project: HouseProject, wallId: string): HouseProject {
+  return assertValidProject({
+    ...project,
+    walls: project.walls.filter((wall) => wall.id !== wallId),
+    openings: project.openings.filter((opening) => opening.wallId !== wallId),
+    balconies: project.balconies.filter((balcony) => balcony.attachedWallId !== wallId),
+  });
+}
+
+export function removeOpening(project: HouseProject, openingId: string): HouseProject {
+  return assertValidProject({
+    ...project,
+    openings: project.openings.filter((opening) => opening.id !== openingId),
+  });
+}
+
+export function removeBalcony(project: HouseProject, balconyId: string): HouseProject {
+  return assertValidProject({
+    ...project,
+    balconies: project.balconies.filter((balcony) => balcony.id !== balconyId),
   });
 }

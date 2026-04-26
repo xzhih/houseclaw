@@ -21,7 +21,7 @@ export function StoreyHeightStrip({ storeys, selection, onSelectStorey }: Storey
             aria-pressed={selected}
             onClick={() => onSelectStorey(storey.id)}
           >
-            {storey.label} · {storey.height.toFixed(2)} m
+            {storey.label} · {Math.round(storey.height * 1000)} mm
           </button>
         );
       })}

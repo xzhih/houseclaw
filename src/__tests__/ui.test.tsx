@@ -19,7 +19,6 @@ describe("HouseClaw UI", () => {
     render(<App />);
 
     expect(screen.getByRole("button", { name: "2D" })).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getByRole("button", { name: "1F" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByText("墙")).toBeInTheDocument();
     expect(screen.getByText("阳台")).toBeInTheDocument();
     expect(screen.getByLabelText("2D drawing surface")).toBeInTheDocument();
@@ -110,7 +109,6 @@ describe("HouseClaw UI", () => {
 
     await user.click(screen.getByRole("button", { name: "3D" }));
 
-    expect(screen.getByText("3D 外观预览")).toBeInTheDocument();
     expect(screen.getByLabelText("Three.js house preview")).toBeInTheDocument();
   });
 
@@ -155,7 +153,7 @@ describe("HouseClaw UI", () => {
     const user = userEvent.setup();
     render(<App />);
 
-    await user.click(screen.getByRole("button", { name: "2F" }));
+    await user.click(screen.getByRole("button", { name: "2F · 3200 mm" }));
     expect(screen.getByRole("button", { name: "选择阳台 balcony-front-2f" })).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "正面" }));
@@ -193,18 +191,18 @@ describe("HouseClaw UI", () => {
     render(<App />);
 
     expect(screen.getByRole("group", { name: "楼层高度" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "1F · 3.20 m" })).toHaveAttribute("aria-pressed", "false");
-    expect(screen.getByRole("button", { name: "2F · 3.20 m" })).toHaveAttribute("aria-pressed", "false");
-    expect(screen.getByRole("button", { name: "3F · 3.20 m" })).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByRole("button", { name: "1F · 3200 mm" })).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByRole("button", { name: "2F · 3200 mm" })).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByRole("button", { name: "3F · 3200 mm" })).toHaveAttribute("aria-pressed", "false");
   });
 
   it("selects a storey from the height strip and surfaces the editor", async () => {
     const user = userEvent.setup();
     render(<App />);
 
-    await user.click(screen.getByRole("button", { name: "2F · 3.20 m" }));
+    await user.click(screen.getByRole("button", { name: "2F · 3200 mm" }));
 
-    expect(screen.getByRole("button", { name: "2F · 3.20 m" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "2F · 3200 mm" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByLabelText("层高")).toBeInTheDocument();
   });
 
@@ -212,15 +210,15 @@ describe("HouseClaw UI", () => {
     const user = userEvent.setup();
     render(<App />);
 
-    await user.click(screen.getByRole("button", { name: "1F · 3.20 m" }));
+    await user.click(screen.getByRole("button", { name: "1F · 3200 mm" }));
 
     const heightField = screen.getByLabelText("层高") as HTMLInputElement;
     await user.clear(heightField);
-    await user.type(heightField, "3.5");
+    await user.type(heightField, "3500");
     await user.tab();
 
-    expect(screen.getByRole("button", { name: "1F · 3.50 m" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "2F · 3.20 m" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "1F · 3500 mm" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "2F · 3200 mm" })).toBeInTheDocument();
   });
 
   it("hides the storey strip in 3D mode", async () => {

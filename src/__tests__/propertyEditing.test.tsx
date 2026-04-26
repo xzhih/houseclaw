@@ -15,10 +15,10 @@ describe("PropertyPanel editing", () => {
 
     const widthField = screen.getByLabelText("窗宽") as HTMLInputElement;
     await user.clear(widthField);
-    await user.type(widthField, "2.0");
+    await user.type(widthField, "2000");
     await user.tab();
 
-    expect(widthField.value).toBe("2");
+    expect(widthField.value).toBe("2000");
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
@@ -33,7 +33,7 @@ describe("PropertyPanel editing", () => {
 
     const widthField = screen.getByLabelText("窗宽") as HTMLInputElement;
     await user.clear(widthField);
-    await user.type(widthField, "999");
+    await user.type(widthField, "999000");
     await user.tab();
 
     expect(screen.getByRole("alert")).toHaveTextContent(/exceeds wall/);
@@ -49,10 +49,10 @@ describe("PropertyPanel editing", () => {
 
     const thickness = screen.getByLabelText("墙厚") as HTMLInputElement;
     await user.clear(thickness);
-    await user.type(thickness, "0.3");
+    await user.type(thickness, "300");
     await user.tab();
 
-    expect(thickness.value).toBe("0.3");
+    expect(thickness.value).toBe("300");
   });
 
   it("applies a material to the selected wall, not always to walls[0]", async () => {
@@ -80,9 +80,9 @@ describe("PropertyPanel editing", () => {
 
     const depth = screen.getByLabelText("进深") as HTMLInputElement;
     await user.clear(depth);
-    await user.type(depth, "1.5");
+    await user.type(depth, "1500");
     await user.tab();
 
-    expect(depth.value).toBe("1.5");
+    expect(depth.value).toBe("1500");
   });
 });
