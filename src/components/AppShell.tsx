@@ -423,6 +423,7 @@ export function AppShell() {
           <ToolPalette
             activeTool={project.activeTool}
             storeys={project.storeys.map((storey) => ({ id: storey.id, label: storey.label }))}
+            defaultStoreyId={PLAN_STOREY_BY_VIEW[project.activeView]}
             onSelectMode={handleSelectMode}
             onAddComponent={handleAddComponent}
             allowWallAdd={PLAN_STOREY_BY_VIEW[project.activeView] !== undefined}

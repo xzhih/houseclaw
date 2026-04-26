@@ -28,6 +28,7 @@ export type StoreyOption = { id: string; label: string };
 type ToolPaletteProps = {
   activeTool: ToolId;
   storeys: StoreyOption[];
+  defaultStoreyId?: string;
   onSelectMode: () => void;
   onAddComponent: (toolId: ToolId, storeyId: string) => void;
   allowWallAdd: boolean;
@@ -36,6 +37,7 @@ type ToolPaletteProps = {
 export function ToolPalette({
   activeTool,
   storeys,
+  defaultStoreyId,
   onSelectMode,
   onAddComponent,
   allowWallAdd,
@@ -116,7 +118,14 @@ export function ToolPalette({
                   type="button"
                   role="menuitem"
                   className="add-menu-item"
-                  onClick={() => setPendingType(option.id)}
+                  onClick={() => {
+                    if (defaultStoreyId) {
+                      onAddComponent(option.id, defaultStoreyId);
+                      closeMenu();
+                    } else {
+                      setPendingType(option.id);
+                    }
+                  }}
                 >
                   添加{option.label}
                 </button>
