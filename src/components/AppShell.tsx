@@ -79,7 +79,11 @@ export function AppShell() {
         <section className="workspace workspace-2d" aria-label="2D workspace">
           <ToolPalette activeTool={project.activeTool} onToolChange={setTool} />
           <DrawingSurface2D project={project} onSelect={select} />
-          <PropertyPanel project={project} onApplyWallMaterial={applyWallMaterial} />
+          <PropertyPanel
+            project={project}
+            onApplyWallMaterial={applyWallMaterial}
+            onProjectChange={(next) => dispatch({ type: "replace-project", project: next })}
+          />
         </section>
       ) : (
         <section className="workspace workspace-3d" aria-label="3D workspace">

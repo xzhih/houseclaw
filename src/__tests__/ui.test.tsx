@@ -169,9 +169,13 @@ describe("HouseClaw UI", () => {
     expect(screen.getByText("灰色石材")).toBeInTheDocument();
   });
 
-  it("applies a wall material from the catalog", async () => {
+  it("applies a wall material from the catalog after selecting a wall", async () => {
     const user = userEvent.setup();
     render(<App />);
+
+    const wall = screen.getByRole("button", { name: "选择墙 wall-front-1f" });
+    wall.focus();
+    await user.keyboard("{Enter}");
 
     const whiteRender = screen.getByRole("button", { name: "白色外墙涂料" });
     const grayStone = screen.getByRole("button", { name: "灰色石材" });
