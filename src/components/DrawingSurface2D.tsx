@@ -43,9 +43,14 @@ type Bounds = {
   maxY: number;
 };
 
-type ProjectPoint = (point: { x: number; y: number }) => { x: number; y: number };
+type Point2D = { x: number; y: number };
 
-function createPointProjector(bounds: Bounds): ProjectPoint {
+type PointMapping = {
+  project: (point: Point2D) => Point2D;
+  unproject: (point: Point2D) => Point2D;
+};
+
+function createPointMapping(bounds: Bounds): PointMapping {
   const width = Math.max(bounds.maxX - bounds.minX, 1);
   const height = Math.max(bounds.maxY - bounds.minY, 1);
   const scale = Math.min(
@@ -57,10 +62,16 @@ function createPointProjector(bounds: Bounds): ProjectPoint {
   const offsetX = (SURFACE_WIDTH - contentWidth) / 2;
   const offsetY = (SURFACE_HEIGHT - contentHeight) / 2;
 
-  return (point) => ({
-    x: offsetX + (point.x - bounds.minX) * scale,
-    y: SURFACE_HEIGHT - offsetY - (point.y - bounds.minY) * scale,
-  });
+  return {
+    project: (point) => ({
+      x: offsetX + (point.x - bounds.minX) * scale,
+      y: SURFACE_HEIGHT - offsetY - (point.y - bounds.minY) * scale,
+    }),
+    unproject: (point) => ({
+      x: bounds.minX + (point.x - offsetX) / scale,
+      y: bounds.minY + (SURFACE_HEIGHT - point.y - offsetY) / scale,
+    }),
+  };
 }
 
 function planBounds(projection: PlanProjection): Bounds {
@@ -200,7 +211,7 @@ function renderPlan(
   selection: ObjectSelection | undefined,
   onSelect: DrawingSurface2DProps["onSelect"],
 ) {
-  const projectPoint = createPointProjector(planBounds(projection));
+  const { project: projectPoint } = createPointMapping(planBounds(projection));
   const wallsById = new Map(projection.wallSegments.map((wall) => [wall.wallId, wall]));
 
   return (
@@ -305,7 +316,7 @@ function renderElevation(
   selection: ObjectSelection | undefined,
   onSelect: DrawingSurface2DProps["onSelect"],
 ) {
-  const projectPoint = createPointProjector(elevationBounds(projection));
+  const { project: projectPoint } = createPointMapping(elevationBounds(projection));
 
   return (
     <>
