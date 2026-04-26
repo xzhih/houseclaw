@@ -44,4 +44,32 @@ describe("Add components from elevation views", () => {
       screen.getByRole("button", { name: /^选择阳台 balcony-1f-/ }),
     ).toBeInTheDocument();
   });
+
+  it("hides 添加墙 from the menu while inside an elevation view", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: "正面" }));
+    await user.click(screen.getByRole("button", { name: "添加组件" }));
+
+    expect(screen.queryByRole("menuitem", { name: "添加墙" })).not.toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "添加门" })).toBeInTheDocument();
+  });
+
+  it("attaches the added opening to the selected element's storey, not the first storey", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: "正面" }));
+
+    const balcony = screen.getByRole("button", { name: "选择阳台 balcony-front-2f" });
+    balcony.focus();
+    await user.keyboard("{Enter}");
+
+    await clickAddMenu("添加门", user);
+
+    expect(
+      screen.getByRole("button", { name: /^选择开孔 door-wall-front-2f-/ }),
+    ).toBeInTheDocument();
+  });
 });
