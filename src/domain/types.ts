@@ -28,11 +28,20 @@ export type Point2 = {
   y: number;
 };
 
+export type StairShape = "straight" | "l" | "u";
+export type StairEdge = "+x" | "-x" | "+y" | "-y";
+export type StairTurn = "left" | "right";
+
 export type Stair = {
   x: number;
   y: number;
   width: number;
   depth: number;
+  shape: StairShape;
+  treadDepth: number;
+  bottomEdge: StairEdge;
+  turn?: StairTurn;
+  materialId: string;
 };
 
 export type Storey = {

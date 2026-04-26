@@ -115,11 +115,20 @@ describe("house constraints", () => {
   });
 });
 
-describe("stair opening validation", () => {
-  it("rejects a stair opening on the 1F slab", () => {
+describe("stair validation", () => {
+  it("rejects a stair on the 1F slab", () => {
     const project = createSampleProject();
     const oneF = project.storeys.find((s) => s.id === "1f")!;
-    oneF.stair = { x: 1, y: 1, width: 1, depth: 1 };
+    oneF.stair = {
+      x: 1,
+      y: 1,
+      width: 1,
+      depth: 1,
+      shape: "straight",
+      treadDepth: 0.27,
+      bottomEdge: "+y",
+      materialId: "mat-dark-frame",
+    };
 
     const errors = validateProject(project);
     expect(errors).toContain(
@@ -130,7 +139,16 @@ describe("stair opening validation", () => {
   it("rejects zero or negative size", () => {
     const project = createSampleProject();
     const twoF = project.storeys.find((s) => s.id === "2f")!;
-    twoF.stair = { x: 1, y: 1, width: 0, depth: 1 };
+    twoF.stair = {
+      x: 1,
+      y: 1,
+      width: 0,
+      depth: 1,
+      shape: "straight",
+      treadDepth: 0.27,
+      bottomEdge: "+y",
+      materialId: "mat-dark-frame",
+    };
 
     const errors = validateProject(project);
     expect(errors).toContain(
@@ -138,11 +156,20 @@ describe("stair opening validation", () => {
     );
   });
 
-  it("rejects an opening that falls outside the storey's exterior ring", () => {
+  it("rejects a stair that falls outside the storey's exterior ring", () => {
     const project = createSampleProject();
     const twoF = project.storeys.find((s) => s.id === "2f")!;
-    // Sample is a 10×8 rectangle; this opening hangs off the back wall.
-    twoF.stair = { x: 0.6, y: 7.5, width: 1.2, depth: 2.5 };
+    // Sample is a 10×8 rectangle; this stair hangs off the back wall.
+    twoF.stair = {
+      x: 0.6,
+      y: 7.5,
+      width: 1.2,
+      depth: 2.5,
+      shape: "straight",
+      treadDepth: 0.27,
+      bottomEdge: "+y",
+      materialId: "mat-dark-frame",
+    };
 
     const errors = validateProject(project);
     expect(errors).toContain(
@@ -150,10 +177,19 @@ describe("stair opening validation", () => {
     );
   });
 
-  it("accepts a well-placed opening on 2F", () => {
+  it("accepts a well-placed stair on 2F", () => {
     const project = createSampleProject();
     const twoF = project.storeys.find((s) => s.id === "2f")!;
-    twoF.stair = { x: 0.6, y: 5.0, width: 1.2, depth: 2.5 };
+    twoF.stair = {
+      x: 0.6,
+      y: 5.0,
+      width: 1.2,
+      depth: 2.5,
+      shape: "straight",
+      treadDepth: 0.27,
+      bottomEdge: "+y",
+      materialId: "mat-dark-frame",
+    };
 
     const errors = validateProject(project);
     expect(errors).toEqual([]);
