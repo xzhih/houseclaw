@@ -68,31 +68,81 @@ describe("house geometry descriptors", () => {
     });
   });
 
-  it("uses only the first opening for the initial panel split prototype", () => {
+  it("splits a wall around multiple non-overlapping openings", () => {
     const project = createSampleProject();
     const wall = project.walls.find((candidate) => candidate.id === "wall-front-1f")!;
     const firstOpening = project.openings.find(
       (candidate) => candidate.id === "window-front-1f",
     )!;
-    const ignoredOpening: Opening = {
+    const secondOpening: Opening = {
       ...firstOpening,
-      id: "ignored-window-front-1f",
-      offset: 0,
-      sillHeight: 0,
-      width: 10,
-      height: 3.2,
+      id: "window-front-1f-extra",
+      offset: 6,
+      sillHeight: 1.0,
+      width: 1.2,
+      height: 1.4,
     };
 
-    const panels = buildWallPanels(wall, [firstOpening, ignoredOpening]);
+    const panels = buildWallPanels(wall, [secondOpening, firstOpening]);
 
-    expect(panels.map((panel) => panel.role)).toEqual(["left", "right", "below", "above"]);
+    expect(panels.map((panel) => panel.role)).toEqual([
+      "left",
+      "between",
+      "right",
+      "below",
+      "above",
+      "below",
+      "above",
+    ]);
     expect(panels.find((panel) => panel.role === "left")).toMatchObject({
       x: 0,
       width: 3,
+      height: 3.2,
+    });
+    expect(panels.find((panel) => panel.role === "between")).toMatchObject({
+      x: 4.6,
+      width: 1.4,
+      height: 3.2,
     });
     expect(panels.find((panel) => panel.role === "right")).toMatchObject({
-      x: 4.6,
-      width: 5.4,
+      x: 7.2,
+      width: 2.8,
+      height: 3.2,
+    });
+    const belowPanels = panels.filter((panel) => panel.role === "below");
+    expect(belowPanels.map((panel) => ({ x: panel.x, width: panel.width, height: panel.height }))).toEqual([
+      { x: 3, width: 1.6, height: 0.9 },
+      { x: 6, width: 1.2, height: 1.0 },
+    ]);
+    const abovePanels = panels.filter((panel) => panel.role === "above");
+    expect(abovePanels.map((panel) => ({ x: panel.x, width: panel.width, height: panel.height }))).toEqual([
+      { x: 3, width: 1.6, height: 1.0 },
+      { x: 6, width: 1.2, height: 0.8 },
+    ]);
+  });
+
+  it("treats touching openings as a single between-gap collapse", () => {
+    const project = createSampleProject();
+    const wall = project.walls.find((candidate) => candidate.id === "wall-front-1f")!;
+    const firstOpening = project.openings.find(
+      (candidate) => candidate.id === "window-front-1f",
+    )!;
+    const adjacent: Opening = {
+      ...firstOpening,
+      id: "window-front-1f-adjacent",
+      offset: 4.6,
+      sillHeight: 0.9,
+      width: 1.2,
+      height: 1.3,
+    };
+
+    const panels = buildWallPanels(wall, [firstOpening, adjacent]);
+
+    expect(panels.filter((panel) => panel.role === "between")).toEqual([]);
+    expect(panels.filter((panel) => panel.role === "below")).toHaveLength(2);
+    expect(panels.find((panel) => panel.role === "right")).toMatchObject({
+      x: 5.8,
+      width: 4.2,
     });
   });
 

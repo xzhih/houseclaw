@@ -1,6 +1,6 @@
 import type { Point2 } from "../domain/types";
 
-export type WallPanelRole = "full" | "left" | "right" | "below" | "above";
+export type WallPanelRole = "full" | "left" | "right" | "between" | "below" | "above";
 
 export type WallPanel = {
   role: WallPanelRole;

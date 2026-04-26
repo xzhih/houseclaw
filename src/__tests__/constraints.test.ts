@@ -43,6 +43,34 @@ describe("house constraints", () => {
     ).toThrow("Opening too-wide-window exceeds wall wall-front-1f length.");
   });
 
+  it("rejects overlapping openings on the same wall", () => {
+    const project = createSampleProject();
+    const seed = project.openings.find((opening) => opening.id === "window-front-1f")!;
+    const overlapping = {
+      ...seed,
+      id: "overlap-window",
+      offset: seed.offset + 0.5,
+      width: 1.0,
+    };
+
+    expect(() => addOpening(project, overlapping)).toThrow(
+      "Opening overlap-window overlaps with opening window-front-1f on wall wall-front-1f.",
+    );
+  });
+
+  it("allows openings that touch end-to-end without gap", () => {
+    const project = createSampleProject();
+    const seed = project.openings.find((opening) => opening.id === "window-front-1f")!;
+    const adjacent = {
+      ...seed,
+      id: "adjacent-window",
+      offset: seed.offset + seed.width,
+      width: 1.0,
+    };
+
+    expect(() => addOpening(project, adjacent)).not.toThrow();
+  });
+
   it("keeps storey elevations normalized after changing a floor height", () => {
     const project = updateStorey(createSampleProject(), "1f", { height: 3.6 });
 

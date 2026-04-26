@@ -37,6 +37,8 @@ export function validateProject(project: HouseProject): string[] {
     }
   }
 
+  const openingsByWall = new Map<string, typeof project.openings>();
+
   for (const opening of project.openings) {
     const wall = wallsById.get(opening.wallId);
 
@@ -70,6 +72,28 @@ export function validateProject(project: HouseProject): string[] {
 
     if (!materialIds.has(opening.frameMaterialId)) {
       errors.push(`Opening ${opening.id} references missing frame material ${opening.frameMaterialId}.`);
+    }
+
+    if (wall) {
+      const peers = openingsByWall.get(wall.id);
+      if (peers) {
+        peers.push(opening);
+      } else {
+        openingsByWall.set(wall.id, [opening]);
+      }
+    }
+  }
+
+  for (const [wallId, peers] of openingsByWall) {
+    const sorted = [...peers].sort((a, b) => a.offset - b.offset);
+    for (let index = 1; index < sorted.length; index += 1) {
+      const previous = sorted[index - 1];
+      const current = sorted[index];
+      if (current.offset < previous.offset + previous.width) {
+        errors.push(
+          `Opening ${current.id} overlaps with opening ${previous.id} on wall ${wallId}.`,
+        );
+      }
     }
   }
 
