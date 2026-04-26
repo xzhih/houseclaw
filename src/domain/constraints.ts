@@ -145,6 +145,51 @@ export function validateProject(project: HouseProject): string[] {
     }
   }
 
+  const sortedStoreys = [...project.storeys].sort((a, b) => a.elevation - b.elevation);
+  const lowestStoreyId = sortedStoreys[0]?.id;
+
+  for (const storey of project.storeys) {
+    const opening = storey.stairOpening;
+    if (!opening) continue;
+
+    if (storey.id === lowestStoreyId) {
+      errors.push(`Storey ${storey.id} cannot have a stair opening (no storey below).`);
+      continue;
+    }
+
+    if (!isPositive(opening.width)) {
+      errors.push(`Storey ${storey.id} stair opening width must be positive.`);
+    }
+    if (!isPositive(opening.depth)) {
+      errors.push(`Storey ${storey.id} stair opening depth must be positive.`);
+    }
+
+    const storeyWalls = project.walls.filter(
+      (wall) => wall.storeyId === storey.id && wall.exterior,
+    );
+    if (storeyWalls.length < 3) continue;
+
+    const xs = storeyWalls.flatMap((wall) => [wall.start.x, wall.end.x]);
+    const ys = storeyWalls.flatMap((wall) => [wall.start.y, wall.end.y]);
+    const minX = Math.min(...xs);
+    const maxX = Math.max(...xs);
+    const minY = Math.min(...ys);
+    const maxY = Math.max(...ys);
+
+    const corners = [
+      { x: opening.x, y: opening.y },
+      { x: opening.x + opening.width, y: opening.y },
+      { x: opening.x + opening.width, y: opening.y + opening.depth },
+      { x: opening.x, y: opening.y + opening.depth },
+    ];
+    const allInside = corners.every(
+      (c) => c.x >= minX && c.x <= maxX && c.y >= minY && c.y <= maxY,
+    );
+    if (!allInside) {
+      errors.push(`Storey ${storey.id} stair opening must be fully inside the exterior ring.`);
+    }
+  }
+
   return errors;
 }
 
