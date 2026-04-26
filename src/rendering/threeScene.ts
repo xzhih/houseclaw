@@ -536,7 +536,7 @@ export function mountHouseScene(
   container.replaceChildren(renderer.domElement);
   renderer.render(scene, camera);
 
-  const collidables: THREE.Object3D[] = [...wallMeshes, ...slabMeshes];
+  const collidables: THREE.Object3D[] = [...wallMeshes, ...slabMeshes, ...balconyMeshes, ground];
 
   const callbacks: WalkCallbacks = {
     onWalkExit: () => options?.onWalkExit?.(),
@@ -560,13 +560,25 @@ export function mountHouseScene(
     };
   };
 
+  const computeInitialSpawn = (): WalkSpawn => {
+    const lowestStorey = [...project.storeys].sort((a, b) => a.elevation - b.elevation)[0];
+    const groundElevation = lowestStorey?.elevation ?? 0;
+    return {
+      x: (bounds.minX + bounds.maxX) / 2,
+      z: bounds.minZ - 3,
+      y: groundElevation + 1.6,
+      yaw: Math.PI, // face +Z, looking at the front facade
+      pitch: 0,
+    };
+  };
+
   const setCameraMode = (mode: CameraMode) => {
     if (mode === activeMode) return;
     activeMode = mode;
     if (mode === "walk") {
       currentOrbit?.dispose();
       currentOrbit = null;
-      walkControls.enable(computeSpawn(project.storeys[0]?.id ?? ""));
+      walkControls.enable(computeInitialSpawn());
     } else {
       walkControls.disable();
       camera.position.copy(center).addScaledVector(new THREE.Vector3(0.85, 0.62, -1).normalize(), distance);

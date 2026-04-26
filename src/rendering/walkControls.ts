@@ -7,6 +7,7 @@ import {
 } from "./walkPhysics";
 
 const EYE_HEIGHT = 1.6;
+const CHEST_OFFSET_BELOW_EYE = 0.6;
 const PLAYER_RADIUS = 0.3;
 const FOV_DEGREES = 70;
 const WALK_SPEED = 1.4;
@@ -62,7 +63,7 @@ export function attachWalkControls(
   const horizontalProbe: HorizontalProbe = (origin, direction, maxDistance) => {
     const dirVec = new THREE.Vector3(direction.x, 0, direction.z).normalize();
     raycaster.set(
-      new THREE.Vector3(origin.x, origin.y, origin.z),
+      new THREE.Vector3(origin.x, origin.y - CHEST_OFFSET_BELOW_EYE, origin.z),
       dirVec,
     );
     raycaster.near = 0;
