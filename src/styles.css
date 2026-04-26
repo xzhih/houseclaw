@@ -412,3 +412,45 @@ select {
     border-top: 1px solid #d9dee4;
   }
 }
+
+.number-field {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.number-field label {
+  font-size: 0.85rem;
+  color: #4b5562;
+}
+
+.number-field-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 6px;
+  align-items: center;
+}
+
+.number-field input {
+  border: 1px solid #c8c1b8;
+  border-radius: 4px;
+  padding: 4px 6px;
+  background: #ffffff;
+  font: inherit;
+  width: 100%;
+}
+
+.number-field input[aria-invalid="true"] {
+  border-color: #b94a48;
+}
+
+.number-field-unit {
+  color: #65717d;
+  font-size: 0.85rem;
+}
+
+.number-field-error {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #b94a48;
+}
