@@ -20,6 +20,7 @@ describe("HouseClaw UI", () => {
     await user.click(screen.getByRole("button", { name: "3D" }));
 
     expect(screen.getByText("3D 外观预览")).toBeInTheDocument();
+    expect(screen.getByLabelText("Three.js house preview")).toBeInTheDocument();
   });
 
   it("selects an elevation opening from the drawing surface", async () => {

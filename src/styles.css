@@ -254,15 +254,28 @@ select {
   padding: 24px;
 }
 
-.preview-stage {
+.three-host {
   min-height: 520px;
   display: grid;
   place-items: center;
   overflow: hidden;
   border: 1px solid #d0d8df;
-  background: #f5f8fa;
+  background: #eef3f2;
   color: #5f6c76;
   font-weight: 700;
+}
+
+.three-host canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.preview-status {
+  margin: 0;
+  padding: 18px;
+  color: #5f6c76;
+  text-align: center;
 }
 
 @media (max-width: 860px) {
