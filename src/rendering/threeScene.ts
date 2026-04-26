@@ -61,9 +61,9 @@ type SceneBounds = {
   maxY: number;
 };
 
-const FALLBACK_WALL_COLOR = "#f2eee6";
-const GROUND_COLOR = "#dfe6e2";
-const BACKGROUND_COLOR = "#eef3f2";
+const FALLBACK_WALL_COLOR = "#e6ddc6";
+const GROUND_COLOR = "#8e9c75";
+const BACKGROUND_COLOR = "#bccfd9";
 
 function requireWebGL() {
   if (!("WebGLRenderingContext" in globalThis)) {
@@ -541,8 +541,8 @@ function createGround(bounds: SceneBounds) {
   const grid = new THREE.GridHelper(
     finalSize,
     Math.max(1, Math.round(finalSize / 0.8)),
-    "#a8b2ad",
-    "#c8d0cb",
+    "#7a8870", // main axes — slightly darker than ground
+    "#a4ad95", // sub grid — soft, low contrast on grass
   );
   grid.position.set(centerX, 0.001, centerZ);
 
