@@ -171,6 +171,7 @@ select {
 
 .storey-strip {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   padding: 10px 20px;
   background: #ebe4d8;

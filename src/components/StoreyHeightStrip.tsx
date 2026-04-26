@@ -17,7 +17,7 @@ export function StoreyHeightStrip({ storeys, selection, onSelectStorey }: Storey
           <button
             key={storey.id}
             type="button"
-            className={selected ? "storey-pill is-selected" : "storey-pill"}
+            className="storey-pill"
             aria-pressed={selected}
             onClick={() => onSelectStorey(storey.id)}
           >
