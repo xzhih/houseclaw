@@ -1,125 +1,39 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import App from "../App";
 
-const SURFACE_WIDTH = 720;
-const SURFACE_HEIGHT = 520;
-
-function stubSvgGeometry() {
-  const originalGetBoundingClientRect = Element.prototype.getBoundingClientRect;
-  const originalGetScreenCTM = (SVGGraphicsElement.prototype as { getScreenCTM?: unknown }).getScreenCTM;
-
-  Element.prototype.getBoundingClientRect = function getBoundingClientRect() {
-    return {
-      x: 0,
-      y: 0,
-      left: 0,
-      top: 0,
-      right: SURFACE_WIDTH,
-      bottom: SURFACE_HEIGHT,
-      width: SURFACE_WIDTH,
-      height: SURFACE_HEIGHT,
-      toJSON() {
-        return {};
-      },
-    } as DOMRect;
-  };
-
-  (SVGGraphicsElement.prototype as { getScreenCTM?: unknown }).getScreenCTM = function getScreenCTM() {
-    return null;
-  };
-
-  return () => {
-    Element.prototype.getBoundingClientRect = originalGetBoundingClientRect;
-    if (originalGetScreenCTM === undefined) {
-      delete (SVGGraphicsElement.prototype as { getScreenCTM?: unknown }).getScreenCTM;
-    } else {
-      (SVGGraphicsElement.prototype as { getScreenCTM?: unknown }).getScreenCTM = originalGetScreenCTM;
-    }
-  };
-}
-
-describe("Wall drawing tool", () => {
-  let restoreGeometry: () => void;
-
-  beforeEach(() => {
-    restoreGeometry = stubSvgGeometry();
-  });
-
-  afterEach(() => {
-    restoreGeometry();
-  });
-
-  it("adds a new wall after two clicks while the wall tool is active", async () => {
+describe("Wall add tool", () => {
+  it("adds a new wall to the active storey when the 添加墙 button is clicked", async () => {
     const user = userEvent.setup();
     render(<App />);
 
-    await user.click(screen.getByRole("button", { name: "墙" }));
-
-    const surface = screen.getByRole("group", { name: "当前 2D 结构视图" });
-    fireEvent.pointerDown(surface, { clientX: 120, clientY: 460 });
-    fireEvent.pointerDown(surface, { clientX: 280, clientY: 460 });
+    await user.click(screen.getByRole("button", { name: "添加墙" }));
 
     expect(screen.getByRole("button", { name: "选择墙 wall-1f-1" })).toBeInTheDocument();
   });
 
-  it("cancels the pending wall when the user presses Escape", async () => {
+  it("auto-selects the new wall and exposes it in the property panel", async () => {
     const user = userEvent.setup();
     render(<App />);
 
-    await user.click(screen.getByRole("button", { name: "墙" }));
+    await user.click(screen.getByRole("button", { name: "添加墙" }));
 
-    const surface = screen.getByRole("group", { name: "当前 2D 结构视图" });
-    fireEvent.pointerDown(surface, { clientX: 120, clientY: 460 });
-
-    surface.focus();
-    await user.keyboard("{Escape}");
-
-    fireEvent.pointerDown(surface, { clientX: 280, clientY: 460 });
-
-    expect(screen.queryByRole("button", { name: "选择墙 wall-1f-1" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "选择墙 wall-1f-1" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(screen.getByLabelText("墙厚")).toBeInTheDocument();
   });
 
-  it("ignores wall-tool clicks in elevation views", async () => {
+  it("creates a fresh wall id on each click", async () => {
     const user = userEvent.setup();
     render(<App />);
 
-    await user.click(screen.getByRole("button", { name: "墙" }));
-    await user.click(screen.getByRole("button", { name: "正面" }));
+    await user.click(screen.getByRole("button", { name: "添加墙" }));
+    await user.click(screen.getByRole("button", { name: "添加墙" }));
 
-    const surface = screen.getByRole("group", { name: "当前 2D 结构视图" });
-    fireEvent.pointerDown(surface, { clientX: 120, clientY: 260 });
-    fireEvent.pointerDown(surface, { clientX: 280, clientY: 260 });
-
-    expect(screen.queryByRole("button", { name: /选择墙 wall-1f-1/ })).not.toBeInTheDocument();
-  });
-
-  it("does not select existing walls when wall tool is active", async () => {
-    const user = userEvent.setup();
-    render(<App />);
-
-    await user.click(screen.getByRole("button", { name: "墙" }));
-
-    const existing = screen.getByRole("button", { name: "选择墙 wall-front-1f" });
-    await user.click(existing);
-
-    expect(existing).toHaveAttribute("aria-pressed", "false");
-  });
-
-  it("surfaces an error and resets pending state when addWall throws", async () => {
-    const user = userEvent.setup();
-    render(<App />);
-
-    await user.click(screen.getByRole("button", { name: "墙" }));
-
-    const surface = screen.getByRole("group", { name: "当前 2D 结构视图" });
-    fireEvent.pointerDown(surface, { clientX: 120, clientY: 460 });
-    fireEvent.pointerDown(surface, { clientX: 120, clientY: 460 });
-
-    // Two clicks at the exact same viewBox point would either be deduped (no-op)
-    // or — if they slip past the epsilon — produce a zero-length wall that
-    // assertValidProject rejects. Either way no new wall should appear.
-    expect(screen.queryByRole("button", { name: "选择墙 wall-1f-1" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "选择墙 wall-1f-1" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "选择墙 wall-1f-2" })).toBeInTheDocument();
   });
 });

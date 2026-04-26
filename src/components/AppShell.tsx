@@ -1,10 +1,20 @@
 import { type ChangeEvent, useEffect, useReducer, useState } from "react";
 import { exportProjectJson, importProjectJson } from "../app/persistence";
 import { projectReducer } from "../app/projectReducer";
-import { removeBalcony, removeOpening, removeWall } from "../domain/mutations";
+import { createBalconyDraft, createOpeningDraft } from "../domain/drafts";
+import { wallLength } from "../domain/measurements";
+import {
+  addBalcony,
+  addOpening,
+  addWall,
+  removeBalcony,
+  removeOpening,
+  removeWall,
+} from "../domain/mutations";
 import { createSampleProject } from "../domain/sampleProject";
 import type { ObjectSelection } from "../domain/selection";
-import type { HouseProject, Mode, ToolId, ViewId } from "../domain/types";
+import type { HouseProject, Mode, OpeningType, ToolId, ViewId, Wall } from "../domain/types";
+import { createWallDraft } from "../domain/walls";
 import { downloadTextFile } from "../export/exporters";
 import { DrawingSurface2D } from "./DrawingSurface2D";
 import { Preview3D } from "./Preview3D";
@@ -18,18 +28,56 @@ const MODE_TABS: { id: Mode; label: string }[] = [
   { id: "3d", label: "3D" },
 ];
 
-function pickInitialMaterialId(materials: { id: string; kind: string }[]): string {
-  return (
-    materials.find((material) => material.kind === "wall")?.id ?? materials[0]?.id ?? ""
-  );
+const PLAN_STOREY_BY_VIEW: Partial<Record<ViewId, string>> = {
+  "plan-1f": "1f",
+  "plan-2f": "2f",
+  "plan-3f": "3f",
+};
+
+const ELEVATION_VIEWS: ReadonlySet<ViewId> = new Set([
+  "elevation-front",
+  "elevation-back",
+  "elevation-left",
+  "elevation-right",
+]);
+
+const roundToMm = (value: number) => Math.round(value * 1000) / 1000;
+
+function activeStoreyId(project: HouseProject): string | undefined {
+  const planStorey = PLAN_STOREY_BY_VIEW[project.activeView];
+  if (planStorey) return planStorey;
+  if (project.selection?.kind === "storey") return project.selection.id;
+  if (ELEVATION_VIEWS.has(project.activeView)) return project.storeys[0]?.id;
+  return undefined;
+}
+
+function defaultWallEndpoints(project: HouseProject, storeyId: string): { start: { x: number; y: number }; end: { x: number; y: number } } {
+  const wallsInStorey = project.walls.filter((wall) => wall.storeyId === storeyId);
+  if (wallsInStorey.length === 0) {
+    return { start: { x: -1.5, y: 0 }, end: { x: 1.5, y: 0 } };
+  }
+  const xs = wallsInStorey.flatMap((wall) => [wall.start.x, wall.end.x]);
+  const ys = wallsInStorey.flatMap((wall) => [wall.start.y, wall.end.y]);
+  const cx = (Math.min(...xs) + Math.max(...xs)) / 2;
+  const top = Math.max(...ys) + 1.5;
+  return {
+    start: { x: roundToMm(cx - 1.5), y: roundToMm(top) },
+    end: { x: roundToMm(cx + 1.5), y: roundToMm(top) },
+  };
+}
+
+function pickTargetWall(project: HouseProject, storeyId: string): Wall | undefined {
+  if (project.selection?.kind === "wall") {
+    const sel = project.walls.find((wall) => wall.id === project.selection!.id);
+    if (sel && sel.storeyId === storeyId) return sel;
+  }
+  return project.walls.find((wall) => wall.storeyId === storeyId);
 }
 
 export function AppShell() {
   const [project, dispatch] = useReducer(projectReducer, undefined, createSampleProject);
   const [importError, setImportError] = useState<string | undefined>();
-  const [activeMaterialId, setActiveMaterialId] = useState<string>(() =>
-    pickInitialMaterialId(project.materials),
-  );
+  const [addError, setAddError] = useState<string | undefined>();
 
   const setMode = (mode: Mode) => dispatch({ type: "set-mode", mode });
   const setView = (viewId: ViewId) => dispatch({ type: "set-view", viewId });
@@ -77,6 +125,62 @@ export function AppShell() {
     return () => document.removeEventListener("keydown", handler);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [project]);
+
+  const handleAddComponent = (toolId: ToolId) => {
+    setAddError(undefined);
+    const storeyId = activeStoreyId(project);
+    if (!storeyId) {
+      setAddError("请先选择一个楼层视图后再添加组件。");
+      return;
+    }
+
+    try {
+      if (toolId === "wall") {
+        const { start, end } = defaultWallEndpoints(project, storeyId);
+        const draft = createWallDraft(project, storeyId, start, end);
+        const next = addWall(project, draft);
+        dispatch({ type: "replace-project", project: next });
+        dispatch({ type: "select", selection: { kind: "wall", id: draft.id } });
+        if (PLAN_STOREY_BY_VIEW[project.activeView] === undefined) {
+          dispatch({ type: "set-view", viewId: `plan-${storeyId}` as ViewId });
+        }
+        return;
+      }
+
+      const wall = pickTargetWall(project, storeyId);
+      if (!wall) {
+        setAddError("当前楼层没有墙,先添加一面墙再放门窗/阳台。");
+        return;
+      }
+      const center = wallLength(wall) / 2;
+
+      if (toolId === "balcony") {
+        const draft = createBalconyDraft(project, wall, center);
+        const next = addBalcony(project, draft);
+        dispatch({ type: "replace-project", project: next });
+        dispatch({ type: "select", selection: { kind: "balcony", id: draft.id } });
+        return;
+      }
+
+      const openingType: OpeningType = toolId === "door" ? "door" : toolId === "window" ? "window" : "void";
+      const draft = createOpeningDraft(project, wall, openingType, center);
+      const next = addOpening(project, draft);
+      dispatch({ type: "replace-project", project: next });
+      dispatch({ type: "select", selection: { kind: "opening", id: draft.id } });
+    } catch (error) {
+      setAddError(error instanceof Error ? error.message : "无法添加该组件。");
+    }
+  };
+
+  const handleToolButtonClick = (toolId: ToolId) => {
+    if (toolId === "select") {
+      setTool("select");
+      setAddError(undefined);
+      return;
+    }
+    handleAddComponent(toolId);
+  };
+
   const handleExport = () => {
     setImportError(undefined);
     downloadTextFile("houseclaw-project.json", exportProjectJson(project));
@@ -113,7 +217,6 @@ export function AppShell() {
             project={project}
             onSelect={select}
             onProjectChange={(next) => dispatch({ type: "replace-project", project: next })}
-            activeMaterialId={activeMaterialId}
           />
         ) : (
           <Preview3D project={project} />
@@ -151,7 +254,7 @@ export function AppShell() {
 
       {isPlanMode ? (
         <>
-          <ToolPalette activeTool={project.activeTool} onToolChange={setTool} />
+          <ToolPalette activeTool={project.activeTool} onToolButtonClick={handleToolButtonClick} />
 
           <div className="bottom-overlay">
             <StoreyHeightStrip
@@ -170,10 +273,14 @@ export function AppShell() {
             onApplyWallMaterial={applyWallMaterial}
             onProjectChange={(next) => dispatch({ type: "replace-project", project: next })}
             onDeleteSelection={handleDeleteSelection}
-            activeMaterialId={activeMaterialId}
-            onActiveMaterialChange={setActiveMaterialId}
           />
         </>
+      ) : null}
+
+      {addError ? (
+        <p className="add-error" role="alert">
+          {addError}
+        </p>
       ) : null}
 
       {importError ? (

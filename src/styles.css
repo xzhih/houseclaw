@@ -389,18 +389,18 @@ select {
 
 .plan-wall {
   stroke: #263238;
-  stroke-linecap: round;
+  stroke-linecap: butt;
 }
 
 .plan-opening-gap {
   stroke: var(--canvas-bg);
-  stroke-linecap: round;
+  stroke-linecap: butt;
   stroke-width: 18;
 }
 
 .plan-opening {
   stroke: #008577;
-  stroke-linecap: round;
+  stroke-linecap: butt;
   stroke-width: 6;
   cursor: pointer;
 }
@@ -435,7 +435,7 @@ select {
 .is-selected {
   outline: none;
   stroke: #c75300;
-  stroke-width: 8;
+  filter: drop-shadow(0 0 3px rgba(199, 83, 0, 0.7));
 }
 
 .surface-placeholder rect {
@@ -495,18 +495,21 @@ select {
   pointer-events: none;
 }
 
-.wall-endpoint-handle {
+.wall-endpoint-handle,
+.resize-handle {
   fill: #ffffff;
   stroke: #c75300;
   stroke-width: 2.5;
   cursor: grab;
 }
 
-.wall-endpoint-handle:hover {
+.wall-endpoint-handle:hover,
+.resize-handle:hover {
   fill: #fff5ec;
 }
 
-.wall-endpoint-handle:active {
+.wall-endpoint-handle:active,
+.resize-handle:active {
   cursor: grabbing;
 }
 

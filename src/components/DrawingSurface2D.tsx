@@ -1,18 +1,9 @@
-import { useEffect, useRef, useState, type KeyboardEvent, type MouseEvent, type PointerEvent } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
 import type { ObjectSelection } from "../domain/selection";
 import { isSelected } from "../domain/selection";
-import {
-  addBalcony,
-  addOpening,
-  addWall,
-  applyWallMaterial,
-  moveWall,
-  updateBalcony,
-  updateOpening,
-} from "../domain/mutations";
-import { createBalconyDraft, createOpeningDraft } from "../domain/drafts";
+import { wallLength } from "../domain/measurements";
+import { moveWall, updateBalcony, updateOpening } from "../domain/mutations";
 import type { HouseProject, Point2, ToolId, ViewId } from "../domain/types";
-import { createWallDraft } from "../domain/walls";
 import { snapPlanPoint, snapToEndpoint } from "../geometry/snapping";
 import { projectElevationView } from "../projection/elevation";
 import { projectPlanView } from "../projection/plan";
@@ -32,7 +23,6 @@ const SURFACE_PADDING = 48;
 
 const PLAN_GRID_SIZE = 0.1;
 const PLAN_ENDPOINT_THRESHOLD = 0.2;
-const PENDING_DEDUPE_EPSILON = 1e-6;
 const DRAG_MOVE_THRESHOLD_WORLD = 0.04;
 const ENDPOINT_HANDLE_RADIUS = 7;
 
@@ -53,7 +43,6 @@ type DrawingSurface2DProps = {
   project: HouseProject;
   onSelect: (selection: ObjectSelection | undefined) => void;
   onProjectChange: (project: HouseProject) => void;
-  activeMaterialId: string;
 };
 
 type DragState =
@@ -101,6 +90,58 @@ type DragState =
       wallEnd: Point2D;
       origOffset: number;
       balconyWidth: number;
+    }
+  | {
+      kind: "elev-opening-move";
+      pointerId: number;
+      startWorld: Point2D;
+      moved: boolean;
+      mapping: PointMapping;
+      openingId: string;
+      origOffset: number;
+      origSill: number;
+      width: number;
+      height: number;
+      wallLen: number;
+      storeyHeight: number;
+    }
+  | {
+      kind: "elev-opening-resize";
+      pointerId: number;
+      startWorld: Point2D;
+      moved: boolean;
+      mapping: PointMapping;
+      openingId: string;
+      corner: "tl" | "tr" | "bl" | "br";
+      origOffset: number;
+      origSill: number;
+      origWidth: number;
+      origHeight: number;
+      wallLen: number;
+      storeyHeight: number;
+    }
+  | {
+      kind: "elev-balcony-move";
+      pointerId: number;
+      startWorld: Point2D;
+      moved: boolean;
+      mapping: PointMapping;
+      balconyId: string;
+      origOffset: number;
+      width: number;
+      wallLen: number;
+    }
+  | {
+      kind: "elev-balcony-resize";
+      pointerId: number;
+      startWorld: Point2D;
+      moved: boolean;
+      mapping: PointMapping;
+      balconyId: string;
+      edge: "l" | "r";
+      origOffset: number;
+      origWidth: number;
+      wallLen: number;
     };
 
 type PlanDragHandlers = {
@@ -112,7 +153,21 @@ type PlanDragHandlers = {
     wallId: string,
     endpoint: "start" | "end",
   ) => void;
-  onWallActivate: (event: MouseEvent<SVGElement>, wallId: string) => void;
+};
+
+type ElevationDragHandlers = {
+  onOpeningPointerDown: (event: PointerEvent<SVGElement>, openingId: string) => void;
+  onOpeningCornerPointerDown: (
+    event: PointerEvent<SVGElement>,
+    openingId: string,
+    corner: "tl" | "tr" | "bl" | "br",
+  ) => void;
+  onBalconyPointerDown: (event: PointerEvent<SVGElement>, balconyId: string) => void;
+  onBalconyEdgePointerDown: (
+    event: PointerEvent<SVGElement>,
+    balconyId: string,
+    edge: "l" | "r",
+  ) => void;
 };
 
 type Bounds = {
@@ -127,6 +182,7 @@ type Point2D = { x: number; y: number };
 type PointMapping = {
   project: (point: Point2D) => Point2D;
   unproject: (point: Point2D) => Point2D;
+  scale: number;
 };
 
 function createPointMapping(bounds: Bounds): PointMapping {
@@ -150,6 +206,7 @@ function createPointMapping(bounds: Bounds): PointMapping {
       x: bounds.minX + (point.x - offsetX) / scale,
       y: bounds.minY + (SURFACE_HEIGHT - point.y - offsetY) / scale,
     }),
+    scale,
   };
 }
 
@@ -291,15 +348,10 @@ function renderSelectableBalcony(
     "aria-pressed": selected,
     className: selected ? `${props.className} is-selected` : props.className,
     onPointerDown,
-    onClick: (event: MouseEvent<SVGElement>) => {
-      if (activeTool === "wall") {
-        event.stopPropagation();
-        return;
-      }
+    onClick: () => {
       onSelect({ kind: "balcony", id: balconyId });
     },
     onKeyDown: (event: KeyboardEvent<SVGElement>) => {
-      if (activeTool === "wall") return;
       if (event.key === "Enter" || event.key === " ") {
         event.preventDefault();
         onSelect({ kind: "balcony", id: balconyId });
@@ -321,7 +373,7 @@ function renderPlan(
   activeTool: ToolId,
   handlers?: PlanDragHandlers,
 ) {
-  const { project: projectPoint } = createPointMapping(planBounds(projection));
+  const { project: projectPoint, scale: planScale } = createPointMapping(planBounds(projection));
   const wallsById = new Map(projection.wallSegments.map((wall) => [wall.wallId, wall]));
   const selectedWall =
     selection?.kind === "wall"
@@ -348,21 +400,10 @@ function renderPlan(
             y1={start.y}
             x2={end.x}
             y2={end.y}
-            strokeWidth={Math.max(wall.thickness * 20, 6)}
+            strokeWidth={Math.max(wall.thickness * planScale, 1)}
             onPointerDown={(event) => handlers?.onWallPointerDown(event, wall.wallId)}
-            onClick={(event) => {
-              if (activeTool === "wall") {
-                event.stopPropagation();
-                return;
-              }
-              if (activeTool !== "select" && handlers?.onWallActivate) {
-                handlers.onWallActivate(event, wall.wallId);
-                return;
-              }
-              onSelect({ kind: "wall", id: wall.wallId });
-            }}
+            onClick={() => onSelect({ kind: "wall", id: wall.wallId })}
             onKeyDown={(event) => {
-              if (activeTool === "wall") return;
               if (event.key === "Enter" || event.key === " ") {
                 event.preventDefault();
                 onSelect({ kind: "wall", id: wall.wallId });
@@ -402,15 +443,8 @@ function renderPlan(
               x2={end.x}
               y2={end.y}
               onPointerDown={(event) => handlers?.onOpeningPointerDown(event, opening.openingId)}
-              onClick={(event) => {
-                if (activeTool === "wall") {
-                  event.stopPropagation();
-                  return;
-                }
-                onSelect({ kind: "opening", id: opening.openingId });
-              }}
+              onClick={() => onSelect({ kind: "opening", id: opening.openingId })}
               onKeyDown={(event) => {
-                if (activeTool === "wall") return;
                 if (event.key === "Enter" || event.key === " ") {
                   event.preventDefault();
                   onSelect({ kind: "opening", id: opening.openingId });
@@ -476,8 +510,17 @@ function renderElevation(
   selection: ObjectSelection | undefined,
   onSelect: DrawingSurface2DProps["onSelect"],
   activeTool: ToolId,
+  handlers?: ElevationDragHandlers,
 ) {
   const { project: projectPoint } = createPointMapping(elevationBounds(projection));
+  const selectedOpening =
+    selection?.kind === "opening"
+      ? projection.openings.find((opening) => opening.openingId === selection.id)
+      : undefined;
+  const selectedBalcony =
+    selection?.kind === "balcony"
+      ? projection.balconies.find((balcony) => balcony.balconyId === selection.id)
+      : undefined;
 
   return (
     <>
@@ -513,15 +556,9 @@ function renderElevation(
             y={topLeft.y}
             width={bottomRight.x - topLeft.x}
             height={bottomRight.y - topLeft.y}
-            onClick={(event) => {
-              if (activeTool === "wall") {
-                event.stopPropagation();
-                return;
-              }
-              onSelect({ kind: "opening", id: opening.openingId });
-            }}
+            onPointerDown={(event) => handlers?.onOpeningPointerDown(event, opening.openingId)}
+            onClick={() => onSelect({ kind: "opening", id: opening.openingId })}
             onKeyDown={(event) => {
-              if (activeTool === "wall") return;
               if (event.key === "Enter" || event.key === " ") {
                 event.preventDefault();
                 onSelect({ kind: "opening", id: opening.openingId });
@@ -548,10 +585,53 @@ function renderElevation(
                 width: bottomRight.x - topLeft.x,
                 height: bottomRight.y - topLeft.y,
               },
+              (event) => handlers?.onBalconyPointerDown(event, balcony.balconyId),
             )}
           </g>
         );
       })}
+      {selectedOpening && handlers
+        ? (["tl", "tr", "bl", "br"] as const).map((corner) => {
+            const isLeft = corner === "tl" || corner === "bl";
+            const isBottom = corner === "bl" || corner === "br";
+            const wx = selectedOpening.x + (isLeft ? 0 : selectedOpening.width);
+            const wy = selectedOpening.y + (isBottom ? 0 : selectedOpening.height);
+            const p = projectPoint({ x: wx, y: wy });
+            return (
+              <circle
+                key={corner}
+                className="resize-handle"
+                cx={p.x}
+                cy={p.y}
+                r={ENDPOINT_HANDLE_RADIUS}
+                aria-label={`调整开孔 ${selectedOpening.openingId} ${corner}`}
+                onPointerDown={(event) =>
+                  handlers.onOpeningCornerPointerDown(event, selectedOpening.openingId, corner)
+                }
+              />
+            );
+          })
+        : null}
+      {selectedBalcony && handlers
+        ? (["l", "r"] as const).map((edge) => {
+            const wx = selectedBalcony.x + (edge === "l" ? 0 : selectedBalcony.width);
+            const wy = selectedBalcony.y + selectedBalcony.height / 2;
+            const p = projectPoint({ x: wx, y: wy });
+            return (
+              <circle
+                key={edge}
+                className="resize-handle"
+                cx={p.x}
+                cy={p.y}
+                r={ENDPOINT_HANDLE_RADIUS}
+                aria-label={`调整阳台 ${selectedBalcony.balconyId} ${edge}`}
+                onPointerDown={(event) =>
+                  handlers.onBalconyEdgePointerDown(event, selectedBalcony.balconyId, edge)
+                }
+              />
+            );
+          })
+        : null}
     </>
   );
 }
@@ -577,25 +657,16 @@ export function DrawingSurface2D({
   project,
   onSelect,
   onProjectChange,
-  activeMaterialId,
 }: DrawingSurface2DProps) {
   const storeyId = PLAN_STOREY_BY_VIEW[project.activeView];
   const elevationSide = ELEVATION_SIDE_BY_VIEW[project.activeView];
-  const wallToolActive = project.activeTool === "wall" && storeyId !== undefined;
 
   const svgRef = useRef<SVGSVGElement | null>(null);
-  const [pendingStart, setPendingStart] = useState<Point2D | undefined>(undefined);
-  const [wallError, setWallError] = useState<string | undefined>(undefined);
   const [viewport, setViewport] = useState<Viewport>(DEFAULT_VIEWPORT);
   const [isPanning, setIsPanning] = useState(false);
   const panLastPos = useRef({ x: 0, y: 0 });
   const panPointerId = useRef<number | null>(null);
   const [dragState, setDragState] = useState<DragState | undefined>(undefined);
-
-  useEffect(() => {
-    setPendingStart(undefined);
-    setWallError(undefined);
-  }, [project.id, project.activeView, project.activeTool]);
 
   useEffect(() => {
     setViewport(DEFAULT_VIEWPORT);
@@ -652,6 +723,11 @@ export function DrawingSurface2D({
     ? createPointMapping(planBounds(projectPlanView(project, storeyId)))
     : undefined;
 
+  const elevationProjection = elevationSide ? projectElevationView(project, elevationSide) : undefined;
+  const elevationMapping = elevationProjection
+    ? createPointMapping(elevationBounds(elevationProjection))
+    : undefined;
+
   const handlePointerDown = (event: PointerEvent<SVGSVGElement>) => {
     if (event.button === 1 && svgRef.current) {
       event.preventDefault();
@@ -660,39 +736,6 @@ export function DrawingSurface2D({
       panLastPos.current = { x: event.clientX, y: event.clientY };
       panPointerId.current = event.pointerId;
       svgRef.current.setPointerCapture(event.pointerId);
-      return;
-    }
-
-    if (!wallToolActive || !storeyId || !svgRef.current || !planMapping) return;
-
-    event.preventDefault();
-    event.stopPropagation();
-
-    const viewBoxPoint = eventToViewBoxPoint(svgRef.current, event.clientX, event.clientY);
-    const worldRaw = planMapping.unproject(viewBoxPoint);
-    const snapped = snapPlanPoint(worldRaw, planSegments, {
-      gridSize: PLAN_GRID_SIZE,
-      endpointThreshold: PLAN_ENDPOINT_THRESHOLD,
-    });
-
-    if (!pendingStart) {
-      setPendingStart(snapped);
-      return;
-    }
-
-    if (Math.hypot(snapped.x - pendingStart.x, snapped.y - pendingStart.y) < PENDING_DEDUPE_EPSILON) {
-      // Two near-identical clicks would create a zero-length wall — ignore the second.
-      return;
-    }
-
-    try {
-      const next = addWall(project, createWallDraft(project, storeyId, pendingStart, snapped));
-      onProjectChange(next);
-      setWallError(undefined);
-    } catch (error) {
-      setWallError(error instanceof Error ? error.message : "无法创建墙：未知错误。");
-    } finally {
-      setPendingStart(undefined);
     }
   };
 
@@ -712,8 +755,9 @@ export function DrawingSurface2D({
     y: roundToMm(point.y),
   });
 
-  const beginElementDrag = (
+  const beginDragWith = (
     event: PointerEvent<SVGElement>,
+    mapping: PointMapping | undefined,
     factory: (
       pointerId: number,
       startWorld: Point2D,
@@ -722,17 +766,26 @@ export function DrawingSurface2D({
   ) => {
     if (project.activeTool !== "select") return;
     if (event.button !== 0) return;
-    if (!svgRef.current || !planMapping) return;
+    if (!svgRef.current || !mapping) return;
 
-    const startWorld = eventToWorldWith(event, planMapping);
+    const startWorld = eventToWorldWith(event, mapping);
     if (!startWorld) return;
-    const next = factory(event.pointerId, startWorld, planMapping);
+    const next = factory(event.pointerId, startWorld, mapping);
     if (!next) return;
 
     event.stopPropagation();
     svgRef.current.setPointerCapture(event.pointerId);
     setDragState(next);
   };
+
+  const beginElementDrag = (
+    event: PointerEvent<SVGElement>,
+    factory: (
+      pointerId: number,
+      startWorld: Point2D,
+      mapping: PointMapping,
+    ) => DragState | undefined,
+  ) => beginDragWith(event, planMapping, factory);
 
   const onWallElementPointerDown: PlanDragHandlers["onWallPointerDown"] = (event, wallId) => {
     if (storeyId === undefined) return;
@@ -813,53 +866,112 @@ export function DrawingSurface2D({
     }));
   };
 
-  const onWallActivate: PlanDragHandlers["onWallActivate"] = (event, wallId) => {
-    if (storeyId === undefined || !planMapping) return;
-    const wall = project.walls.find((candidate) => candidate.id === wallId);
-    if (!wall) return;
-    const tool = project.activeTool;
-    if (tool !== "door" && tool !== "window" && tool !== "opening" && tool !== "balcony" && tool !== "material") {
-      return;
-    }
-    event.stopPropagation();
-    const worldPoint = eventToWorldWith(event, planMapping);
-    if (!worldPoint) return;
-
-    const wx = wall.end.x - wall.start.x;
-    const wy = wall.end.y - wall.start.y;
-    const len = Math.hypot(wx, wy);
-    if (len === 0) return;
-    const ux = wx / len;
-    const uy = wy / len;
-    const t = (worldPoint.x - wall.start.x) * ux + (worldPoint.y - wall.start.y) * uy;
-
-    try {
-      if (tool === "material") {
-        if (!activeMaterialId) return;
-        onProjectChange(applyWallMaterial(project, wall.id, activeMaterialId));
-        return;
-      }
-      if (tool === "balcony") {
-        const draft = createBalconyDraft(project, wall, t);
-        onProjectChange(addBalcony(project, draft));
-        onSelect({ kind: "balcony", id: draft.id });
-        return;
-      }
-      const openingType = tool === "door" ? "door" : tool === "window" ? "window" : "void";
-      const draft = createOpeningDraft(project, wall, openingType, t);
-      onProjectChange(addOpening(project, draft));
-      onSelect({ kind: "opening", id: draft.id });
-    } catch {
-      // assertValidProject rejected; keep last valid state
-    }
-  };
-
   const planDragHandlers: PlanDragHandlers = {
     onWallPointerDown: onWallElementPointerDown,
     onOpeningPointerDown: onOpeningElementPointerDown,
     onBalconyPointerDown: onBalconyElementPointerDown,
     onWallEndpointPointerDown: onWallEndpointHandlePointerDown,
-    onWallActivate,
+  };
+
+  const onElevationOpeningPointerDown: ElevationDragHandlers["onOpeningPointerDown"] = (event, openingId) => {
+    const opening = project.openings.find((candidate) => candidate.id === openingId);
+    if (!opening) return;
+    const wall = project.walls.find((candidate) => candidate.id === opening.wallId);
+    if (!wall) return;
+    const storey = project.storeys.find((candidate) => candidate.id === wall.storeyId);
+    const wallLen = wallLength(wall);
+    beginDragWith(event, elevationMapping, (pointerId, startWorld, mapping) => ({
+      kind: "elev-opening-move",
+      pointerId,
+      startWorld,
+      mapping,
+      moved: false,
+      openingId,
+      origOffset: opening.offset,
+      origSill: opening.sillHeight,
+      width: opening.width,
+      height: opening.height,
+      wallLen,
+      storeyHeight: storey?.height ?? wall.height,
+    }));
+  };
+
+  const onElevationOpeningCornerPointerDown: ElevationDragHandlers["onOpeningCornerPointerDown"] = (
+    event,
+    openingId,
+    corner,
+  ) => {
+    const opening = project.openings.find((candidate) => candidate.id === openingId);
+    if (!opening) return;
+    const wall = project.walls.find((candidate) => candidate.id === opening.wallId);
+    if (!wall) return;
+    const storey = project.storeys.find((candidate) => candidate.id === wall.storeyId);
+    const wallLen = wallLength(wall);
+    beginDragWith(event, elevationMapping, (pointerId, startWorld, mapping) => ({
+      kind: "elev-opening-resize",
+      pointerId,
+      startWorld,
+      mapping,
+      moved: false,
+      openingId,
+      corner,
+      origOffset: opening.offset,
+      origSill: opening.sillHeight,
+      origWidth: opening.width,
+      origHeight: opening.height,
+      wallLen,
+      storeyHeight: storey?.height ?? wall.height,
+    }));
+  };
+
+  const onElevationBalconyPointerDown: ElevationDragHandlers["onBalconyPointerDown"] = (event, balconyId) => {
+    const balcony = project.balconies.find((candidate) => candidate.id === balconyId);
+    if (!balcony) return;
+    const wall = project.walls.find((candidate) => candidate.id === balcony.attachedWallId);
+    if (!wall) return;
+    const wallLen = wallLength(wall);
+    beginDragWith(event, elevationMapping, (pointerId, startWorld, mapping) => ({
+      kind: "elev-balcony-move",
+      pointerId,
+      startWorld,
+      mapping,
+      moved: false,
+      balconyId,
+      origOffset: balcony.offset,
+      width: balcony.width,
+      wallLen,
+    }));
+  };
+
+  const onElevationBalconyEdgePointerDown: ElevationDragHandlers["onBalconyEdgePointerDown"] = (
+    event,
+    balconyId,
+    edge,
+  ) => {
+    const balcony = project.balconies.find((candidate) => candidate.id === balconyId);
+    if (!balcony) return;
+    const wall = project.walls.find((candidate) => candidate.id === balcony.attachedWallId);
+    if (!wall) return;
+    const wallLen = wallLength(wall);
+    beginDragWith(event, elevationMapping, (pointerId, startWorld, mapping) => ({
+      kind: "elev-balcony-resize",
+      pointerId,
+      startWorld,
+      mapping,
+      moved: false,
+      balconyId,
+      edge,
+      origOffset: balcony.offset,
+      origWidth: balcony.width,
+      wallLen,
+    }));
+  };
+
+  const elevationDragHandlers: ElevationDragHandlers = {
+    onOpeningPointerDown: onElevationOpeningPointerDown,
+    onOpeningCornerPointerDown: onElevationOpeningCornerPointerDown,
+    onBalconyPointerDown: onElevationBalconyPointerDown,
+    onBalconyEdgePointerDown: onElevationBalconyEdgePointerDown,
   };
 
   const otherWallSegments = (excludeWallId?: string) =>
@@ -868,6 +980,8 @@ export function DrawingSurface2D({
       : project.walls
           .filter((wall) => wall.storeyId === storeyId && wall.id !== excludeWallId)
           .map((wall) => ({ start: wall.start, end: wall.end }));
+
+  const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 
   const applyDrag = (state: DragState, currentWorld: Point2D) => {
     const dx = currentWorld.x - state.startWorld.x;
@@ -937,6 +1051,103 @@ export function DrawingSurface2D({
           }
           break;
         }
+        case "elev-opening-move": {
+          const newOffset = clamp(state.origOffset + dx, 0, Math.max(0, state.wallLen - state.width));
+          const maxSill = Math.max(0, state.storeyHeight - state.height);
+          const newSill = clamp(state.origSill + dy, 0, maxSill);
+          onProjectChange(
+            updateOpening(project, state.openingId, {
+              offset: roundToMm(snapToGrid(newOffset)),
+              sillHeight: roundToMm(snapToGrid(newSill)),
+            }),
+          );
+          break;
+        }
+        case "elev-opening-resize": {
+          const minSize = 0.05;
+          let newOffset = state.origOffset;
+          let newSill = state.origSill;
+          let newWidth = state.origWidth;
+          let newHeight = state.origHeight;
+
+          if (state.corner === "tl" || state.corner === "bl") {
+            const limited = Math.min(dx, state.origWidth - minSize);
+            newOffset = state.origOffset + limited;
+            newWidth = state.origWidth - limited;
+          } else {
+            newWidth = Math.max(minSize, state.origWidth + dx);
+          }
+
+          if (state.corner === "bl" || state.corner === "br") {
+            const limited = Math.min(dy, state.origHeight - minSize);
+            newSill = state.origSill + limited;
+            newHeight = state.origHeight - limited;
+          } else {
+            newHeight = Math.max(minSize, state.origHeight + dy);
+          }
+
+          if (newOffset < 0) {
+            newWidth += newOffset;
+            newOffset = 0;
+          }
+          if (newSill < 0) {
+            newHeight += newSill;
+            newSill = 0;
+          }
+          if (newOffset + newWidth > state.wallLen) {
+            newWidth = state.wallLen - newOffset;
+          }
+          if (newSill + newHeight > state.storeyHeight) {
+            newHeight = state.storeyHeight - newSill;
+          }
+          if (newWidth < minSize || newHeight < minSize) return;
+
+          onProjectChange(
+            updateOpening(project, state.openingId, {
+              offset: roundToMm(snapToGrid(newOffset)),
+              sillHeight: roundToMm(snapToGrid(newSill)),
+              width: roundToMm(snapToGrid(newWidth)),
+              height: roundToMm(snapToGrid(newHeight)),
+            }),
+          );
+          break;
+        }
+        case "elev-balcony-move": {
+          const newOffset = clamp(state.origOffset + dx, 0, Math.max(0, state.wallLen - state.width));
+          onProjectChange(
+            updateBalcony(project, state.balconyId, {
+              offset: roundToMm(snapToGrid(newOffset)),
+            }),
+          );
+          break;
+        }
+        case "elev-balcony-resize": {
+          const minSize = 0.3;
+          let newOffset = state.origOffset;
+          let newWidth = state.origWidth;
+          if (state.edge === "l") {
+            const limited = Math.min(dx, state.origWidth - minSize);
+            newOffset = state.origOffset + limited;
+            newWidth = state.origWidth - limited;
+          } else {
+            newWidth = Math.max(minSize, state.origWidth + dx);
+          }
+          if (newOffset < 0) {
+            newWidth += newOffset;
+            newOffset = 0;
+          }
+          if (newOffset + newWidth > state.wallLen) {
+            newWidth = state.wallLen - newOffset;
+          }
+          if (newWidth < minSize) return;
+          onProjectChange(
+            updateBalcony(project, state.balconyId, {
+              offset: roundToMm(snapToGrid(newOffset)),
+              width: roundToMm(snapToGrid(newWidth)),
+            }),
+          );
+          break;
+        }
       }
     } catch {
       // invalid move — keep last valid state
@@ -980,12 +1191,14 @@ export function DrawingSurface2D({
             onSelect({ kind: "wall", id: finished.wallId });
             break;
           case "opening":
+          case "elev-opening-move":
             onSelect({ kind: "opening", id: finished.openingId });
             break;
           case "balcony":
+          case "elev-balcony-move":
             onSelect({ kind: "balcony", id: finished.balconyId });
             break;
-          // wall-endpoint: clicking handle without dragging — keep selection
+          // resize/endpoint handles: keep selection
         }
       }
       return;
@@ -1002,10 +1215,6 @@ export function DrawingSurface2D({
   const handleKeyDown = (event: KeyboardEvent<SVGSVGElement>) => {
     if (event.key !== "Escape") return;
     event.preventDefault();
-    if (pendingStart) {
-      setPendingStart(undefined);
-      return;
-    }
     onSelect(undefined);
   };
 
@@ -1013,20 +1222,8 @@ export function DrawingSurface2D({
   const isViewportTransformed =
     viewport.zoom !== 1 || viewport.panX !== 0 || viewport.panY !== 0;
 
-  const pendingMarker = pendingStart && planMapping ? planMapping.project(pendingStart) : undefined;
-
   return (
     <section className="drawing-surface" aria-label="2D drawing surface">
-      {wallToolActive ? (
-        <p className="surface-banner" role="status">
-          墙工具：点击两点画墙；按 Esc 取消
-        </p>
-      ) : null}
-      {wallError ? (
-        <p className="surface-error" role="alert">
-          {wallError}
-        </p>
-      ) : null}
       <svg
         ref={svgRef}
         viewBox={`${viewport.panX} ${viewport.panY} ${SURFACE_WIDTH / viewport.zoom} ${SURFACE_HEIGHT / viewport.zoom}`}
@@ -1046,10 +1243,7 @@ export function DrawingSurface2D({
           y="0"
           width={SURFACE_WIDTH}
           height={SURFACE_HEIGHT}
-          onClick={() => {
-            if (wallToolActive) return;
-            onSelect(undefined);
-          }}
+          onClick={() => onSelect(undefined)}
         />
         {storeyId
           ? renderPlan(
@@ -1059,22 +1253,15 @@ export function DrawingSurface2D({
               project.activeTool,
               planDragHandlers,
             )
-          : elevationSide
+          : elevationProjection
             ? renderElevation(
-                projectElevationView(project, elevationSide),
+                elevationProjection,
                 project.selection,
                 onSelect,
                 project.activeTool,
+                elevationDragHandlers,
               )
             : renderRoofPlaceholder()}
-        {pendingMarker ? (
-          <circle
-            className="wall-pending-marker"
-            cx={pendingMarker.x}
-            cy={pendingMarker.y}
-            r={6}
-          />
-        ) : null}
       </svg>
       {isViewportTransformed ? (
         <button
