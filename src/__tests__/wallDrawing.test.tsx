@@ -106,4 +106,20 @@ describe("Wall drawing tool", () => {
 
     expect(existing).toHaveAttribute("aria-pressed", "false");
   });
+
+  it("surfaces an error and resets pending state when addWall throws", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: "墙" }));
+
+    const surface = screen.getByRole("group", { name: "当前 2D 结构视图" });
+    fireEvent.pointerDown(surface, { clientX: 120, clientY: 460 });
+    fireEvent.pointerDown(surface, { clientX: 120, clientY: 460 });
+
+    // Two clicks at the exact same viewBox point would either be deduped (no-op)
+    // or — if they slip past the epsilon — produce a zero-length wall that
+    // assertValidProject rejects. Either way no new wall should appear.
+    expect(screen.queryByRole("button", { name: "选择墙 wall-1f-1" })).not.toBeInTheDocument();
+  });
 });

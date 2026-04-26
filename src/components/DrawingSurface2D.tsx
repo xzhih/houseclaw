@@ -23,6 +23,7 @@ const SURFACE_PADDING = 48;
 
 const PLAN_GRID_SIZE = 0.1;
 const PLAN_ENDPOINT_THRESHOLD = 0.2;
+const PENDING_DEDUPE_EPSILON = 1e-6;
 
 const PLAN_STOREY_BY_VIEW: Partial<Record<ViewId, string>> = {
   "plan-1f": "1f",
@@ -465,10 +466,12 @@ export function DrawingSurface2D({ project, onSelect, onProjectChange }: Drawing
 
   const svgRef = useRef<SVGSVGElement | null>(null);
   const [pendingStart, setPendingStart] = useState<Point2D | undefined>(undefined);
+  const [wallError, setWallError] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     setPendingStart(undefined);
-  }, [project.activeView, project.activeTool]);
+    setWallError(undefined);
+  }, [project.id, project.activeView, project.activeTool]);
 
   const planSegments = storeyId
     ? project.walls
@@ -498,14 +501,17 @@ export function DrawingSurface2D({ project, onSelect, onProjectChange }: Drawing
       return;
     }
 
-    if (snapped.x === pendingStart.x && snapped.y === pendingStart.y) {
-      // Two identical clicks would create a zero-length wall — ignore the second.
+    if (Math.hypot(snapped.x - pendingStart.x, snapped.y - pendingStart.y) < PENDING_DEDUPE_EPSILON) {
+      // Two near-identical clicks would create a zero-length wall — ignore the second.
       return;
     }
 
     try {
       const next = addWall(project, createWallDraft(project, storeyId, pendingStart, snapped));
       onProjectChange(next);
+      setWallError(undefined);
+    } catch (error) {
+      setWallError(error instanceof Error ? error.message : "无法创建墙：未知错误。");
     } finally {
       setPendingStart(undefined);
     }
@@ -528,6 +534,11 @@ export function DrawingSurface2D({ project, onSelect, onProjectChange }: Drawing
       {wallToolActive ? (
         <p className="surface-banner" role="status">
           墙工具：点击两点画墙；按 Esc 取消
+        </p>
+      ) : null}
+      {wallError ? (
+        <p className="surface-error" role="alert">
+          {wallError}
         </p>
       ) : null}
       <svg
