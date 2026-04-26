@@ -85,7 +85,11 @@ export function AppShell() {
           />
           <div className="workspace-grid">
             <ToolPalette activeTool={project.activeTool} onToolChange={setTool} />
-            <DrawingSurface2D project={project} onSelect={select} />
+            <DrawingSurface2D
+              project={project}
+              onSelect={select}
+              onProjectChange={(next) => dispatch({ type: "replace-project", project: next })}
+            />
             <PropertyPanel
               project={project}
               onApplyWallMaterial={applyWallMaterial}

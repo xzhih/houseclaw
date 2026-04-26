@@ -501,3 +501,19 @@ select {
   color: #65717d;
   font-size: 0.85rem;
 }
+
+.surface-banner {
+  margin: 0 0 8px;
+  padding: 6px 12px;
+  background: #1f6f5b;
+  color: #fffdf8;
+  border-radius: 6px;
+  font-size: 0.85rem;
+}
+
+.wall-pending-marker {
+  fill: #c75300;
+  stroke: #ffffff;
+  stroke-width: 2;
+  pointer-events: none;
+}

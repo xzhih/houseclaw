@@ -1,7 +1,10 @@
-import type { KeyboardEvent } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent, type MouseEvent, type PointerEvent } from "react";
 import type { ObjectSelection } from "../domain/selection";
 import { isSelected } from "../domain/selection";
-import type { HouseProject, ViewId } from "../domain/types";
+import { addWall } from "../domain/mutations";
+import type { HouseProject, ToolId, ViewId } from "../domain/types";
+import { createWallDraft } from "../domain/walls";
+import { snapPlanPoint } from "../geometry/snapping";
 import { projectElevationView } from "../projection/elevation";
 import { projectPlanView } from "../projection/plan";
 import type {
@@ -17,6 +20,9 @@ import type {
 const SURFACE_WIDTH = 720;
 const SURFACE_HEIGHT = 520;
 const SURFACE_PADDING = 48;
+
+const PLAN_GRID_SIZE = 0.1;
+const PLAN_ENDPOINT_THRESHOLD = 0.2;
 
 const PLAN_STOREY_BY_VIEW: Partial<Record<ViewId, string>> = {
   "plan-1f": "1f",
@@ -34,6 +40,7 @@ const ELEVATION_SIDE_BY_VIEW: Partial<Record<ViewId, ElevationSide>> = {
 type DrawingSurface2DProps = {
   project: HouseProject;
   onSelect: (selection: ObjectSelection | undefined) => void;
+  onProjectChange: (project: HouseProject) => void;
 };
 
 type Bounds = {
@@ -72,6 +79,25 @@ function createPointMapping(bounds: Bounds): PointMapping {
       y: bounds.minY + (SURFACE_HEIGHT - point.y - offsetY) / scale,
     }),
   };
+}
+
+function eventToViewBoxPoint(svg: SVGSVGElement, clientX: number, clientY: number): Point2D {
+  const ctm = typeof svg.getScreenCTM === "function" ? svg.getScreenCTM() : null;
+  if (ctm) {
+    const point = svg.createSVGPoint();
+    point.x = clientX;
+    point.y = clientY;
+    const transformed = point.matrixTransform(ctm.inverse());
+    return { x: transformed.x, y: transformed.y };
+  }
+  const rect = svg.getBoundingClientRect();
+  if (rect.width > 0 && rect.height > 0) {
+    return {
+      x: ((clientX - rect.left) * SURFACE_WIDTH) / rect.width,
+      y: ((clientY - rect.top) * SURFACE_HEIGHT) / rect.height,
+    };
+  }
+  return { x: clientX, y: clientY };
 }
 
 function planBounds(projection: PlanProjection): Bounds {
@@ -182,6 +208,7 @@ function renderSelectableBalcony(
   balconyId: string,
   selected: boolean,
   onSelect: DrawingSurface2DProps["onSelect"],
+  activeTool: ToolId,
   props: { className: string; points?: string; x?: number; y?: number; width?: number; height?: number },
 ) {
   const commonProps = {
@@ -190,8 +217,15 @@ function renderSelectableBalcony(
     "aria-label": `选择阳台 ${balconyId}`,
     "aria-pressed": selected,
     className: selected ? `${props.className} is-selected` : props.className,
-    onClick: () => onSelect({ kind: "balcony", id: balconyId }),
+    onClick: (event: MouseEvent<SVGElement>) => {
+      if (activeTool === "wall") {
+        event.stopPropagation();
+        return;
+      }
+      onSelect({ kind: "balcony", id: balconyId });
+    },
     onKeyDown: (event: KeyboardEvent<SVGElement>) => {
+      if (activeTool === "wall") return;
       if (event.key === "Enter" || event.key === " ") {
         event.preventDefault();
         onSelect({ kind: "balcony", id: balconyId });
@@ -210,6 +244,7 @@ function renderPlan(
   projection: PlanProjection,
   selection: ObjectSelection | undefined,
   onSelect: DrawingSurface2DProps["onSelect"],
+  activeTool: ToolId,
 ) {
   const { project: projectPoint } = createPointMapping(planBounds(projection));
   const wallsById = new Map(projection.wallSegments.map((wall) => [wall.wallId, wall]));
@@ -235,8 +270,15 @@ function renderPlan(
             x2={end.x}
             y2={end.y}
             strokeWidth={Math.max(wall.thickness * 20, 6)}
-            onClick={() => onSelect({ kind: "wall", id: wall.wallId })}
+            onClick={(event) => {
+              if (activeTool === "wall") {
+                event.stopPropagation();
+                return;
+              }
+              onSelect({ kind: "wall", id: wall.wallId });
+            }}
             onKeyDown={(event) => {
+              if (activeTool === "wall") return;
               if (event.key === "Enter" || event.key === " ") {
                 event.preventDefault();
                 onSelect({ kind: "wall", id: wall.wallId });
@@ -275,8 +317,15 @@ function renderPlan(
               y1={start.y}
               x2={end.x}
               y2={end.y}
-              onClick={() => onSelect({ kind: "opening", id: opening.openingId })}
+              onClick={(event) => {
+                if (activeTool === "wall") {
+                  event.stopPropagation();
+                  return;
+                }
+                onSelect({ kind: "opening", id: opening.openingId });
+              }}
               onKeyDown={(event) => {
+                if (activeTool === "wall") return;
                 if (event.key === "Enter" || event.key === " ") {
                   event.preventDefault();
                   onSelect({ kind: "opening", id: opening.openingId });
@@ -299,6 +348,7 @@ function renderPlan(
               balcony.balconyId,
               isSelected(selection, "balcony", balcony.balconyId),
               onSelect,
+              activeTool,
               {
                 className: "plan-balcony",
                 points: points.map((point) => `${point.x},${point.y}`).join(" "),
@@ -315,6 +365,7 @@ function renderElevation(
   projection: ElevationProjection,
   selection: ObjectSelection | undefined,
   onSelect: DrawingSurface2DProps["onSelect"],
+  activeTool: ToolId,
 ) {
   const { project: projectPoint } = createPointMapping(elevationBounds(projection));
 
@@ -352,8 +403,15 @@ function renderElevation(
             y={topLeft.y}
             width={bottomRight.x - topLeft.x}
             height={bottomRight.y - topLeft.y}
-            onClick={() => onSelect({ kind: "opening", id: opening.openingId })}
+            onClick={(event) => {
+              if (activeTool === "wall") {
+                event.stopPropagation();
+                return;
+              }
+              onSelect({ kind: "opening", id: opening.openingId });
+            }}
             onKeyDown={(event) => {
+              if (activeTool === "wall") return;
               if (event.key === "Enter" || event.key === " ") {
                 event.preventDefault();
                 onSelect({ kind: "opening", id: opening.openingId });
@@ -372,6 +430,7 @@ function renderElevation(
               balcony.balconyId,
               isSelected(selection, "balcony", balcony.balconyId),
               onSelect,
+              activeTool,
               {
                 className: "elevation-balcony",
                 x: topLeft.x,
@@ -399,23 +458,86 @@ function renderRoofPlaceholder() {
   );
 }
 
-export function DrawingSurface2D({ project, onSelect }: DrawingSurface2DProps) {
+export function DrawingSurface2D({ project, onSelect, onProjectChange }: DrawingSurface2DProps) {
   const storeyId = PLAN_STOREY_BY_VIEW[project.activeView];
   const elevationSide = ELEVATION_SIDE_BY_VIEW[project.activeView];
+  const wallToolActive = project.activeTool === "wall" && storeyId !== undefined;
+
+  const svgRef = useRef<SVGSVGElement | null>(null);
+  const [pendingStart, setPendingStart] = useState<Point2D | undefined>(undefined);
+
+  useEffect(() => {
+    setPendingStart(undefined);
+  }, [project.activeView, project.activeTool]);
+
+  const planSegments = storeyId
+    ? project.walls
+        .filter((wall) => wall.storeyId === storeyId)
+        .map((wall) => ({ start: wall.start, end: wall.end }))
+    : [];
+
+  const planMapping = storeyId
+    ? createPointMapping(planBounds(projectPlanView(project, storeyId)))
+    : undefined;
+
+  const handlePointerDown = (event: PointerEvent<SVGSVGElement>) => {
+    if (!wallToolActive || !storeyId || !svgRef.current || !planMapping) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    const viewBoxPoint = eventToViewBoxPoint(svgRef.current, event.clientX, event.clientY);
+    const worldRaw = planMapping.unproject(viewBoxPoint);
+    const snapped = snapPlanPoint(worldRaw, planSegments, {
+      gridSize: PLAN_GRID_SIZE,
+      endpointThreshold: PLAN_ENDPOINT_THRESHOLD,
+    });
+
+    if (!pendingStart) {
+      setPendingStart(snapped);
+      return;
+    }
+
+    if (snapped.x === pendingStart.x && snapped.y === pendingStart.y) {
+      // Two identical clicks would create a zero-length wall — ignore the second.
+      return;
+    }
+
+    try {
+      const next = addWall(project, createWallDraft(project, storeyId, pendingStart, snapped));
+      onProjectChange(next);
+    } finally {
+      setPendingStart(undefined);
+    }
+  };
+
+  const handleKeyDown = (event: KeyboardEvent<SVGSVGElement>) => {
+    if (event.key !== "Escape") return;
+    event.preventDefault();
+    if (pendingStart) {
+      setPendingStart(undefined);
+      return;
+    }
+    onSelect(undefined);
+  };
+
+  const pendingMarker = pendingStart && planMapping ? planMapping.project(pendingStart) : undefined;
 
   return (
     <section className="drawing-surface" aria-label="2D drawing surface">
+      {wallToolActive ? (
+        <p className="surface-banner" role="status">
+          墙工具：点击两点画墙；按 Esc 取消
+        </p>
+      ) : null}
       <svg
+        ref={svgRef}
         viewBox={`0 0 ${SURFACE_WIDTH} ${SURFACE_HEIGHT}`}
         role="group"
         aria-label="当前 2D 结构视图"
         tabIndex={-1}
-        onKeyDown={(event) => {
-          if (event.key === "Escape") {
-            event.preventDefault();
-            onSelect(undefined);
-          }
-        }}
+        onKeyDown={handleKeyDown}
+        onPointerDown={handlePointerDown}
       >
         <rect
           className="surface-grid"
@@ -423,13 +545,29 @@ export function DrawingSurface2D({ project, onSelect }: DrawingSurface2DProps) {
           y="0"
           width={SURFACE_WIDTH}
           height={SURFACE_HEIGHT}
-          onClick={() => onSelect(undefined)}
+          onClick={() => {
+            if (wallToolActive) return;
+            onSelect(undefined);
+          }}
         />
         {storeyId
-          ? renderPlan(projectPlanView(project, storeyId), project.selection, onSelect)
+          ? renderPlan(projectPlanView(project, storeyId), project.selection, onSelect, project.activeTool)
           : elevationSide
-            ? renderElevation(projectElevationView(project, elevationSide), project.selection, onSelect)
+            ? renderElevation(
+                projectElevationView(project, elevationSide),
+                project.selection,
+                onSelect,
+                project.activeTool,
+              )
             : renderRoofPlaceholder()}
+        {pendingMarker ? (
+          <circle
+            className="wall-pending-marker"
+            cx={pendingMarker.x}
+            cy={pendingMarker.y}
+            r={6}
+          />
+        ) : null}
       </svg>
     </section>
   );
