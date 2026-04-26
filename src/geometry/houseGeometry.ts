@@ -1,7 +1,10 @@
 import type { HouseProject, Point2, Wall } from "../domain/types";
-import type { HouseGeometry } from "./types";
+import { buildRoofPlaceholder, buildSlabGeometry } from "./slabGeometry";
+import type { HouseGeometry, SlabGeometry } from "./types";
 import { buildWallNetwork, type FootprintQuad } from "./wallNetwork";
 import { buildWallPanels } from "./wallPanels";
+
+const SLAB_MATERIAL_ID = "mat-gray-stone";
 
 function clonePoint(point: Point2): Point2 {
   return { x: point.x, y: point.y };
@@ -48,8 +51,23 @@ function buildFootprintIndex(walls: Wall[]): Map<string, FootprintQuad> {
   return index;
 }
 
+function pickTopStorey(project: HouseProject) {
+  return [...project.storeys].sort((a, b) => b.elevation - a.elevation)[0];
+}
+
 export function buildHouseGeometry(project: HouseProject): HouseGeometry {
   const footprints = buildFootprintIndex(project.walls);
+
+  const slabs: SlabGeometry[] = [];
+  for (const storey of project.storeys) {
+    const slab = buildSlabGeometry(storey, project.walls, footprints, SLAB_MATERIAL_ID);
+    if (slab) slabs.push(slab);
+  }
+  const topStorey = pickTopStorey(project);
+  if (topStorey) {
+    const roof = buildRoofPlaceholder(topStorey, project.walls, footprints, SLAB_MATERIAL_ID);
+    if (roof) slabs.push(roof);
+  }
 
   return {
     walls: project.walls.map((wall) => ({
@@ -78,5 +96,6 @@ export function buildHouseGeometry(project: HouseProject): HouseGeometry {
       materialId: balcony.materialId,
       railingMaterialId: balcony.railingMaterialId,
     })),
+    slabs,
   };
 }

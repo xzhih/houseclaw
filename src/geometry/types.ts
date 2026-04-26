@@ -36,7 +36,20 @@ export type BalconyGeometry = {
   railingMaterialId: string;
 };
 
+export type SlabKind = "floor" | "roof";
+
+export type SlabGeometry = {
+  storeyId: string;
+  kind: SlabKind;
+  outline: Point2[];
+  hole?: Point2[];
+  topY: number;
+  thickness: number;
+  materialId: string;
+};
+
 export type HouseGeometry = {
   walls: WallGeometry[];
   balconies: BalconyGeometry[];
+  slabs: SlabGeometry[];
 };
