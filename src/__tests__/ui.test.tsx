@@ -13,6 +13,13 @@ describe("HouseClaw UI", () => {
     expect(screen.getByLabelText("2D drawing surface")).toBeInTheDocument();
   });
 
+  it("shows project JSON export controls", () => {
+    render(<App />);
+
+    expect(screen.getByRole("button", { name: "导出 JSON" })).toBeInTheDocument();
+    expect(screen.getByLabelText("导入 JSON")).toBeInTheDocument();
+  });
+
   it("switches to 3d preview", async () => {
     const user = userEvent.setup();
     render(<App />);

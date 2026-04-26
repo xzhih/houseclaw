@@ -1,7 +1,9 @@
-import { useReducer } from "react";
+import { type ChangeEvent, useReducer, useState } from "react";
+import { exportProjectJson, importProjectJson } from "../app/persistence";
 import { projectReducer } from "../app/projectReducer";
 import { createSampleProject } from "../domain/sampleProject";
 import type { Mode, ToolId, ViewId } from "../domain/types";
+import { downloadTextFile } from "../export/exporters";
 import { DrawingSurface2D } from "./DrawingSurface2D";
 import { ModeSwitch } from "./ModeSwitch";
 import { Preview3D } from "./Preview3D";
@@ -11,6 +13,7 @@ import { ViewTabs } from "./ViewTabs";
 
 export function AppShell() {
   const [project, dispatch] = useReducer(projectReducer, undefined, createSampleProject);
+  const [importError, setImportError] = useState<string | undefined>();
 
   const setMode = (mode: Mode) => dispatch({ type: "set-mode", mode });
   const setView = (viewId: ViewId) => dispatch({ type: "set-view", viewId });
@@ -18,6 +21,31 @@ export function AppShell() {
   const selectObject = (objectId: string | undefined) => dispatch({ type: "select-object", objectId });
   const applyWallMaterial = (wallId: string, materialId: string) =>
     dispatch({ type: "apply-wall-material", wallId, materialId });
+  const handleExport = () => {
+    setImportError(undefined);
+    downloadTextFile("houseclaw-project.json", exportProjectJson(project));
+  };
+  const handleImport = (event: ChangeEvent<HTMLInputElement>) => {
+    const input = event.currentTarget;
+    const file = input.files?.[0];
+
+    if (!file) {
+      return;
+    }
+
+    void file
+      .text()
+      .then((json) => {
+        dispatch({ type: "replace-project", project: importProjectJson(json) });
+        setImportError(undefined);
+      })
+      .catch(() => {
+        setImportError("无法导入 JSON，请检查文件格式。");
+      })
+      .finally(() => {
+        input.value = "";
+      });
+  };
 
   return (
     <main className="app-shell">
@@ -26,7 +54,21 @@ export function AppShell() {
           <h1>HouseClaw</h1>
           <p>轻量住宅建模与外观沟通工具</p>
         </div>
-        <ModeSwitch mode={project.mode} onModeChange={setMode} />
+        <div className="top-actions">
+          <button className="top-action-button" type="button" onClick={handleExport}>
+            导出 JSON
+          </button>
+          <label className="file-button">
+            导入 JSON
+            <input aria-label="导入 JSON" type="file" accept="application/json" onChange={handleImport} />
+          </label>
+          <ModeSwitch mode={project.mode} onModeChange={setMode} />
+          {importError ? (
+            <p className="import-error" role="alert">
+              {importError}
+            </p>
+          ) : null}
+        </div>
         {project.mode === "2d" ? (
           <ViewTabs activeView={project.activeView} onViewChange={setView} />
         ) : null}
