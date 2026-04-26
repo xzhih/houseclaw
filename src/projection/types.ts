@@ -1,4 +1,4 @@
-import type { Point2 } from "../domain/types";
+import type { OpeningType, Point2 } from "../domain/types";
 
 export type PlanViewId = `plan-${string}`;
 
@@ -46,6 +46,7 @@ export type ElevationWallBand = {
 export type ElevationOpeningRect = {
   openingId: string;
   wallId: string;
+  type: OpeningType;
   x: number;
   y: number;
   width: number;

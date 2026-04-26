@@ -90,10 +90,6 @@ export function PropertyPanel({
   onDeleteSelection,
 }: PropertyPanelProps) {
   const selection = project.selection;
-  const targetWall =
-    selection?.kind === "wall"
-      ? project.walls.find((wall) => wall.id === selection.id)
-      : undefined;
 
   const isDeletable =
     selection?.kind === "wall" ||
@@ -112,7 +108,12 @@ export function PropertyPanel({
         <OpeningEditor project={project} id={selection.id} onProjectChange={onProjectChange} />
       ) : null}
       {selection?.kind === "wall" ? (
-        <WallEditor project={project} id={selection.id} onProjectChange={onProjectChange} />
+        <WallEditor
+          project={project}
+          id={selection.id}
+          onProjectChange={onProjectChange}
+          onApplyWallMaterial={onApplyWallMaterial}
+        />
       ) : null}
       {selection?.kind === "balcony" ? (
         <BalconyEditor project={project} id={selection.id} onProjectChange={onProjectChange} />
@@ -126,32 +127,6 @@ export function PropertyPanel({
           {deleteLabel}
         </button>
       ) : null}
-
-      <section className="material-catalog" aria-labelledby="material-catalog-heading">
-        <h3 id="material-catalog-heading">材质库</h3>
-        <p className="material-target">
-          {targetWall ? `应用到：${targetWall.id}` : "选择一面墙后应用材质。"}
-        </p>
-        <div className="material-list">
-          {wallMaterials.map((material) => (
-            <button
-              aria-pressed={targetWall?.materialId === material.id}
-              className="material-swatch"
-              disabled={!targetWall}
-              key={material.id}
-              onClick={() => targetWall && onApplyWallMaterial(targetWall.id, material.id)}
-              type="button"
-            >
-              <span
-                aria-hidden="true"
-                className="material-swatch-color"
-                style={{ backgroundColor: material.color }}
-              />
-              <span>{material.name}</span>
-            </button>
-          ))}
-        </div>
-      </section>
     </aside>
   );
 }
@@ -175,7 +150,11 @@ function OpeningEditor({ project, id, onProjectChange }: EditorProps) {
   );
 }
 
-function WallEditor({ project, id, onProjectChange }: EditorProps) {
+type WallEditorProps = EditorProps & {
+  onApplyWallMaterial: (wallId: string, materialId: string) => void;
+};
+
+function WallEditor({ project, id, onProjectChange, onApplyWallMaterial }: WallEditorProps) {
   const wall = project.walls.find((candidate) => candidate.id === id);
   if (!wall) return null;
 
@@ -203,12 +182,35 @@ function WallEditor({ project, id, onProjectChange }: EditorProps) {
   };
 
   return (
-    <section className="property-section" aria-labelledby="wall-heading">
-      <h3 id="wall-heading">墙 · {wall.id}</h3>
-      <MmField label="墙长" value={length} min={0.1} onCommit={applyLength} />
-      <MmField label="墙厚" value={wall.thickness} min={0.05} onCommit={(thickness) => apply({ thickness })} />
-      <MmField label="墙高" value={wall.height} min={0.5} onCommit={(height) => apply({ height })} />
-    </section>
+    <>
+      <section className="property-section" aria-labelledby="wall-heading">
+        <h3 id="wall-heading">墙 · {wall.id}</h3>
+        <MmField label="墙长" value={length} min={0.1} onCommit={applyLength} />
+        <MmField label="墙厚" value={wall.thickness} min={0.05} onCommit={(thickness) => apply({ thickness })} />
+        <MmField label="墙高" value={wall.height} min={0.5} onCommit={(height) => apply({ height })} />
+      </section>
+      <section className="material-catalog" aria-labelledby="material-catalog-heading">
+        <h3 id="material-catalog-heading">材质</h3>
+        <div className="material-list">
+          {wallMaterials.map((material) => (
+            <button
+              aria-pressed={wall.materialId === material.id}
+              className="material-swatch"
+              key={material.id}
+              onClick={() => onApplyWallMaterial(wall.id, material.id)}
+              type="button"
+            >
+              <span
+                aria-hidden="true"
+                className="material-swatch-color"
+                style={{ backgroundColor: material.color }}
+              />
+              <span>{material.name}</span>
+            </button>
+          ))}
+        </div>
+      </section>
+    </>
   );
 }
 

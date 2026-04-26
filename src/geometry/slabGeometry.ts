@@ -4,6 +4,11 @@ import type { SlabGeometry } from "./types";
 import type { FootprintQuad } from "./wallNetwork";
 
 const ROOF_PLACEHOLDER_THICKNESS = 0.2;
+// Pull the slab perimeter inside the wall facade so the slab's vertical edge
+// stops being coplanar with the exterior wall face (which causes z-fighting
+// in the 3D preview). 5 mm is invisible against typical 200+ mm walls and
+// well above depth-buffer precision.
+const FACADE_INSET = 0.005;
 
 function holeFromOpening(opening: { x: number; y: number; width: number; depth: number }): Point2[] {
   return [
@@ -12,6 +17,57 @@ function holeFromOpening(opening: { x: number; y: number; width: number; depth: 
     { x: opening.x + opening.width, y: opening.y + opening.depth },
     { x: opening.x, y: opening.y + opening.depth },
   ];
+}
+
+function insetRing(ring: Point2[], distance: number): Point2[] {
+  const n = ring.length;
+  if (n < 3 || distance === 0) return ring;
+
+  let signedArea = 0;
+  for (let i = 0; i < n; i += 1) {
+    const a = ring[i];
+    const b = ring[(i + 1) % n];
+    signedArea += a.x * b.y - b.x * a.y;
+  }
+  // Shoelace > 0 = CCW (inward is left of edge); < 0 = CW (inward is right).
+  const inwardSign = signedArea >= 0 ? 1 : -1;
+
+  type EdgeInfo = { ux: number; uy: number; nx: number; ny: number };
+  const edges: EdgeInfo[] = new Array(n);
+  for (let i = 0; i < n; i += 1) {
+    const a = ring[i];
+    const b = ring[(i + 1) % n];
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    const len = Math.hypot(dx, dy);
+    if (len < 1e-9) {
+      edges[i] = { ux: 0, uy: 0, nx: 0, ny: 0 };
+      continue;
+    }
+    const ux = dx / len;
+    const uy = dy / len;
+    edges[i] = { ux, uy, nx: -uy * inwardSign, ny: ux * inwardSign };
+  }
+
+  const result: Point2[] = new Array(n);
+  for (let i = 0; i < n; i += 1) {
+    const e0 = edges[(i - 1 + n) % n];
+    const e1 = edges[i];
+    const denom = 1 + e0.ux * e1.ux + e0.uy * e1.uy;
+    if (Math.abs(denom) < 1e-6) {
+      result[i] = {
+        x: ring[i].x + distance * e1.nx,
+        y: ring[i].y + distance * e1.ny,
+      };
+    } else {
+      result[i] = {
+        x: ring[i].x + (distance * (e0.nx + e1.nx)) / denom,
+        y: ring[i].y + (distance * (e0.ny + e1.ny)) / denom,
+      };
+    }
+  }
+
+  return result;
 }
 
 export function buildSlabGeometry(
@@ -27,7 +83,7 @@ export function buildSlabGeometry(
   return {
     storeyId: storey.id,
     kind: "floor",
-    outline,
+    outline: insetRing(outline, FACADE_INSET),
     hole: storey.stairOpening ? holeFromOpening(storey.stairOpening) : undefined,
     topY: storey.elevation,
     thickness: storey.slabThickness,
@@ -48,7 +104,7 @@ export function buildRoofPlaceholder(
   return {
     storeyId: topStorey.id,
     kind: "roof",
-    outline,
+    outline: insetRing(outline, FACADE_INSET),
     topY: topStorey.elevation + topStorey.height + ROOF_PLACEHOLDER_THICKNESS,
     thickness: ROOF_PLACEHOLDER_THICKNESS,
     materialId,

@@ -159,8 +159,16 @@ describe("HouseClaw UI", () => {
     expect(screen.getByRole("button", { name: "选择阳台 balcony-front-2f" })).toBeInTheDocument();
   });
 
-  it("shows a reusable material catalog", () => {
+  it("shows the material catalog only after a wall is selected", async () => {
+    const user = userEvent.setup();
     render(<App />);
+
+    expect(screen.queryByText("外墙涂料")).not.toBeInTheDocument();
+    expect(screen.queryByText("中性混凝土")).not.toBeInTheDocument();
+
+    const wall = screen.getByRole("button", { name: "选择墙 wall-front-1f" });
+    wall.focus();
+    await user.keyboard("{Enter}");
 
     expect(screen.getByText("外墙涂料")).toBeInTheDocument();
     expect(screen.getByText("中性混凝土")).toBeInTheDocument();

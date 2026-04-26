@@ -163,17 +163,61 @@ describe("2D projections", () => {
     );
   });
 
-  it("normalizes reversed-wall opening positions to the side axis", () => {
+  it("mirrors the back elevation so an opening near world-east lands near the view's left edge", () => {
     const projection = projectElevationView(createSetbackSecondFloorProject(), "back");
 
-    expect(projection.openings).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          openingId: "window-back-2f",
-          wallId: "wall-back-2f",
-          x: 3,
-        }),
-      ]),
-    );
+    // wall-back-2f goes (8,7) → (2,7); offset=1 sits 1m along that wall from start,
+    // i.e. world x = 7 — close to the world's east edge of the 2f footprint.
+    // Looking at the back from outside, world east is on the viewer's *left*, so
+    // the opening (world x in [5.8, 7]) should appear close to the left of the wall's view-band.
+    const opening = projection.openings.find((o) => o.openingId === "window-back-2f");
+    const band = projection.wallBands.find((b) => b.wallId === "wall-back-2f");
+    expect(opening).toBeDefined();
+    expect(band).toBeDefined();
+
+    expect(opening!.x - band!.x).toBeCloseTo(1); // 1m gap from view's left edge of the band
+    expect(band!.x + band!.width - (opening!.x + opening!.width)).toBeCloseTo(3.8); // 3.8m gap on the right
+    expect(opening!.width).toBeCloseTo(1.2);
+  });
+
+  it("flips the back elevation horizontally relative to the front", () => {
+    // Front and back of the same symmetric box; place identical-shape openings on both walls
+    // at offsets that place them at the same *world* x. From outside, the back view should
+    // show the opening on the opposite side of the view from the front view.
+    const project = createSampleProject();
+    const projectWithBack: HouseProject = {
+      ...project,
+      openings: [
+        ...project.openings,
+        {
+          id: "window-back-1f",
+          // wall-back-1f goes (10,8) → (0,8); offset=5.4 puts the opening's near-edge
+          // at world x = 10 - 5.4 = 4.6 and far-edge at world x = 10 - 7 = 3, i.e. the
+          // *same* world span [3, 4.6] as window-front-1f.
+          wallId: "wall-back-1f",
+          type: "window",
+          offset: 5.4,
+          sillHeight: 0.9,
+          width: 1.6,
+          height: 1.3,
+          frameMaterialId: "mat-dark-frame",
+        },
+      ],
+    };
+
+    const front = projectElevationView(projectWithBack, "front");
+    const back = projectElevationView(projectWithBack, "back");
+
+    const frontWindow = front.openings.find((o) => o.openingId === "window-front-1f")!;
+    const frontBand = front.wallBands.find((b) => b.wallId === "wall-front-1f")!;
+    const backWindow = back.openings.find((o) => o.openingId === "window-back-1f")!;
+    const backBand = back.wallBands.find((b) => b.wallId === "wall-back-1f")!;
+
+    // Both openings are at world x=3..4.6.
+    // Front view: 3m from view's left edge of the 10m band.
+    expect(frontWindow.x - frontBand.x).toBeCloseTo(3);
+    // Back view (mirrored): same world position should be 5.4m from the view's left edge
+    // (10 - 4.6), i.e. on the *opposite* side compared to the front view.
+    expect(backWindow.x - backBand.x).toBeCloseTo(5.4);
   });
 });

@@ -504,6 +504,13 @@ select {
   background: transparent;
 }
 
+.drawing-surface :focus,
+.drawing-surface :focus-visible,
+.drawing-surface svg :focus,
+.drawing-surface svg :focus-visible {
+  outline: none;
+}
+
 .surface-grid {
   fill: var(--canvas-bg);
 }
@@ -543,6 +550,21 @@ select {
   stroke-width: 2;
   cursor: pointer;
   outline: none;
+}
+
+.elevation-opening.elevation-opening--window {
+  fill: #c7dee2;
+  stroke: #315e66;
+}
+
+.elevation-opening.elevation-opening--door {
+  fill: #e6d2b8;
+  stroke: #8a5a2b;
+}
+
+.elevation-opening.elevation-opening--void {
+  fill: #d8d4cb;
+  stroke: #5f6c76;
 }
 
 .elevation-balcony {
@@ -618,7 +640,7 @@ select {
 
 .wall-endpoint-handle,
 .resize-handle {
-  fill: #ffffff;
+  fill: rgba(255, 255, 255, 0.35);
   stroke: #c75300;
   stroke-width: 2.5;
   cursor: grab;
@@ -634,7 +656,7 @@ select {
 
 .wall-endpoint-handle:hover,
 .resize-handle:hover {
-  fill: #fff5ec;
+  fill: rgba(255, 245, 236, 0.7);
 }
 
 .wall-endpoint-handle:active,
@@ -807,12 +829,6 @@ select {
   height: 22px;
   border: 1px solid var(--panel-border-hover);
   border-radius: 4px;
-}
-
-.material-target {
-  margin: 4px 0 8px !important;
-  color: var(--text-muted);
-  font-size: 0.78rem;
 }
 
 /* Number field */
@@ -1086,13 +1102,13 @@ select {
 
 .lighting-toggle:hover {
   color: var(--text);
-  background: var(--accent-bg);
+  background: var(--panel-strong);
   border-color: var(--panel-border-hover);
 }
 
 .lighting-toggle[aria-expanded="true"] {
   color: var(--text);
-  background: var(--accent-bg-strong);
+  background: var(--panel-strong);
   border-color: var(--panel-border-hover);
 }
 

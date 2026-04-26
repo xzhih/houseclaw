@@ -304,6 +304,7 @@ export function AppShell() {
     if (primary === "plan") {
       setView(`plan-${lastPlanStorey}` as ViewId);
     } else {
+      if (project.selection?.kind === "storey") select(undefined);
       setView(`elevation-${lastElevationSide}` as ViewId);
     }
   };

@@ -6,7 +6,7 @@ import { moveWall, updateBalcony, updateOpening } from "../domain/mutations";
 import type { HouseProject, Point2, ToolId, ViewId } from "../domain/types";
 import { snapPlanPoint, snapToEndpoint } from "../geometry/snapping";
 import { buildWallNetwork, slicePanelFootprint, type WallFootprint } from "../geometry/wallNetwork";
-import { projectElevationView } from "../projection/elevation";
+import { elevationOffsetSign, projectElevationView } from "../projection/elevation";
 import { projectPlanView } from "../projection/plan";
 import type {
   ElevationBalconyRect,
@@ -81,6 +81,20 @@ type DragState =
       openingWidth: number;
     }
   | {
+      kind: "plan-opening-resize";
+      pointerId: number;
+      startWorld: Point2D;
+      moved: boolean;
+      mapping: PointMapping;
+      openingId: string;
+      edge: "l" | "r";
+      wallStart: Point2D;
+      wallEnd: Point2D;
+      origOffset: number;
+      origWidth: number;
+      wallLen: number;
+    }
+  | {
       kind: "balcony";
       pointerId: number;
       startWorld: Point2D;
@@ -91,6 +105,20 @@ type DragState =
       wallEnd: Point2D;
       origOffset: number;
       balconyWidth: number;
+    }
+  | {
+      kind: "plan-balcony-resize";
+      pointerId: number;
+      startWorld: Point2D;
+      moved: boolean;
+      mapping: PointMapping;
+      balconyId: string;
+      edge: "l" | "r";
+      wallStart: Point2D;
+      wallEnd: Point2D;
+      origOffset: number;
+      origWidth: number;
+      wallLen: number;
     }
   | {
       kind: "elev-opening-move";
@@ -105,6 +133,7 @@ type DragState =
       height: number;
       wallLen: number;
       storeyHeight: number;
+      projSign: 1 | -1;
     }
   | {
       kind: "elev-opening-resize";
@@ -120,6 +149,7 @@ type DragState =
       origHeight: number;
       wallLen: number;
       storeyHeight: number;
+      projSign: 1 | -1;
     }
   | {
       kind: "elev-balcony-move";
@@ -131,6 +161,7 @@ type DragState =
       origOffset: number;
       width: number;
       wallLen: number;
+      projSign: 1 | -1;
     }
   | {
       kind: "elev-balcony-resize";
@@ -143,6 +174,7 @@ type DragState =
       origOffset: number;
       origWidth: number;
       wallLen: number;
+      projSign: 1 | -1;
     };
 
 type PlanDragHandlers = {
@@ -153,6 +185,16 @@ type PlanDragHandlers = {
     event: PointerEvent<SVGElement>,
     wallId: string,
     endpoint: "start" | "end",
+  ) => void;
+  onOpeningEdgePointerDown: (
+    event: PointerEvent<SVGElement>,
+    openingId: string,
+    edge: "l" | "r",
+  ) => void;
+  onBalconyEdgePointerDown: (
+    event: PointerEvent<SVGElement>,
+    balconyId: string,
+    edge: "l" | "r",
   ) => void;
 };
 
@@ -402,6 +444,14 @@ function renderPlan(
     selection?.kind === "wall"
       ? projection.wallSegments.find((wall) => wall.wallId === selection.id)
       : undefined;
+  const selectedOpening =
+    selection?.kind === "opening"
+      ? projection.openings.find((opening) => opening.openingId === selection.id)
+      : undefined;
+  const selectedBalcony =
+    selection?.kind === "balcony"
+      ? projection.balconies.find((balcony) => balcony.balconyId === selection.id)
+      : undefined;
 
   return (
     <>
@@ -528,6 +578,86 @@ function renderPlan(
           />
         </>
       ) : null}
+      {selectedOpening && handlers
+        ? (() => {
+            const wall = wallsById.get(selectedOpening.wallId);
+            if (!wall) return null;
+            const line = openingLine(selectedOpening, wall);
+            if (!line) return null;
+            const start = projectPoint(line.start);
+            const end = projectPoint(line.end);
+            return (
+              <>
+                <circle
+                  className="resize-handle"
+                  cx={start.x}
+                  cy={start.y}
+                  r={ENDPOINT_HANDLE_RADIUS}
+                  aria-label={`调整开孔 ${selectedOpening.openingId} 起点`}
+                  onPointerDown={(event) =>
+                    handlers.onOpeningEdgePointerDown(event, selectedOpening.openingId, "l")
+                  }
+                />
+                <circle
+                  className="resize-handle"
+                  cx={end.x}
+                  cy={end.y}
+                  r={ENDPOINT_HANDLE_RADIUS}
+                  aria-label={`调整开孔 ${selectedOpening.openingId} 终点`}
+                  onPointerDown={(event) =>
+                    handlers.onOpeningEdgePointerDown(event, selectedOpening.openingId, "r")
+                  }
+                />
+              </>
+            );
+          })()
+        : null}
+      {selectedBalcony && handlers
+        ? (() => {
+            const wall = wallsById.get(selectedBalcony.wallId);
+            if (!wall) return null;
+            const dx = wall.end.x - wall.start.x;
+            const dy = wall.end.y - wall.start.y;
+            const len = Math.hypot(dx, dy);
+            if (len === 0) return null;
+            const ux = dx / len;
+            const uy = dy / len;
+            const innerStart = {
+              x: wall.start.x + ux * selectedBalcony.offset,
+              y: wall.start.y + uy * selectedBalcony.offset,
+            };
+            const innerEnd = {
+              x: wall.start.x + ux * (selectedBalcony.offset + selectedBalcony.width),
+              y: wall.start.y + uy * (selectedBalcony.offset + selectedBalcony.width),
+            };
+            const start = projectPoint(innerStart);
+            const end = projectPoint(innerEnd);
+            return (
+              <>
+                <circle
+                  className="resize-handle"
+                  cx={start.x}
+                  cy={start.y}
+                  r={ENDPOINT_HANDLE_RADIUS}
+                  aria-label={`调整阳台 ${selectedBalcony.balconyId} 起点`}
+                  onPointerDown={(event) =>
+                    handlers.onBalconyEdgePointerDown(event, selectedBalcony.balconyId, "l")
+                  }
+                />
+                <circle
+                  className="resize-handle"
+                  cx={end.x}
+                  cy={end.y}
+                  r={ENDPOINT_HANDLE_RADIUS}
+                  aria-label={`调整阳台 ${selectedBalcony.balconyId} 终点`}
+                  onPointerDown={(event) =>
+                    handlers.onBalconyEdgePointerDown(event, selectedBalcony.balconyId, "r")
+                  }
+                />
+              </>
+            );
+          })()
+        : null}
       {snapHit ? (
         <circle
           className="snap-indicator"
@@ -572,6 +702,7 @@ function renderElevation(
             y={topLeft.y}
             width={bottomRight.x - topLeft.x}
             height={bottomRight.y - topLeft.y}
+            onClick={() => onSelect(undefined)}
           />
         );
       })}
@@ -579,6 +710,7 @@ function renderElevation(
         const topLeft = projectPoint({ x: opening.x, y: opening.y + opening.height });
         const bottomRight = projectPoint({ x: opening.x + opening.width, y: opening.y });
         const selected = isSelected(selection, "opening", opening.openingId);
+        const typeClass = `elevation-opening--${opening.type}`;
 
         return (
           <rect
@@ -587,7 +719,7 @@ function renderElevation(
             tabIndex={0}
             aria-label={`选择开孔 ${opening.openingId}`}
             aria-pressed={selected}
-            className={selected ? "elevation-opening is-selected" : "elevation-opening"}
+            className={`elevation-opening ${typeClass}${selected ? " is-selected" : ""}`}
             x={topLeft.x}
             y={topLeft.y}
             width={bottomRight.x - topLeft.x}
@@ -913,20 +1045,77 @@ export function DrawingSurface2D({
     }));
   };
 
+  const onPlanOpeningEdgePointerDown: PlanDragHandlers["onOpeningEdgePointerDown"] = (
+    event,
+    openingId,
+    edge,
+  ) => {
+    if (storeyId === undefined) return;
+    const opening = project.openings.find((candidate) => candidate.id === openingId);
+    if (!opening) return;
+    const wall = project.walls.find((candidate) => candidate.id === opening.wallId);
+    if (!wall) return;
+    const wallLen = wallLength(wall);
+    beginElementDrag(event, (pointerId, startWorld, mapping) => ({
+      kind: "plan-opening-resize",
+      pointerId,
+      startWorld,
+      mapping,
+      moved: false,
+      openingId,
+      edge,
+      wallStart: wall.start,
+      wallEnd: wall.end,
+      origOffset: opening.offset,
+      origWidth: opening.width,
+      wallLen,
+    }));
+  };
+
+  const onPlanBalconyEdgePointerDown: PlanDragHandlers["onBalconyEdgePointerDown"] = (
+    event,
+    balconyId,
+    edge,
+  ) => {
+    if (storeyId === undefined) return;
+    const balcony = project.balconies.find((candidate) => candidate.id === balconyId);
+    if (!balcony) return;
+    const wall = project.walls.find((candidate) => candidate.id === balcony.attachedWallId);
+    if (!wall) return;
+    const wallLen = wallLength(wall);
+    beginElementDrag(event, (pointerId, startWorld, mapping) => ({
+      kind: "plan-balcony-resize",
+      pointerId,
+      startWorld,
+      mapping,
+      moved: false,
+      balconyId,
+      edge,
+      wallStart: wall.start,
+      wallEnd: wall.end,
+      origOffset: balcony.offset,
+      origWidth: balcony.width,
+      wallLen,
+    }));
+  };
+
   const planDragHandlers: PlanDragHandlers = {
     onWallPointerDown: onWallElementPointerDown,
     onOpeningPointerDown: onOpeningElementPointerDown,
     onBalconyPointerDown: onBalconyElementPointerDown,
     onWallEndpointPointerDown: onWallEndpointHandlePointerDown,
+    onOpeningEdgePointerDown: onPlanOpeningEdgePointerDown,
+    onBalconyEdgePointerDown: onPlanBalconyEdgePointerDown,
   };
 
   const onElevationOpeningPointerDown: ElevationDragHandlers["onOpeningPointerDown"] = (event, openingId) => {
     const opening = project.openings.find((candidate) => candidate.id === openingId);
     if (!opening) return;
     const wall = project.walls.find((candidate) => candidate.id === opening.wallId);
-    if (!wall) return;
+    if (!wall || !elevationSide) return;
     const storey = project.storeys.find((candidate) => candidate.id === wall.storeyId);
     const wallLen = wallLength(wall);
+    const projSign = elevationOffsetSign(wall, elevationSide);
     beginDragWith(event, elevationMapping, (pointerId, startWorld, mapping) => ({
       kind: "elev-opening-move",
       pointerId,
@@ -940,6 +1129,7 @@ export function DrawingSurface2D({
       height: opening.height,
       wallLen,
       storeyHeight: storey?.height ?? wall.height,
+      projSign,
     }));
   };
 
@@ -951,9 +1141,24 @@ export function DrawingSurface2D({
     const opening = project.openings.find((candidate) => candidate.id === openingId);
     if (!opening) return;
     const wall = project.walls.find((candidate) => candidate.id === opening.wallId);
-    if (!wall) return;
+    if (!wall || !elevationSide) return;
     const storey = project.storeys.find((candidate) => candidate.id === wall.storeyId);
     const wallLen = wallLength(wall);
+    const projSign = elevationOffsetSign(wall, elevationSide);
+    // For mirrored sides (back/left) on a non-canonical wall direction, the visually
+    // left/right corners correspond to the opposite ends of the opening on the wall.
+    // Swap so the resize math (written in wall-direction terms) acts on the edge the
+    // user actually grabbed.
+    const effectiveCorner: typeof corner =
+      projSign < 0
+        ? corner === "tl"
+          ? "tr"
+          : corner === "tr"
+            ? "tl"
+            : corner === "bl"
+              ? "br"
+              : "bl"
+        : corner;
     beginDragWith(event, elevationMapping, (pointerId, startWorld, mapping) => ({
       kind: "elev-opening-resize",
       pointerId,
@@ -961,13 +1166,14 @@ export function DrawingSurface2D({
       mapping,
       moved: false,
       openingId,
-      corner,
+      corner: effectiveCorner,
       origOffset: opening.offset,
       origSill: opening.sillHeight,
       origWidth: opening.width,
       origHeight: opening.height,
       wallLen,
       storeyHeight: storey?.height ?? wall.height,
+      projSign,
     }));
   };
 
@@ -975,8 +1181,9 @@ export function DrawingSurface2D({
     const balcony = project.balconies.find((candidate) => candidate.id === balconyId);
     if (!balcony) return;
     const wall = project.walls.find((candidate) => candidate.id === balcony.attachedWallId);
-    if (!wall) return;
+    if (!wall || !elevationSide) return;
     const wallLen = wallLength(wall);
+    const projSign = elevationOffsetSign(wall, elevationSide);
     beginDragWith(event, elevationMapping, (pointerId, startWorld, mapping) => ({
       kind: "elev-balcony-move",
       pointerId,
@@ -987,6 +1194,7 @@ export function DrawingSurface2D({
       origOffset: balcony.offset,
       width: balcony.width,
       wallLen,
+      projSign,
     }));
   };
 
@@ -998,8 +1206,10 @@ export function DrawingSurface2D({
     const balcony = project.balconies.find((candidate) => candidate.id === balconyId);
     if (!balcony) return;
     const wall = project.walls.find((candidate) => candidate.id === balcony.attachedWallId);
-    if (!wall) return;
+    if (!wall || !elevationSide) return;
     const wallLen = wallLength(wall);
+    const projSign = elevationOffsetSign(wall, elevationSide);
+    const effectiveEdge: typeof edge = projSign < 0 ? (edge === "l" ? "r" : "l") : edge;
     beginDragWith(event, elevationMapping, (pointerId, startWorld, mapping) => ({
       kind: "elev-balcony-resize",
       pointerId,
@@ -1007,10 +1217,11 @@ export function DrawingSurface2D({
       mapping,
       moved: false,
       balconyId,
-      edge,
+      edge: effectiveEdge,
       origOffset: balcony.offset,
       origWidth: balcony.width,
       wallLen,
+      projSign,
     }));
   };
 
@@ -1104,8 +1315,57 @@ export function DrawingSurface2D({
           }
           break;
         }
+        case "plan-opening-resize":
+        case "plan-balcony-resize": {
+          const wx = state.wallEnd.x - state.wallStart.x;
+          const wy = state.wallEnd.y - state.wallStart.y;
+          const len = Math.hypot(wx, wy);
+          if (len === 0) return;
+          const ux = wx / len;
+          const uy = wy / len;
+          const along = dx * ux + dy * uy;
+          const minSize = state.kind === "plan-opening-resize" ? 0.05 : 0.3;
+
+          let newOffset = state.origOffset;
+          let newWidth = state.origWidth;
+          if (state.edge === "l") {
+            const limited = Math.min(along, state.origWidth - minSize);
+            newOffset = state.origOffset + limited;
+            newWidth = state.origWidth - limited;
+          } else {
+            newWidth = Math.max(minSize, state.origWidth + along);
+          }
+          if (newOffset < 0) {
+            newWidth += newOffset;
+            newOffset = 0;
+          }
+          if (newOffset + newWidth > state.wallLen) {
+            newWidth = state.wallLen - newOffset;
+          }
+          if (newWidth < minSize) return;
+
+          const snappedOffset = roundToMm(snapToGrid(newOffset));
+          const snappedWidth = roundToMm(snapToGrid(newWidth));
+          if (state.kind === "plan-opening-resize") {
+            onProjectChange(
+              updateOpening(project, state.openingId, {
+                offset: snappedOffset,
+                width: snappedWidth,
+              }),
+            );
+          } else {
+            onProjectChange(
+              updateBalcony(project, state.balconyId, {
+                offset: snappedOffset,
+                width: snappedWidth,
+              }),
+            );
+          }
+          break;
+        }
         case "elev-opening-move": {
-          const newOffset = clamp(state.origOffset + dx, 0, Math.max(0, state.wallLen - state.width));
+          const dxOffset = dx * state.projSign;
+          const newOffset = clamp(state.origOffset + dxOffset, 0, Math.max(0, state.wallLen - state.width));
           const maxSill = Math.max(0, state.storeyHeight - state.height);
           const newSill = clamp(state.origSill + dy, 0, maxSill);
           onProjectChange(
@@ -1118,17 +1378,18 @@ export function DrawingSurface2D({
         }
         case "elev-opening-resize": {
           const minSize = 0.05;
+          const dxOffset = dx * state.projSign;
           let newOffset = state.origOffset;
           let newSill = state.origSill;
           let newWidth = state.origWidth;
           let newHeight = state.origHeight;
 
           if (state.corner === "tl" || state.corner === "bl") {
-            const limited = Math.min(dx, state.origWidth - minSize);
+            const limited = Math.min(dxOffset, state.origWidth - minSize);
             newOffset = state.origOffset + limited;
             newWidth = state.origWidth - limited;
           } else {
-            newWidth = Math.max(minSize, state.origWidth + dx);
+            newWidth = Math.max(minSize, state.origWidth + dxOffset);
           }
 
           if (state.corner === "bl" || state.corner === "br") {
@@ -1166,7 +1427,8 @@ export function DrawingSurface2D({
           break;
         }
         case "elev-balcony-move": {
-          const newOffset = clamp(state.origOffset + dx, 0, Math.max(0, state.wallLen - state.width));
+          const dxOffset = dx * state.projSign;
+          const newOffset = clamp(state.origOffset + dxOffset, 0, Math.max(0, state.wallLen - state.width));
           onProjectChange(
             updateBalcony(project, state.balconyId, {
               offset: roundToMm(snapToGrid(newOffset)),
@@ -1176,14 +1438,15 @@ export function DrawingSurface2D({
         }
         case "elev-balcony-resize": {
           const minSize = 0.3;
+          const dxOffset = dx * state.projSign;
           let newOffset = state.origOffset;
           let newWidth = state.origWidth;
           if (state.edge === "l") {
-            const limited = Math.min(dx, state.origWidth - minSize);
+            const limited = Math.min(dxOffset, state.origWidth - minSize);
             newOffset = state.origOffset + limited;
             newWidth = state.origWidth - limited;
           } else {
-            newWidth = Math.max(minSize, state.origWidth + dx);
+            newWidth = Math.max(minSize, state.origWidth + dxOffset);
           }
           if (newOffset < 0) {
             newWidth += newOffset;

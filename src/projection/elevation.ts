@@ -1,5 +1,4 @@
-import { wallLength } from "../domain/measurements";
-import type { HouseProject, Wall } from "../domain/types";
+import type { HouseProject, Point2, Wall } from "../domain/types";
 import type { ElevationProjection, ElevationSide } from "./types";
 
 type StoreyBounds = {
@@ -50,11 +49,49 @@ function sideWallPredicate(project: HouseProject, side: ElevationSide): (wall: W
   };
 }
 
-function sideAxisStart(wall: Wall, side: ElevationSide): number {
-  if (side === "front" || side === "back") {
-    return Math.min(wall.start.x, wall.end.x);
-  }
-  return Math.min(wall.start.y, wall.end.y);
+function projectAxis(point: Point2, side: ElevationSide): number {
+  if (side === "front") return point.x;
+  if (side === "back") return -point.x;
+  if (side === "left") return -point.y;
+  return point.y;
+}
+
+/**
+ * Sign that maps a unit of `offset` along the wall (start → end) to a unit on the
+ * elevation view's x-axis. +1 when the wall is drawn in the canonical direction for
+ * its side (so dragging right increases offset); -1 when drawn the other way (so
+ * dragging right *decreases* offset, because the back/left views are mirrored).
+ */
+export function elevationOffsetSign(wall: Wall, side: ElevationSide): 1 | -1 {
+  return projectAxis(wall.end, side) >= projectAxis(wall.start, side) ? 1 : -1;
+}
+
+function pointAlongWall(wall: Wall, distance: number): Point2 {
+  const dx = wall.end.x - wall.start.x;
+  const dy = wall.end.y - wall.start.y;
+  const len = Math.hypot(dx, dy);
+  if (len === 0) return { x: wall.start.x, y: wall.start.y };
+  return {
+    x: wall.start.x + (dx / len) * distance,
+    y: wall.start.y + (dy / len) * distance,
+  };
+}
+
+function spanExtent(
+  wall: Wall,
+  offset: number,
+  width: number,
+  side: ElevationSide,
+): { x: number; width: number } {
+  const a = projectAxis(pointAlongWall(wall, offset), side);
+  const b = projectAxis(pointAlongWall(wall, offset + width), side);
+  return { x: Math.min(a, b), width };
+}
+
+function wallExtent(wall: Wall, side: ElevationSide): { x: number; width: number } {
+  const a = projectAxis(wall.start, side);
+  const b = projectAxis(wall.end, side);
+  return { x: Math.min(a, b), width: Math.abs(b - a) };
 }
 
 export function projectElevationView(
@@ -70,13 +107,14 @@ export function projectElevationView(
     viewId: `elevation-${side}`,
     side,
     wallBands: walls.map((wall) => {
-      const storey = project.storeys.find((candidate) => candidate.id === wall.storeyId);
+      const storey = storeysById.get(wall.storeyId);
+      const extent = wallExtent(wall, side);
       return {
         wallId: wall.id,
         storeyId: wall.storeyId,
-        x: sideAxisStart(wall, side),
+        x: extent.x,
         y: storey?.elevation ?? 0,
-        width: wallLength(wall),
+        width: extent.width,
         height: wall.height,
       };
     }),
@@ -85,13 +123,15 @@ export function projectElevationView(
       .map((opening) => {
         const wall = wallsById.get(opening.wallId)!;
         const storey = storeysById.get(wall.storeyId);
+        const extent = spanExtent(wall, opening.offset, opening.width, side);
 
         return {
           openingId: opening.id,
           wallId: opening.wallId,
-          x: sideAxisStart(wall, side) + opening.offset,
+          type: opening.type,
+          x: extent.x,
           y: (storey?.elevation ?? 0) + opening.sillHeight,
-          width: opening.width,
+          width: extent.width,
           height: opening.height,
         };
       }),
@@ -100,13 +140,14 @@ export function projectElevationView(
       .map((balcony) => {
         const wall = wallsById.get(balcony.attachedWallId)!;
         const storey = storeysById.get(balcony.storeyId);
+        const extent = spanExtent(wall, balcony.offset, balcony.width, side);
 
         return {
           balconyId: balcony.id,
           wallId: balcony.attachedWallId,
-          x: sideAxisStart(wall, side) + balcony.offset,
+          x: extent.x,
           y: storey?.elevation ?? 0,
-          width: balcony.width,
+          width: extent.width,
           height: balcony.slabThickness + balcony.railingHeight,
         };
       }),
