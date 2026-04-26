@@ -388,14 +388,12 @@ select {
 }
 
 .plan-wall {
-  stroke: #263238;
-  stroke-linecap: butt;
+  cursor: pointer;
 }
 
-.plan-opening-gap {
-  stroke: var(--canvas-bg);
-  stroke-linecap: butt;
-  stroke-width: 18;
+.plan-wall-panel {
+  fill: #263238;
+  stroke: none;
 }
 
 .plan-opening {

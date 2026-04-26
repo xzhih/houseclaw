@@ -5,6 +5,7 @@ import { wallLength } from "../domain/measurements";
 import { moveWall, updateBalcony, updateOpening } from "../domain/mutations";
 import type { HouseProject, Point2, ToolId, ViewId } from "../domain/types";
 import { snapPlanPoint, snapToEndpoint } from "../geometry/snapping";
+import { buildWallNetwork, slicePanelFootprint, type WallFootprint } from "../geometry/wallNetwork";
 import { projectElevationView } from "../projection/elevation";
 import { projectPlanView } from "../projection/plan";
 import type {
@@ -229,6 +230,26 @@ function eventToViewBoxPoint(svg: SVGSVGElement, clientX: number, clientY: numbe
   return { x: clientX, y: clientY };
 }
 
+function computeSolidPanels(
+  wallLen: number,
+  openings: readonly { offset: number; width: number }[],
+): Array<{ x: number; width: number }> {
+  if (wallLen <= 0) return [];
+  const sorted = [...openings].sort((a, b) => a.offset - b.offset);
+  const panels: Array<{ x: number; width: number }> = [];
+  let cursor = 0;
+  for (const opening of sorted) {
+    if (opening.offset > cursor) {
+      panels.push({ x: cursor, width: opening.offset - cursor });
+    }
+    cursor = Math.max(cursor, opening.offset + opening.width);
+  }
+  if (cursor < wallLen) {
+    panels.push({ x: cursor, width: wallLen - cursor });
+  }
+  return panels.filter((panel) => panel.width > 1e-4);
+}
+
 function planBounds(projection: PlanProjection): Bounds {
   const wallsById = new Map(projection.wallSegments.map((wall) => [wall.wallId, wall]));
   const points = [
@@ -371,9 +392,10 @@ function renderPlan(
   selection: ObjectSelection | undefined,
   onSelect: DrawingSurface2DProps["onSelect"],
   activeTool: ToolId,
+  footprints: Map<string, WallFootprint>,
   handlers?: PlanDragHandlers,
 ) {
-  const { project: projectPoint, scale: planScale } = createPointMapping(planBounds(projection));
+  const { project: projectPoint } = createPointMapping(planBounds(projection));
   const wallsById = new Map(projection.wallSegments.map((wall) => [wall.wallId, wall]));
   const selectedWall =
     selection?.kind === "wall"
@@ -383,24 +405,23 @@ function renderPlan(
   return (
     <>
       {projection.wallSegments.map((wall) => {
-        const start = projectPoint(wall.start);
-        const end = projectPoint(wall.end);
+        const footprint = footprints.get(wall.wallId);
+        if (!footprint) return null;
         const selected = isSelected(selection, "wall", wall.wallId);
         const className = selected ? "plan-wall is-selected" : "plan-wall";
+        const wallLen = Math.hypot(wall.end.x - wall.start.x, wall.end.y - wall.start.y);
+        const wallOpenings = projection.openings.filter((opening) => opening.wallId === wall.wallId);
+        const segment = { start: wall.start, end: wall.end, thickness: wall.thickness };
+        const solidPanels = computeSolidPanels(wallLen, wallOpenings);
 
         return (
-          <line
+          <g
             key={wall.wallId}
             role="button"
             tabIndex={0}
             aria-label={`选择墙 ${wall.wallId}`}
             aria-pressed={selected}
             className={className}
-            x1={start.x}
-            y1={start.y}
-            x2={end.x}
-            y2={end.y}
-            strokeWidth={Math.max(wall.thickness * planScale, 1)}
             onPointerDown={(event) => handlers?.onWallPointerDown(event, wall.wallId)}
             onClick={() => onSelect({ kind: "wall", id: wall.wallId })}
             onKeyDown={(event) => {
@@ -409,7 +430,19 @@ function renderPlan(
                 onSelect({ kind: "wall", id: wall.wallId });
               }
             }}
-          />
+          >
+            {solidPanels.map((panel, index) => {
+              const sliced = slicePanelFootprint(footprint, segment, panel);
+              const corners = [
+                projectPoint(sliced.rightStart),
+                projectPoint(sliced.leftStart),
+                projectPoint(sliced.leftEnd),
+                projectPoint(sliced.rightEnd),
+              ];
+              const points = corners.map((c) => `${c.x},${c.y}`).join(" ");
+              return <polygon key={index} className="plan-wall-panel" points={points} />;
+            })}
+          </g>
         );
       })}
       {projection.openings.map((opening) => {
@@ -425,13 +458,6 @@ function renderPlan(
 
         return (
           <g key={opening.openingId} className="opening-glyph">
-            <line
-              className="plan-opening-gap"
-              x1={start.x}
-              y1={start.y}
-              x2={end.x}
-              y2={end.y}
-            />
             <line
               role="button"
               tabIndex={0}
@@ -722,6 +748,16 @@ export function DrawingSurface2D({
   const planMapping = storeyId
     ? createPointMapping(planBounds(projectPlanView(project, storeyId)))
     : undefined;
+
+  const planFootprints = (() => {
+    if (storeyId === undefined) return new Map<string, WallFootprint>();
+    const wallsInStorey = project.walls.filter((wall) => wall.storeyId === storeyId);
+    const map = new Map<string, WallFootprint>();
+    for (const footprint of buildWallNetwork(wallsInStorey)) {
+      map.set(footprint.wallId, footprint);
+    }
+    return map;
+  })();
 
   const elevationProjection = elevationSide ? projectElevationView(project, elevationSide) : undefined;
   const elevationMapping = elevationProjection
@@ -1251,6 +1287,7 @@ export function DrawingSurface2D({
               project.selection,
               onSelect,
               project.activeTool,
+              planFootprints,
               planDragHandlers,
             )
           : elevationProjection
