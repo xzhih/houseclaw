@@ -20,12 +20,12 @@ export type LightingParams = {
 };
 
 export const DEFAULT_LIGHTING: LightingParams = {
-  exposure: 1.15,
-  hemiIntensity: 0.28,
-  keyIntensity: 3.4,
-  fillIntensity: 0.4,
-  sunAzimuthDeg: 225,
-  sunAltitudeDeg: 40,
+  exposure: 1.0,
+  hemiIntensity: 0.7,
+  keyIntensity: 1.5,
+  fillIntensity: 1.3,
+  sunAzimuthDeg: 200,
+  sunAltitudeDeg: 36,
 };
 
 export type MountedSceneOptions = {
@@ -61,9 +61,9 @@ type SceneBounds = {
   maxY: number;
 };
 
-const FALLBACK_WALL_COLOR = "#e6ddc6";
-const GROUND_COLOR = "#8e9c75";
-const BACKGROUND_COLOR = "#bccfd9";
+const FALLBACK_WALL_COLOR = "#d8d2c4";
+const GROUND_COLOR = "#9c9a93";
+const BACKGROUND_COLOR = "#c5cccf";
 
 function requireWebGL() {
   if (!("WebGLRenderingContext" in globalThis)) {
@@ -541,8 +541,8 @@ function createGround(bounds: SceneBounds) {
   const grid = new THREE.GridHelper(
     finalSize,
     Math.max(1, Math.round(finalSize / 0.8)),
-    "#7a8870", // main axes — slightly darker than ground
-    "#a4ad95", // sub grid — soft, low contrast on grass
+    "#7e7d77", // main axes — slightly darker than concrete
+    "#aaa8a1", // sub grid — soft, low contrast
   );
   grid.position.set(centerX, 0.001, centerZ);
 

@@ -8,7 +8,7 @@ describe("PropertyPanel editing", () => {
     const user = userEvent.setup();
     render(<App />);
 
-    await user.click(screen.getByRole("button", { name: "正面" }));
+    await user.click(screen.getByRole("button", { name: "正视" }));
     const opening = screen.getByRole("button", { name: "选择开孔 window-front-1f" });
     opening.focus();
     await user.keyboard("{Enter}");
@@ -26,7 +26,7 @@ describe("PropertyPanel editing", () => {
     const user = userEvent.setup();
     render(<App />);
 
-    await user.click(screen.getByRole("button", { name: "正面" }));
+    await user.click(screen.getByRole("button", { name: "正视" }));
     const opening = screen.getByRole("button", { name: "选择开孔 window-front-1f" });
     opening.focus();
     await user.keyboard("{Enter}");
@@ -73,7 +73,7 @@ describe("PropertyPanel editing", () => {
     const user = userEvent.setup();
     render(<App />);
 
-    await user.click(screen.getByRole("button", { name: "正面" }));
+    await user.click(screen.getByRole("button", { name: "正视" }));
     const balcony = screen.getByRole("button", { name: "选择阳台 balcony-front-2f" });
     balcony.focus();
     await user.keyboard("{Enter}");

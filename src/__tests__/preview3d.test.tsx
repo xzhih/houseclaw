@@ -9,12 +9,12 @@ const dispose = vi.fn();
 
 vi.mock("../rendering/threeScene", () => ({
   DEFAULT_LIGHTING: {
-    exposure: 1.15,
-    hemiIntensity: 0.28,
-    keyIntensity: 3.4,
-    fillIntensity: 0.4,
-    sunAzimuthDeg: 225,
-    sunAltitudeDeg: 40,
+    exposure: 1.0,
+    hemiIntensity: 0.7,
+    keyIntensity: 1.5,
+    fillIntensity: 1.3,
+    sunAzimuthDeg: 200,
+    sunAltitudeDeg: 36,
   },
   mountHouseScene: vi.fn(() => ({
     setCameraMode,
