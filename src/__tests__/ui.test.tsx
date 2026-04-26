@@ -188,4 +188,47 @@ describe("HouseClaw UI", () => {
     expect(grayStone).toHaveAttribute("aria-pressed", "true");
     expect(whiteRender).toHaveAttribute("aria-pressed", "false");
   });
+
+  it("shows the storey height strip in 2D mode with current values", () => {
+    render(<App />);
+
+    expect(screen.getByRole("group", { name: "楼层高度" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "1F · 3.20 m" })).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByRole("button", { name: "2F · 3.20 m" })).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByRole("button", { name: "3F · 3.20 m" })).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("selects a storey from the height strip and surfaces the editor", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: "2F · 3.20 m" }));
+
+    expect(screen.getByRole("button", { name: "2F · 3.20 m" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByLabelText("层高")).toBeInTheDocument();
+  });
+
+  it("commits a storey height change and renormalizes the strip labels", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: "1F · 3.20 m" }));
+
+    const heightField = screen.getByLabelText("层高") as HTMLInputElement;
+    await user.clear(heightField);
+    await user.type(heightField, "3.5");
+    await user.tab();
+
+    expect(screen.getByRole("button", { name: "1F · 3.50 m" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "2F · 3.20 m" })).toBeInTheDocument();
+  });
+
+  it("hides the storey strip in 3D mode", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: "3D" }));
+
+    expect(screen.queryByRole("group", { name: "楼层高度" })).not.toBeInTheDocument();
+  });
 });

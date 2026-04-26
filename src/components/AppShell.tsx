@@ -9,6 +9,7 @@ import { DrawingSurface2D } from "./DrawingSurface2D";
 import { ModeSwitch } from "./ModeSwitch";
 import { Preview3D } from "./Preview3D";
 import { PropertyPanel } from "./PropertyPanel";
+import { StoreyHeightStrip } from "./StoreyHeightStrip";
 import { ToolPalette } from "./ToolPalette";
 import { ViewTabs } from "./ViewTabs";
 
@@ -77,13 +78,20 @@ export function AppShell() {
 
       {project.mode === "2d" ? (
         <section className="workspace workspace-2d" aria-label="2D workspace">
-          <ToolPalette activeTool={project.activeTool} onToolChange={setTool} />
-          <DrawingSurface2D project={project} onSelect={select} />
-          <PropertyPanel
-            project={project}
-            onApplyWallMaterial={applyWallMaterial}
-            onProjectChange={(next) => dispatch({ type: "replace-project", project: next })}
+          <StoreyHeightStrip
+            storeys={project.storeys}
+            selection={project.selection}
+            onSelectStorey={(storeyId) => select({ kind: "storey", id: storeyId })}
           />
+          <div className="workspace-grid">
+            <ToolPalette activeTool={project.activeTool} onToolChange={setTool} />
+            <DrawingSurface2D project={project} onSelect={select} />
+            <PropertyPanel
+              project={project}
+              onApplyWallMaterial={applyWallMaterial}
+              onProjectChange={(next) => dispatch({ type: "replace-project", project: next })}
+            />
+          </div>
         </section>
       ) : (
         <section className="workspace workspace-3d" aria-label="3D workspace">
