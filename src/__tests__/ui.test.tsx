@@ -19,8 +19,7 @@ describe("HouseClaw UI", () => {
     render(<App />);
 
     expect(screen.getByRole("button", { name: "2D" })).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getByRole("button", { name: "添加墙" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "添加阳台" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "添加组件" })).toBeInTheDocument();
     expect(screen.getByLabelText("2D drawing surface")).toBeInTheDocument();
   });
 

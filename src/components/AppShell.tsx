@@ -1,6 +1,6 @@
 import { type ChangeEvent, useEffect, useReducer, useState } from "react";
 import { exportProjectJson, importProjectJson } from "../app/persistence";
-import { projectReducer } from "../app/projectReducer";
+import { projectReducer, type ProjectAction } from "../app/projectReducer";
 import { createBalconyDraft, createOpeningDraft } from "../domain/drafts";
 import { wallLength } from "../domain/measurements";
 import {
@@ -9,6 +9,7 @@ import {
   addWall,
   removeBalcony,
   removeOpening,
+  removeStorey,
   removeWall,
 } from "../domain/mutations";
 import { createSampleProject } from "../domain/sampleProject";
@@ -16,6 +17,8 @@ import type { ObjectSelection } from "../domain/selection";
 import type { HouseProject, Mode, OpeningType, ToolId, ViewId, Wall } from "../domain/types";
 import { createWallDraft } from "../domain/walls";
 import { downloadTextFile } from "../export/exporters";
+import { projectElevationView } from "../projection/elevation";
+import type { ElevationSide } from "../projection/types";
 import { DrawingSurface2D } from "./DrawingSurface2D";
 import { Preview3D } from "./Preview3D";
 import { PropertyPanel } from "./PropertyPanel";
@@ -34,12 +37,60 @@ const PLAN_STOREY_BY_VIEW: Partial<Record<ViewId, string>> = {
   "plan-3f": "3f",
 };
 
-const ELEVATION_VIEWS: ReadonlySet<ViewId> = new Set([
-  "elevation-front",
-  "elevation-back",
-  "elevation-left",
-  "elevation-right",
+const ELEVATION_SIDE_BY_VIEW: Partial<Record<ViewId, ElevationSide>> = {
+  "elevation-front": "front",
+  "elevation-back": "back",
+  "elevation-left": "left",
+  "elevation-right": "right",
+};
+
+const UI_ONLY_ACTIONS: ReadonlySet<ProjectAction["type"]> = new Set([
+  "set-mode",
+  "set-view",
+  "set-tool",
+  "select",
 ]);
+
+const HISTORY_LIMIT = 50;
+
+type HistoryState = {
+  past: HouseProject[];
+  present: HouseProject;
+  future: HouseProject[];
+};
+
+type HistoryAction = ProjectAction | { type: "undo" } | { type: "redo" };
+
+function historyReducer(state: HistoryState, action: HistoryAction): HistoryState {
+  if (action.type === "undo") {
+    if (state.past.length === 0) return state;
+    const previous = state.past[state.past.length - 1];
+    return {
+      past: state.past.slice(0, -1),
+      present: previous,
+      future: [state.present, ...state.future].slice(0, HISTORY_LIMIT),
+    };
+  }
+  if (action.type === "redo") {
+    if (state.future.length === 0) return state;
+    const [next, ...rest] = state.future;
+    return {
+      past: [...state.past, state.present].slice(-HISTORY_LIMIT),
+      present: next,
+      future: rest,
+    };
+  }
+  const nextPresent = projectReducer(state.present, action);
+  if (nextPresent === state.present) return state;
+  if (UI_ONLY_ACTIONS.has(action.type)) {
+    return { ...state, present: nextPresent };
+  }
+  return {
+    past: [...state.past, state.present].slice(-HISTORY_LIMIT),
+    present: nextPresent,
+    future: [],
+  };
+}
 
 const roundToMm = (value: number) => Math.round(value * 1000) / 1000;
 
@@ -47,7 +98,7 @@ function activeStoreyId(project: HouseProject): string | undefined {
   const planStorey = PLAN_STOREY_BY_VIEW[project.activeView];
   if (planStorey) return planStorey;
   if (project.selection?.kind === "storey") return project.selection.id;
-  if (ELEVATION_VIEWS.has(project.activeView)) return project.storeys[0]?.id;
+  if (ELEVATION_SIDE_BY_VIEW[project.activeView]) return project.storeys[0]?.id;
   return undefined;
 }
 
@@ -66,18 +117,42 @@ function defaultWallEndpoints(project: HouseProject, storeyId: string): { start:
   };
 }
 
-function pickTargetWall(project: HouseProject, storeyId: string): Wall | undefined {
+function pickTargetWall(
+  project: HouseProject,
+  storeyId: string,
+  elevationSide?: ElevationSide,
+): Wall | undefined {
   if (project.selection?.kind === "wall") {
     const sel = project.walls.find((wall) => wall.id === project.selection!.id);
     if (sel && sel.storeyId === storeyId) return sel;
+  }
+  if (elevationSide) {
+    const projection = projectElevationView(project, elevationSide);
+    const band = projection.wallBands.find((entry) => entry.storeyId === storeyId);
+    if (band) {
+      const wall = project.walls.find((candidate) => candidate.id === band.wallId);
+      if (wall) return wall;
+    }
   }
   return project.walls.find((wall) => wall.storeyId === storeyId);
 }
 
 export function AppShell() {
-  const [project, dispatch] = useReducer(projectReducer, undefined, createSampleProject);
+  const [history, dispatchHistory] = useReducer(
+    historyReducer,
+    undefined,
+    (): HistoryState => ({ past: [], present: createSampleProject(), future: [] }),
+  );
+  const project = history.present;
+  const canUndo = history.past.length > 0;
+  const canRedo = history.future.length > 0;
+
   const [importError, setImportError] = useState<string | undefined>();
   const [addError, setAddError] = useState<string | undefined>();
+
+  const dispatch = (action: ProjectAction) => dispatchHistory(action);
+  const undo = () => dispatchHistory({ type: "undo" });
+  const redo = () => dispatchHistory({ type: "redo" });
 
   const setMode = (mode: Mode) => dispatch({ type: "set-mode", mode });
   const setView = (viewId: ViewId) => dispatch({ type: "set-view", viewId });
@@ -101,6 +176,10 @@ export function AppShell() {
         case "balcony":
           next = removeBalcony(project, sel.id);
           break;
+        case "storey":
+          if (project.storeys.length <= 1) return;
+          next = removeStorey(project, sel.id);
+          break;
         default:
           return;
       }
@@ -113,18 +192,43 @@ export function AppShell() {
 
   useEffect(() => {
     const handler = (event: KeyboardEvent) => {
-      if (event.key !== "Delete" && event.key !== "Backspace") return;
       const target = event.target;
-      if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) return;
+      const editingField =
+        target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement;
+
+      const isUndo =
+        (event.metaKey || event.ctrlKey) && !event.shiftKey && event.key.toLowerCase() === "z";
+      const isRedo =
+        (event.metaKey || event.ctrlKey) &&
+        ((event.shiftKey && event.key.toLowerCase() === "z") || event.key.toLowerCase() === "y");
+
+      if (isRedo) {
+        if (editingField) return;
+        event.preventDefault();
+        redo();
+        return;
+      }
+      if (isUndo) {
+        if (editingField) return;
+        event.preventDefault();
+        undo();
+        return;
+      }
+
+      if (event.key !== "Delete" && event.key !== "Backspace") return;
+      if (editingField) return;
       const sel = project.selection;
-      if (!sel || (sel.kind !== "wall" && sel.kind !== "opening" && sel.kind !== "balcony")) return;
+      if (!sel) return;
+      const isStorey = sel.kind === "storey" && project.storeys.length > 1;
+      const isOther = sel.kind === "wall" || sel.kind === "opening" || sel.kind === "balcony";
+      if (!isStorey && !isOther) return;
       event.preventDefault();
       handleDeleteSelection();
     };
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [project]);
+  }, [project, canUndo, canRedo]);
 
   const handleAddComponent = (toolId: ToolId) => {
     setAddError(undefined);
@@ -133,6 +237,7 @@ export function AppShell() {
       setAddError("请先选择一个楼层视图后再添加组件。");
       return;
     }
+    const elevationSide = ELEVATION_SIDE_BY_VIEW[project.activeView];
 
     try {
       if (toolId === "wall") {
@@ -147,9 +252,9 @@ export function AppShell() {
         return;
       }
 
-      const wall = pickTargetWall(project, storeyId);
+      const wall = pickTargetWall(project, storeyId, elevationSide);
       if (!wall) {
-        setAddError("当前楼层没有墙,先添加一面墙再放门窗/阳台。");
+        setAddError("当前楼层没有可附着的墙,先添加一面墙。");
         return;
       }
       const center = wallLength(wall) / 2;
@@ -243,6 +348,32 @@ export function AppShell() {
       </div>
 
       <div className="top-actions">
+        <button
+          className="action-button icon-action"
+          type="button"
+          onClick={undo}
+          disabled={!canUndo}
+          aria-label="撤销"
+          title="撤销 (Ctrl/Cmd+Z)"
+        >
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M9 14L4 9l5-5" />
+            <path d="M4 9h11a5 5 0 0 1 5 5v0a5 5 0 0 1-5 5H9" />
+          </svg>
+        </button>
+        <button
+          className="action-button icon-action"
+          type="button"
+          onClick={redo}
+          disabled={!canRedo}
+          aria-label="重做"
+          title="重做 (Ctrl/Cmd+Shift+Z)"
+        >
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M15 14l5-5-5-5" />
+            <path d="M20 9H9a5 5 0 0 0-5 5v0a5 5 0 0 0 5 5h6" />
+          </svg>
+        </button>
         <button className="action-button" type="button" onClick={handleExport}>
           导出 JSON
         </button>

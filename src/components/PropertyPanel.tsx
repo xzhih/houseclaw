@@ -95,7 +95,12 @@ export function PropertyPanel({
       : undefined;
 
   const isDeletable =
-    selection?.kind === "wall" || selection?.kind === "opening" || selection?.kind === "balcony";
+    selection?.kind === "wall" ||
+    selection?.kind === "opening" ||
+    selection?.kind === "balcony" ||
+    (selection?.kind === "storey" && project.storeys.length > 1);
+
+  const deleteLabel = selection?.kind === "storey" ? "删除楼层" : "删除";
 
   return (
     <aside className="property-panel" aria-label="Properties">
@@ -117,7 +122,7 @@ export function PropertyPanel({
 
       {isDeletable ? (
         <button type="button" className="property-delete" onClick={onDeleteSelection}>
-          删除
+          {deleteLabel}
         </button>
       ) : null}
 
