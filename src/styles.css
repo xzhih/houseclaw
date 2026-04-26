@@ -428,8 +428,13 @@ select {
 
 .storey-strip {
   display: inline-flex;
+<<<<<<< HEAD
   flex-direction: column;
   gap: 4px;
+=======
+  flex-wrap: wrap;
+  gap: 2px;
+>>>>>>> worktree-agile-watching-firefly
   padding: 4px;
   background: var(--panel);
   border: 1px solid var(--panel-border);
@@ -440,18 +445,14 @@ select {
 
 .storey-pill {
   min-width: 52px;
-  text-align: center;
-}
-
-.storey-pill {
   border: 0;
   background: transparent;
   color: var(--text-muted);
-  border-radius: var(--pill);
-  padding: 6px 14px;
+  padding: 6px 12px;
+  border-radius: 8px;
   cursor: pointer;
-  font-size: 0.78rem;
-  font-weight: 500;
+  font-size: 0.8rem;
+  text-align: center;
   transition:
     color 0.15s,
     background 0.15s;
@@ -459,12 +460,11 @@ select {
 
 .storey-pill:hover {
   color: var(--text);
-  background: var(--accent-bg);
 }
 
 .storey-pill[aria-pressed="true"] {
-  background: #ffffff;
-  color: #0e0f13;
+  background: var(--accent-bg-strong);
+  color: var(--text);
   font-weight: 600;
 }
 
@@ -886,13 +886,6 @@ select {
   border-radius: var(--radius-md);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
-}
-
-.preview-name {
-  margin: 0;
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: var(--text);
 }
 
 .preview-hint {
