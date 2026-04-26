@@ -348,11 +348,12 @@ select {
   background: var(--panel);
 }
 
-/* --- Bottom overlay (view tabs aligned next to storey rail) --- */
+/* --- Bottom overlay (view tabs centered, offset left by half the property panel width) --- */
 .bottom-overlay {
   position: absolute;
   bottom: 16px;
-  left: 96px;
+  left: calc(50% - 168px);
+  transform: translateX(-50%);
   display: inline-flex;
   align-items: center;
   gap: 10px;
@@ -467,13 +468,13 @@ select {
   font-weight: 600;
 }
 
-/* --- 2D drawing surface (offsets keep paint area clear of overlays) --- */
+/* --- 2D drawing surface (fullscreen minus property panel; overlays float on top) --- */
 .drawing-surface {
   position: absolute;
-  top: 64px;
-  right: 352px;
-  bottom: 64px;
-  left: 88px;
+  top: 0;
+  right: 336px;
+  bottom: 0;
+  left: 0;
 }
 
 .drawing-surface svg {
@@ -645,8 +646,8 @@ select {
 
 .zoom-reset {
   position: absolute;
-  bottom: 60px;
-  left: 16px;
+  bottom: 16px;
+  right: 16px;
   display: inline-flex;
   align-items: center;
   height: 30px;
@@ -1035,4 +1036,104 @@ select {
   padding: 4px 8px;
   border-radius: 4px;
   letter-spacing: 0.04em;
+}
+
+/* --- Lighting controls (bottom-left, above the camera-mode toggle) --- */
+.lighting-controls {
+  position: absolute;
+  bottom: 64px;
+  left: 16px;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.lighting-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-sm);
+  background: var(--panel);
+  color: var(--text-muted);
+  cursor: pointer;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  transition:
+    color 0.15s,
+    background 0.15s,
+    border-color 0.15s;
+}
+
+.lighting-toggle:hover {
+  color: var(--text);
+  background: var(--accent-bg);
+  border-color: var(--panel-border-hover);
+}
+
+.lighting-toggle[aria-expanded="true"] {
+  color: var(--text);
+  background: var(--accent-bg-strong);
+  border-color: var(--panel-border-hover);
+}
+
+.lighting-panel {
+  width: 248px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-md);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.35);
+}
+
+.lighting-slider {
+  display: grid;
+  grid-template-columns: 56px 1fr 44px;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.lighting-slider-label {
+  font-weight: 500;
+}
+
+.lighting-slider input[type="range"] {
+  width: 100%;
+  accent-color: #ffffff;
+}
+
+.lighting-slider-value {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+
+.lighting-reset {
+  margin-top: 4px;
+  border: 1px solid var(--panel-border);
+  background: transparent;
+  color: var(--text-muted);
+  padding: 6px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.78rem;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+
+.lighting-reset:hover {
+  color: var(--text);
+  border-color: var(--panel-border-hover);
+  background: var(--accent-bg);
 }

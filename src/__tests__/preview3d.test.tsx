@@ -4,12 +4,22 @@ import { describe, expect, it, vi } from "vitest";
 
 const setCameraMode = vi.fn();
 const setActiveStorey = vi.fn();
+const setLighting = vi.fn();
 const dispose = vi.fn();
 
 vi.mock("../rendering/threeScene", () => ({
+  DEFAULT_LIGHTING: {
+    exposure: 1.15,
+    hemiIntensity: 0.28,
+    keyIntensity: 3.4,
+    fillIntensity: 0.4,
+    sunAzimuthDeg: 225,
+    sunAltitudeDeg: 40,
+  },
   mountHouseScene: vi.fn(() => ({
     setCameraMode,
     setActiveStorey,
+    setLighting,
     dispose,
   })),
 }));

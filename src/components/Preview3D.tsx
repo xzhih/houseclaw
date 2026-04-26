@@ -1,10 +1,43 @@
 import { useEffect, useRef, useState } from "react";
 import type { HouseProject } from "../domain/types";
-import { mountHouseScene, type CameraMode, type MountedScene } from "../rendering/threeScene";
+import {
+  DEFAULT_LIGHTING,
+  mountHouseScene,
+  type CameraMode,
+  type LightingParams,
+  type MountedScene,
+} from "../rendering/threeScene";
 
 type Preview3DProps = {
   project: HouseProject;
 };
+
+type LightingSliderProps = {
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  step: number;
+  format: (value: number) => string;
+  onChange: (value: number) => void;
+};
+
+function LightingSlider({ label, value, min, max, step, format, onChange }: LightingSliderProps) {
+  return (
+    <label className="lighting-slider">
+      <span className="lighting-slider-label">{label}</span>
+      <input
+        type="range"
+        value={value}
+        min={min}
+        max={max}
+        step={step}
+        onChange={(e) => onChange(Number(e.target.value))}
+      />
+      <span className="lighting-slider-value">{format(value)}</span>
+    </label>
+  );
+}
 
 export function Preview3D({ project }: Preview3DProps) {
   const hostRef = useRef<HTMLDivElement>(null);
@@ -13,6 +46,8 @@ export function Preview3D({ project }: Preview3DProps) {
   const [cameraMode, setCameraMode] = useState<CameraMode>("orbit");
   const [activeStoreyId, setActiveStoreyId] = useState<string>(() => project.storeys[0]?.id ?? "1f");
   const [mountFailed, setMountFailed] = useState(false);
+  const [lighting, setLightingState] = useState<LightingParams>(DEFAULT_LIGHTING);
+  const [lightingPanelOpen, setLightingPanelOpen] = useState(false);
 
   // Keep the ref pointing at the latest project so callbacks see fresh storeys.
   useEffect(() => {
@@ -65,6 +100,14 @@ export function Preview3D({ project }: Preview3DProps) {
     }
   }, [cameraMode, activeStoreyId]);
 
+  useEffect(() => {
+    sceneRef.current?.setLighting(lighting);
+  }, [lighting]);
+
+  const updateLighting = <K extends keyof LightingParams>(key: K, value: LightingParams[K]) => {
+    setLightingState((prev) => ({ ...prev, [key]: value }));
+  };
+
   return (
     <div className="preview-shell" aria-label="3D preview">
       <div ref={hostRef} className="three-host" aria-label="Three.js house preview" />
@@ -83,6 +126,86 @@ export function Preview3D({ project }: Preview3DProps) {
           onClick={() => setCameraMode("walk")}
         >
           漫游
+        </button>
+      </div>
+
+      <div className="lighting-controls" aria-hidden={mountFailed}>
+        {lightingPanelOpen && (
+          <div className="lighting-panel" role="group" aria-label="光照调整">
+            <LightingSlider
+              label="曝光"
+              value={lighting.exposure}
+              min={0.4}
+              max={2}
+              step={0.05}
+              format={(v) => v.toFixed(2)}
+              onChange={(v) => updateLighting("exposure", v)}
+            />
+            <LightingSlider
+              label="环境光"
+              value={lighting.hemiIntensity}
+              min={0}
+              max={1.5}
+              step={0.05}
+              format={(v) => v.toFixed(2)}
+              onChange={(v) => updateLighting("hemiIntensity", v)}
+            />
+            <LightingSlider
+              label="主光强度"
+              value={lighting.keyIntensity}
+              min={0}
+              max={6}
+              step={0.1}
+              format={(v) => v.toFixed(1)}
+              onChange={(v) => updateLighting("keyIntensity", v)}
+            />
+            <LightingSlider
+              label="补光强度"
+              value={lighting.fillIntensity}
+              min={0}
+              max={2}
+              step={0.05}
+              format={(v) => v.toFixed(2)}
+              onChange={(v) => updateLighting("fillIntensity", v)}
+            />
+            <LightingSlider
+              label="日照方位"
+              value={lighting.sunAzimuthDeg}
+              min={0}
+              max={360}
+              step={5}
+              format={(v) => `${Math.round(v)}°`}
+              onChange={(v) => updateLighting("sunAzimuthDeg", v)}
+            />
+            <LightingSlider
+              label="日照高度"
+              value={lighting.sunAltitudeDeg}
+              min={5}
+              max={89}
+              step={1}
+              format={(v) => `${Math.round(v)}°`}
+              onChange={(v) => updateLighting("sunAltitudeDeg", v)}
+            />
+            <button
+              type="button"
+              className="lighting-reset"
+              onClick={() => setLightingState(DEFAULT_LIGHTING)}
+            >
+              重置默认
+            </button>
+          </div>
+        )}
+        <button
+          type="button"
+          className="lighting-toggle"
+          aria-label="光照"
+          aria-expanded={lightingPanelOpen}
+          onClick={() => setLightingPanelOpen((open) => !open)}
+        >
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="4" />
+            <path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.93 4.93l2.12 2.12M16.95 16.95l2.12 2.12M4.93 19.07l2.12-2.12M16.95 7.05l2.12-2.12" />
+          </svg>
         </button>
       </div>
 

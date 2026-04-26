@@ -8,17 +8,50 @@ import { attachWalkControls, type WalkCallbacks, type WalkSpawn } from "./walkCo
 
 export type CameraMode = "orbit" | "walk";
 
+export type LightingParams = {
+  exposure: number;
+  hemiIntensity: number;
+  keyIntensity: number;
+  fillIntensity: number;
+  /** 0 = north (+Z), 90 = east (+X), 180 = south (-Z), 270 = west (-X) */
+  sunAzimuthDeg: number;
+  /** 0 = horizon, 90 = zenith */
+  sunAltitudeDeg: number;
+};
+
+export const DEFAULT_LIGHTING: LightingParams = {
+  exposure: 1.15,
+  hemiIntensity: 0.28,
+  keyIntensity: 3.4,
+  fillIntensity: 0.4,
+  sunAzimuthDeg: 225,
+  sunAltitudeDeg: 40,
+};
+
 export type MountedSceneOptions = {
   onWalkExit?: () => void;
   onDigitKey?: (digit: number) => void;
   onCameraMove?: (cameraY: number) => void;
+  lighting?: LightingParams;
 };
 
 export type MountedScene = {
   setCameraMode(mode: CameraMode): void;
   setActiveStorey(storeyId: string): void;
+  setLighting(params: LightingParams): void;
   dispose(): void;
 };
+
+function sunOffsetFrom(azimuthDeg: number, altitudeDeg: number, distance: number): THREE.Vector3 {
+  const az = THREE.MathUtils.degToRad(azimuthDeg);
+  const alt = THREE.MathUtils.degToRad(altitudeDeg);
+  const horizontal = distance * Math.cos(alt);
+  return new THREE.Vector3(
+    Math.sin(az) * horizontal,
+    distance * Math.sin(alt),
+    Math.cos(az) * horizontal,
+  );
+}
 
 type SceneBounds = {
   minX: number;
@@ -543,15 +576,14 @@ export function mountHouseScene(
   );
   const shadowSpan = Math.max(buildingExtent * 2, 24);
 
-  // Hemi stays low so it does not flood out the directional contrast.
-  const ambient = new THREE.HemisphereLight("#cfd9d2", "#37413a", 0.28);
+  const initialLighting: LightingParams = options?.lighting ?? DEFAULT_LIGHTING;
 
-  // Key = afternoon sun from the south-west, ~40° altitude. Front facade
-  // (−Z normal) gets cosine ≈ 0.5; left wall (−X) ≈ 0.5; right wall (+X)
-  // sits in self-shadow. With the default orbit camera viewing from the
-  // south-east, the front-right corner reads as the dramatic edge.
-  const keyLight = new THREE.DirectionalLight("#fff1d4", 3.4);
-  keyLight.position.copy(buildingCenter).add(new THREE.Vector3(-7, 9, -7));
+  const ambient = new THREE.HemisphereLight("#cfd9d2", "#37413a", initialLighting.hemiIntensity);
+
+  const keyLight = new THREE.DirectionalLight("#fff1d4", initialLighting.keyIntensity);
+  keyLight.position
+    .copy(buildingCenter)
+    .add(sunOffsetFrom(initialLighting.sunAzimuthDeg, initialLighting.sunAltitudeDeg, 14));
   keyLight.target.position.copy(buildingCenter);
   keyLight.castShadow = true;
   keyLight.shadow.mapSize.set(2048, 2048);
@@ -564,11 +596,14 @@ export function mountHouseScene(
   keyLight.shadow.bias = -0.0002;
   keyLight.shadow.normalBias = 0.02;
 
-  // Cool fill from the opposite quadrant (NE) at low intensity — keeps the
-  // shadowed wall from going completely flat without erasing the contrast.
-  const fillLight = new THREE.DirectionalLight("#9cb8d6", 0.4);
-  fillLight.position.copy(buildingCenter).add(new THREE.Vector3(8, 5, 8));
+  // Fill always opposes the sun in azimuth, sits at modest altitude.
+  const fillLight = new THREE.DirectionalLight("#9cb8d6", initialLighting.fillIntensity);
+  fillLight.position
+    .copy(buildingCenter)
+    .add(sunOffsetFrom((initialLighting.sunAzimuthDeg + 180) % 360, 25, 12));
   fillLight.target.position.copy(buildingCenter);
+
+  renderer.toneMappingExposure = initialLighting.exposure;
 
   const meshes = [...wallMeshes, ...balconyMeshes, ...slabMeshes];
   const materials = [...wallMaterials, ...balconyMaterials, ...slabMaterials];
@@ -649,9 +684,23 @@ export function mountHouseScene(
     walkControls.setSpawn(computeSpawn(storeyId));
   };
 
+  const setLighting = (params: LightingParams) => {
+    renderer.toneMappingExposure = params.exposure;
+    ambient.intensity = params.hemiIntensity;
+    keyLight.intensity = params.keyIntensity;
+    keyLight.position
+      .copy(buildingCenter)
+      .add(sunOffsetFrom(params.sunAzimuthDeg, params.sunAltitudeDeg, 14));
+    fillLight.intensity = params.fillIntensity;
+    fillLight.position
+      .copy(buildingCenter)
+      .add(sunOffsetFrom((params.sunAzimuthDeg + 180) % 360, 25, 12));
+  };
+
   return {
     setCameraMode,
     setActiveStorey,
+    setLighting,
     dispose: () => {
       walkControls.dispose();
       currentOrbit?.dispose();
