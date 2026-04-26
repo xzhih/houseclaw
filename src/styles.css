@@ -348,12 +348,11 @@ select {
   background: var(--panel);
 }
 
-/* --- Bottom overlay (view tabs centered) --- */
+/* --- Bottom overlay (view tabs aligned next to storey rail) --- */
 .bottom-overlay {
   position: absolute;
   bottom: 16px;
-  left: 50%;
-  transform: translateX(-50%);
+  left: 96px;
   display: inline-flex;
   align-items: center;
   gap: 10px;
