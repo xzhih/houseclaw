@@ -390,7 +390,7 @@ export function AppShell() {
           <div className="storey-overlay">
             <StoreyHeightStrip
               storeys={project.storeys}
-              selection={project.selection}
+              activeView={project.activeView}
               onSelectStorey={(storeyId) => {
                 setView(`plan-${storeyId}` as ViewId);
                 select({ kind: "storey", id: storeyId });
