@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { validateProject } from "../domain/constraints";
-import { addOpening, setStoreyHeight, updateBalcony, updateStorey, updateWall } from "../domain/mutations";
+import { addOpening, updateBalcony, updateStorey, updateWall } from "../domain/mutations";
 import { createSampleProject } from "../domain/sampleProject";
 
 describe("house constraints", () => {
@@ -44,7 +44,7 @@ describe("house constraints", () => {
   });
 
   it("keeps storey elevations normalized after changing a floor height", () => {
-    const project = setStoreyHeight(createSampleProject(), "1f", 3.6);
+    const project = updateStorey(createSampleProject(), "1f", { height: 3.6 });
 
     expect(project.storeys.map((storey) => storey.elevation)).toEqual([0, 3.6, 6.8]);
     expect(project.storeys[0].height).toBe(3.6);

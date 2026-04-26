@@ -8,6 +8,9 @@ export type BalconyPatch = Partial<Omit<Balcony, "id" | "storeyId" | "attachedWa
 export type StoreyPatch = Partial<Omit<Storey, "id" | "elevation">>;
 
 type UnsafeOpeningPatch = OpeningPatch & Partial<Pick<Opening, "id" | "wallId">>;
+type UnsafeWallPatch = WallPatch & Partial<Pick<Wall, "id" | "storeyId" | "start" | "end">>;
+type UnsafeBalconyPatch = BalconyPatch & Partial<Pick<Balcony, "id" | "storeyId" | "attachedWallId">>;
+type UnsafeStoreyPatch = StoreyPatch & Partial<Pick<Storey, "id" | "elevation">>;
 
 export function addWall(project: HouseProject, wall: Wall): HouseProject {
   return assertValidProject({
@@ -33,49 +36,61 @@ export function updateOpening(project: HouseProject, openingId: string, patch: O
 }
 
 export function updateWall(project: HouseProject, wallId: string, patch: WallPatch): HouseProject {
+  const {
+    id: _ignoredId,
+    storeyId: _ignoredStoreyId,
+    start: _ignoredStart,
+    end: _ignoredEnd,
+    ...allowedPatch
+  } = patch as UnsafeWallPatch;
+
   return assertValidProject({
     ...project,
-    walls: project.walls.map((wall) => (wall.id === wallId ? { ...wall, ...patch } : wall)),
+    walls: project.walls.map((wall) => (wall.id === wallId ? { ...wall, ...allowedPatch } : wall)),
   });
 }
 
 export function updateBalcony(project: HouseProject, balconyId: string, patch: BalconyPatch): HouseProject {
+  const {
+    id: _ignoredId,
+    storeyId: _ignoredStoreyId,
+    attachedWallId: _ignoredAttachedWallId,
+    ...allowedPatch
+  } = patch as UnsafeBalconyPatch;
+
   return assertValidProject({
     ...project,
     balconies: project.balconies.map((balcony) =>
-      balcony.id === balconyId ? { ...balcony, ...patch } : balcony,
+      balcony.id === balconyId ? { ...balcony, ...allowedPatch } : balcony,
     ),
   });
 }
 
 export function updateStorey(project: HouseProject, storeyId: string, patch: StoreyPatch): HouseProject {
-  if (patch.height !== undefined) {
-    if (!Number.isFinite(patch.height) || patch.height <= 0) {
-      throw new Error(`Storey ${storeyId} height must be positive.`);
-    }
+  const { id: _ignoredId, elevation: _ignoredElevation, ...allowedPatch } = patch as UnsafeStoreyPatch;
+  const nextHeight = allowedPatch.height;
+
+  if (nextHeight !== undefined && (!Number.isFinite(nextHeight) || nextHeight <= 0)) {
+    throw new Error(`Storey ${storeyId} height must be positive.`);
   }
 
   let nextElevation = 0;
   const storeys = project.storeys.map((storey) => {
     const next: Storey = {
       ...storey,
-      ...(storey.id === storeyId ? patch : {}),
+      ...(storey.id === storeyId ? allowedPatch : {}),
       elevation: nextElevation,
     };
     nextElevation = storeyTop(nextElevation, next.height);
     return next;
   });
 
-  const heightChanged = patch.height !== undefined;
-  const walls = heightChanged
-    ? project.walls.map((wall) => (wall.storeyId === storeyId ? { ...wall, height: patch.height! } : wall))
-    : project.walls;
+  const walls =
+    nextHeight !== undefined
+      ? project.walls.map((wall) => (wall.storeyId === storeyId ? { ...wall, height: nextHeight } : wall))
+      : project.walls;
 
   return assertValidProject({ ...project, storeys, walls });
-}
-
-export function setStoreyHeight(project: HouseProject, storeyId: string, height: number): HouseProject {
-  return updateStorey(project, storeyId, { height });
 }
 
 export function applyWallMaterial(project: HouseProject, wallId: string, materialId: string): HouseProject {
