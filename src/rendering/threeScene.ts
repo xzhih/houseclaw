@@ -2,7 +2,7 @@ import * as THREE from "three";
 import { wallLength } from "../domain/measurements";
 import type { HouseProject, Wall } from "../domain/types";
 import { buildHouseGeometry } from "../geometry/houseGeometry";
-import type { BalconyGeometry, HouseGeometry, WallGeometry, WallPanel } from "../geometry/types";
+import type { BalconyGeometry, HouseGeometry, SlabGeometry, WallGeometry, WallPanel } from "../geometry/types";
 import { slicePanelFootprint } from "../geometry/wallNetwork";
 
 type MountedScene = {
@@ -421,6 +421,56 @@ function createBalconyParts(
   return [slab, outerRail, leftRail, rightRail];
 }
 
+const SLAB_FALLBACK_COLOR = "#a1a8a3";
+
+function createSlabMaterial(project: HouseProject, materialId: string) {
+  const material = project.materials.find((candidate) => candidate.id === materialId);
+  return new THREE.MeshStandardMaterial({
+    color: material?.color ?? SLAB_FALLBACK_COLOR,
+    roughness: 0.85,
+    metalness: 0.02,
+  });
+}
+
+function buildSlabMesh(slab: SlabGeometry, material: THREE.Material): THREE.Mesh {
+  const shape = new THREE.Shape(
+    slab.outline.map((point) => new THREE.Vector2(point.x, point.y)),
+  );
+  if (slab.hole) {
+    shape.holes.push(
+      new THREE.Path(slab.hole.map((point) => new THREE.Vector2(point.x, point.y))),
+    );
+  }
+  const geometry = new THREE.ExtrudeGeometry(shape, {
+    depth: slab.thickness,
+    bevelEnabled: false,
+  });
+  // ExtrudeGeometry lays the shape on the XY plane and extrudes +Z.
+  // Rotate so the shape's XY becomes world XZ and extrusion becomes -Y.
+  geometry.rotateX(Math.PI / 2);
+  // After rotation: top face sits at y=0, bottom at y=-thickness. Translate
+  // so the top face matches slab.topY.
+  geometry.translate(0, slab.topY, 0);
+
+  return new THREE.Mesh(geometry, material);
+}
+
+function createSlabMeshes(project: HouseProject, geometry: HouseGeometry) {
+  const materials = new Map<string, THREE.MeshStandardMaterial>();
+  const meshes: THREE.Mesh[] = [];
+
+  for (const slab of geometry.slabs) {
+    let material = materials.get(slab.materialId);
+    if (!material) {
+      material = createSlabMaterial(project, slab.materialId);
+      materials.set(slab.materialId, material);
+    }
+    meshes.push(buildSlabMesh(slab, material));
+  }
+
+  return { meshes, materials: [...materials.values()] };
+}
+
 function createGround(bounds: SceneBounds) {
   const width = bounds.maxX - bounds.minX;
   const depth = bounds.maxZ - bounds.minZ;
@@ -447,11 +497,12 @@ export function mountHouseScene(container: HTMLElement, project: HouseProject): 
   const { camera, center, distance } = createCamera(bounds, width / height);
   const { meshes: wallMeshes, materials: wallMaterials } = createWallMeshes(project, houseGeometry);
   const { meshes: balconyMeshes, materials: balconyMaterials } = createBalconyMeshes(project, houseGeometry);
+  const { meshes: slabMeshes, materials: slabMaterials } = createSlabMeshes(project, houseGeometry);
   const { ground, geometry: groundGeometry, material: groundMaterial } = createGround(bounds);
   const ambient = new THREE.HemisphereLight("#ffffff", "#9aa7a0", 1.6);
   const keyLight = new THREE.DirectionalLight("#ffffff", 2.4);
-  const meshes = [...wallMeshes, ...balconyMeshes];
-  const materials = [...wallMaterials, ...balconyMaterials];
+  const meshes = [...wallMeshes, ...balconyMeshes, ...slabMeshes];
+  const materials = [...wallMaterials, ...balconyMaterials, ...slabMaterials];
 
   keyLight.position.set(5, 9, 6);
   scene.add(ambient, keyLight, ground, ...meshes);
