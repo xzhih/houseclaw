@@ -28,18 +28,21 @@ export type WalkSpawn = {
 export type WalkCallbacks = {
   onWalkExit: () => void;             // fired when pointer-lock is released (Esc)
   onDigitKey: (digit: number) => void; // 1, 2, 3 — used to switch storeys without leaving lock
+  onCameraMove?: (cameraY: number) => void;
 };
 
 export type WalkControls = {
   enable(spawn: WalkSpawn): void;
   disable(): void;
   setSpawn(spawn: WalkSpawn): void;
+  getYaw(): number;
   dispose(): void;
 };
 
 export function attachWalkControls(
   renderer: THREE.WebGLRenderer,
   camera: THREE.PerspectiveCamera,
+  scene: THREE.Scene,
   collidables: THREE.Object3D[],
   callbacks: WalkCallbacks,
 ): WalkControls {
@@ -170,6 +173,8 @@ export function attachWalkControls(
     camera.rotation.order = "YXZ";
     camera.rotation.set(pitch, yaw, 0);
 
+    callbacks.onCameraMove?.(camera.position.y);
+    renderer.render(scene, camera);
     rafId = requestAnimationFrame(tick);
   };
 
@@ -218,6 +223,7 @@ export function attachWalkControls(
     enable,
     disable,
     setSpawn,
+    getYaw: () => yaw,
     dispose: () => {
       disable();
     },

@@ -30,6 +30,15 @@ export function Preview3D({ project }: Preview3DProps) {
           const storey = projectRef.current.storeys[digit - 1];
           if (storey) setActiveStoreyId(storey.id);
         },
+        onCameraMove: (cameraY) => {
+          const storeys = projectRef.current.storeys;
+          const feetY = cameraY - 1.6;
+          // Pick the highest storey whose elevation <= feetY (closest floor below feet).
+          const grounded = [...storeys]
+            .sort((a, b) => b.elevation - a.elevation)
+            .find((s) => s.elevation <= feetY + 0.01);
+          if (grounded) setActiveStoreyId((current) => current === grounded.id ? current : grounded.id);
+        },
       });
       setMountFailed(false);
       return () => {

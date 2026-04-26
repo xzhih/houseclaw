@@ -11,6 +11,7 @@ export type CameraMode = "orbit" | "walk";
 export type MountedSceneOptions = {
   onWalkExit?: () => void;
   onDigitKey?: (digit: number) => void;
+  onCameraMove?: (cameraY: number) => void;
 };
 
 export type MountedScene = {
@@ -540,9 +541,13 @@ export function mountHouseScene(
   const callbacks: WalkCallbacks = {
     onWalkExit: () => options?.onWalkExit?.(),
     onDigitKey: (digit) => options?.onDigitKey?.(digit),
+    onCameraMove: (cameraY) => options?.onCameraMove?.(cameraY),
   };
 
-  const walkControls = attachWalkControls(renderer, camera, collidables, callbacks);
+  const walkControls = attachWalkControls(renderer, camera, scene, collidables, callbacks);
+
+  let currentOrbit: OrbitControls | null = attachOrbitControls(renderer, camera, scene, center, distance, container);
+  let activeMode: CameraMode = "orbit";
 
   const computeSpawn = (storeyId: string): WalkSpawn => {
     const storey = project.storeys.find((s) => s.id === storeyId) ?? project.storeys[0];
@@ -550,13 +555,10 @@ export function mountHouseScene(
       x: (bounds.minX + bounds.maxX) / 2,
       z: (bounds.minZ + bounds.maxZ) / 2,
       y: storey.elevation + 1.6,
-      yaw: 0,
+      yaw: activeMode === "walk" ? walkControls.getYaw() : 0,
       pitch: 0,
     };
   };
-
-  let currentOrbit: OrbitControls | null = attachOrbitControls(renderer, camera, scene, center, distance, container);
-  let activeMode: CameraMode = "orbit";
 
   const setCameraMode = (mode: CameraMode) => {
     if (mode === activeMode) return;
