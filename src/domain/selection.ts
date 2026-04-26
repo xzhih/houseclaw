@@ -1,14 +1,14 @@
-export type Selection =
+export type ObjectSelection =
   | { kind: "wall"; id: string }
   | { kind: "opening"; id: string }
   | { kind: "balcony"; id: string }
   | { kind: "storey"; id: string };
 
-export type SelectionKind = Selection["kind"];
+export type ObjectSelectionKind = ObjectSelection["kind"];
 
 export function isSelected(
-  selection: Selection | undefined,
-  kind: SelectionKind,
+  selection: ObjectSelection | undefined,
+  kind: ObjectSelectionKind,
   id: string,
 ): boolean {
   return selection?.kind === kind && selection.id === id;

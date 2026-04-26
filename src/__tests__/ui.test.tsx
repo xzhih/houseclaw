@@ -132,6 +132,25 @@ describe("HouseClaw UI", () => {
     expect(screen.getByText("离地高度")).toBeInTheDocument();
   });
 
+  it("clears selection when pressing Escape on the drawing surface", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: "正面" }));
+    const opening = screen.getByRole("button", { name: "选择开孔 window-front-1f" });
+    opening.focus();
+    await user.keyboard("{Enter}");
+
+    expect(opening).toHaveAttribute("aria-pressed", "true");
+
+    await user.keyboard("{Escape}");
+
+    expect(screen.getByRole("button", { name: "选择开孔 window-front-1f" })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
+  });
+
   it("shows balcony geometry in the second-floor plan and front elevation", async () => {
     const user = userEvent.setup();
     render(<App />);

@@ -2,7 +2,7 @@ import { type ChangeEvent, useReducer, useState } from "react";
 import { exportProjectJson, importProjectJson } from "../app/persistence";
 import { projectReducer } from "../app/projectReducer";
 import { createSampleProject } from "../domain/sampleProject";
-import type { Selection } from "../domain/selection";
+import type { ObjectSelection } from "../domain/selection";
 import type { Mode, ToolId, ViewId } from "../domain/types";
 import { downloadTextFile } from "../export/exporters";
 import { DrawingSurface2D } from "./DrawingSurface2D";
@@ -19,7 +19,7 @@ export function AppShell() {
   const setMode = (mode: Mode) => dispatch({ type: "set-mode", mode });
   const setView = (viewId: ViewId) => dispatch({ type: "set-view", viewId });
   const setTool = (toolId: ToolId) => dispatch({ type: "set-tool", toolId });
-  const select = (selection: Selection | undefined) => dispatch({ type: "select", selection });
+  const select = (selection: ObjectSelection | undefined) => dispatch({ type: "select", selection });
   const applyWallMaterial = (wallId: string, materialId: string) =>
     dispatch({ type: "apply-wall-material", wallId, materialId });
   const handleExport = () => {

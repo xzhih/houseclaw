@@ -1,12 +1,12 @@
 import { applyWallMaterial, updateOpening } from "../domain/mutations";
-import type { Selection } from "../domain/selection";
+import type { ObjectSelection } from "../domain/selection";
 import type { HouseProject, Mode, Opening, ToolId, ViewId } from "../domain/types";
 
 export type ProjectAction =
   | { type: "set-mode"; mode: Mode }
   | { type: "set-view"; viewId: ViewId }
   | { type: "set-tool"; toolId: ToolId }
-  | { type: "select"; selection: Selection | undefined }
+  | { type: "select"; selection: ObjectSelection | undefined }
   | { type: "update-opening"; openingId: string; patch: Partial<Omit<Opening, "id" | "wallId">> }
   | { type: "apply-wall-material"; wallId: string; materialId: string }
   | { type: "replace-project"; project: HouseProject };

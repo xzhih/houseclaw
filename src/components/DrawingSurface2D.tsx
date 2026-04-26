@@ -1,5 +1,5 @@
 import type { KeyboardEvent } from "react";
-import type { Selection } from "../domain/selection";
+import type { ObjectSelection } from "../domain/selection";
 import { isSelected } from "../domain/selection";
 import type { HouseProject, ViewId } from "../domain/types";
 import { projectElevationView } from "../projection/elevation";
@@ -33,7 +33,7 @@ const ELEVATION_SIDE_BY_VIEW: Partial<Record<ViewId, ElevationSide>> = {
 
 type DrawingSurface2DProps = {
   project: HouseProject;
-  onSelect: (selection: Selection | undefined) => void;
+  onSelect: (selection: ObjectSelection | undefined) => void;
 };
 
 type Bounds = {
@@ -197,7 +197,7 @@ function renderSelectableBalcony(
 
 function renderPlan(
   projection: PlanProjection,
-  selection: Selection | undefined,
+  selection: ObjectSelection | undefined,
   onSelect: DrawingSurface2DProps["onSelect"],
 ) {
   const projectPoint = createPointProjector(planBounds(projection));
@@ -302,7 +302,7 @@ function renderPlan(
 
 function renderElevation(
   projection: ElevationProjection,
-  selection: Selection | undefined,
+  selection: ObjectSelection | undefined,
   onSelect: DrawingSurface2DProps["onSelect"],
 ) {
   const projectPoint = createPointProjector(elevationBounds(projection));
@@ -394,7 +394,18 @@ export function DrawingSurface2D({ project, onSelect }: DrawingSurface2DProps) {
 
   return (
     <section className="drawing-surface" aria-label="2D drawing surface">
-      <svg viewBox={`0 0 ${SURFACE_WIDTH} ${SURFACE_HEIGHT}`} role="group" aria-label="当前 2D 结构视图">
+      <svg
+        viewBox={`0 0 ${SURFACE_WIDTH} ${SURFACE_HEIGHT}`}
+        role="group"
+        aria-label="当前 2D 结构视图"
+        tabIndex={-1}
+        onKeyDown={(event) => {
+          if (event.key === "Escape") {
+            event.preventDefault();
+            onSelect(undefined);
+          }
+        }}
+      >
         <rect
           className="surface-grid"
           x="0"
