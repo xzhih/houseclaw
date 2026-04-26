@@ -60,7 +60,7 @@ describe("buildSlabGeometry", () => {
       elevation: 3.2,
       height: 3.2,
       slabThickness: 0.18,
-      stairOpening: { x: 0.6, y: 5.0, width: 1.2, depth: 2.5 },
+      stair: { x: 0.6, y: 5.0, width: 1.2, depth: 2.5 },
     };
 
     const slab = buildSlabGeometry(storey, walls, indexFootprints(walls), DEFAULT_SLAB_MATERIAL);

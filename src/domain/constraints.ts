@@ -149,19 +149,19 @@ export function validateProject(project: HouseProject): string[] {
   const lowestStoreyId = sortedStoreys[0]?.id;
 
   for (const storey of project.storeys) {
-    const opening = storey.stairOpening;
+    const opening = storey.stair;
     if (!opening) continue;
 
     if (storey.id === lowestStoreyId) {
-      errors.push(`Storey ${storey.id} cannot have a stair opening (no storey below).`);
+      errors.push(`Storey ${storey.id} cannot have a stair (no storey below).`);
       continue;
     }
 
     if (!isPositive(opening.width)) {
-      errors.push(`Storey ${storey.id} stair opening width must be positive.`);
+      errors.push(`Storey ${storey.id} stair width must be positive.`);
     }
     if (!isPositive(opening.depth)) {
-      errors.push(`Storey ${storey.id} stair opening depth must be positive.`);
+      errors.push(`Storey ${storey.id} stair depth must be positive.`);
     }
 
     const storeyWalls = project.walls.filter(
@@ -186,7 +186,7 @@ export function validateProject(project: HouseProject): string[] {
       (c) => c.x >= minX && c.x <= maxX && c.y >= minY && c.y <= maxY,
     );
     if (!allInside) {
-      errors.push(`Storey ${storey.id} stair opening must be fully inside the exterior ring.`);
+      errors.push(`Storey ${storey.id} stair must be fully inside the exterior ring.`);
     }
   }
 

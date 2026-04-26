@@ -84,7 +84,7 @@ export function buildSlabGeometry(
     storeyId: storey.id,
     kind: "floor",
     outline: insetRing(outline, FACADE_INSET),
-    hole: storey.stairOpening ? holeFromOpening(storey.stairOpening) : undefined,
+    hole: storey.stair ? holeFromOpening(storey.stair) : undefined,
     topY: storey.elevation,
     thickness: storey.slabThickness,
     materialId,

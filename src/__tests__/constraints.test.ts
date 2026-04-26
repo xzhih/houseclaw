@@ -119,22 +119,22 @@ describe("stair opening validation", () => {
   it("rejects a stair opening on the 1F slab", () => {
     const project = createSampleProject();
     const oneF = project.storeys.find((s) => s.id === "1f")!;
-    oneF.stairOpening = { x: 1, y: 1, width: 1, depth: 1 };
+    oneF.stair = { x: 1, y: 1, width: 1, depth: 1 };
 
     const errors = validateProject(project);
     expect(errors).toContain(
-      "Storey 1f cannot have a stair opening (no storey below).",
+      "Storey 1f cannot have a stair (no storey below).",
     );
   });
 
   it("rejects zero or negative size", () => {
     const project = createSampleProject();
     const twoF = project.storeys.find((s) => s.id === "2f")!;
-    twoF.stairOpening = { x: 1, y: 1, width: 0, depth: 1 };
+    twoF.stair = { x: 1, y: 1, width: 0, depth: 1 };
 
     const errors = validateProject(project);
     expect(errors).toContain(
-      "Storey 2f stair opening width must be positive.",
+      "Storey 2f stair width must be positive.",
     );
   });
 
@@ -142,18 +142,18 @@ describe("stair opening validation", () => {
     const project = createSampleProject();
     const twoF = project.storeys.find((s) => s.id === "2f")!;
     // Sample is a 10×8 rectangle; this opening hangs off the back wall.
-    twoF.stairOpening = { x: 0.6, y: 7.5, width: 1.2, depth: 2.5 };
+    twoF.stair = { x: 0.6, y: 7.5, width: 1.2, depth: 2.5 };
 
     const errors = validateProject(project);
     expect(errors).toContain(
-      "Storey 2f stair opening must be fully inside the exterior ring.",
+      "Storey 2f stair must be fully inside the exterior ring.",
     );
   });
 
   it("accepts a well-placed opening on 2F", () => {
     const project = createSampleProject();
     const twoF = project.storeys.find((s) => s.id === "2f")!;
-    twoF.stairOpening = { x: 0.6, y: 5.0, width: 1.2, depth: 2.5 };
+    twoF.stair = { x: 0.6, y: 5.0, width: 1.2, depth: 2.5 };
 
     const errors = validateProject(project);
     expect(errors).toEqual([]);
