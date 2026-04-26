@@ -1266,10 +1266,18 @@ export function DrawingSurface2D({
     }
   };
 
+  const ambientSelect = () => {
+    if (storeyId) {
+      onSelect({ kind: "storey", id: storeyId });
+    } else {
+      onSelect(undefined);
+    }
+  };
+
   const handleKeyDown = (event: KeyboardEvent<SVGSVGElement>) => {
     if (event.key !== "Escape") return;
     event.preventDefault();
-    onSelect(undefined);
+    ambientSelect();
   };
 
   const resetViewport = () => setViewport(DEFAULT_VIEWPORT);
@@ -1297,7 +1305,7 @@ export function DrawingSurface2D({
           y="0"
           width={SURFACE_WIDTH}
           height={SURFACE_HEIGHT}
-          onClick={() => onSelect(undefined)}
+          onClick={ambientSelect}
         />
         {storeyId
           ? renderPlan(

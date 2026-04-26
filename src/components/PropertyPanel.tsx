@@ -29,6 +29,7 @@ function MmField({ label, value, step = 10, min, max, onCommit }: MmFieldProps) 
   );
 }
 import {
+  moveWall,
   updateBalcony,
   updateOpening,
   updateStorey,
@@ -178,18 +179,33 @@ function WallEditor({ project, id, onProjectChange }: EditorProps) {
   const wall = project.walls.find((candidate) => candidate.id === id);
   if (!wall) return null;
 
+  const length = wallLength(wall);
   const apply = (patch: WallPatch) =>
     commit(onProjectChange, patch, (final) => updateWall(project, id, final));
+
+  const applyLength = (newLength: number): string | undefined => {
+    const dx = wall.end.x - wall.start.x;
+    const dy = wall.end.y - wall.start.y;
+    const len = Math.hypot(dx, dy);
+    if (len === 0) return "墙起止点重合,无法调整长度。";
+    const ux = dx / len;
+    const uy = dy / len;
+    const newEnd = {
+      x: Math.round((wall.start.x + ux * newLength) * MM_PER_M) / MM_PER_M,
+      y: Math.round((wall.start.y + uy * newLength) * MM_PER_M) / MM_PER_M,
+    };
+    try {
+      onProjectChange(moveWall(project, id, wall.start, newEnd));
+      return undefined;
+    } catch (error) {
+      return error instanceof Error ? error.message : String(error);
+    }
+  };
 
   return (
     <section className="property-section" aria-labelledby="wall-heading">
       <h3 id="wall-heading">墙 · {wall.id}</h3>
-      <dl className="property-list">
-        <div>
-          <dt>墙长</dt>
-          <dd>{Math.round(wallLength(wall) * MM_PER_M)} mm</dd>
-        </div>
-      </dl>
+      <MmField label="墙长" value={length} min={0.1} onCommit={applyLength} />
       <MmField label="墙厚" value={wall.thickness} min={0.05} onCommit={(thickness) => apply({ thickness })} />
       <MmField label="墙高" value={wall.height} min={0.5} onCommit={(height) => apply({ height })} />
     </section>
