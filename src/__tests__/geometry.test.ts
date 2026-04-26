@@ -125,7 +125,16 @@ describe("house geometry descriptors", () => {
   it("builds house geometry from the authoritative project", () => {
     const geometry = buildHouseGeometry(createSampleProject());
 
-    expect(geometry.walls).toHaveLength(4);
+    expect(geometry.walls).toHaveLength(12);
+    expect(geometry.balconies).toEqual([
+      expect.objectContaining({
+        balconyId: "balcony-front-2f",
+        storeyId: "2f",
+        attachedWallId: "wall-front-2f",
+        materialId: "mat-gray-stone",
+        railingMaterialId: "mat-dark-frame",
+      }),
+    ]);
     expect(geometry.walls[0].panels.length).toBeGreaterThan(0);
     expect(geometry.walls[0].materialId).toBe("mat-white-render");
   });

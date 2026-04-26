@@ -73,6 +73,54 @@ export function validateProject(project: HouseProject): string[] {
     }
   }
 
+  for (const balcony of project.balconies) {
+    const wall = wallsById.get(balcony.attachedWallId);
+
+    if (!storeyIds.has(balcony.storeyId)) {
+      errors.push(`Balcony ${balcony.id} references missing storey ${balcony.storeyId}.`);
+    }
+
+    if (!wall) {
+      errors.push(`Balcony ${balcony.id} references missing wall ${balcony.attachedWallId}.`);
+    }
+
+    if (wall && wall.storeyId !== balcony.storeyId) {
+      errors.push(`Balcony ${balcony.id} must attach to a wall on storey ${balcony.storeyId}.`);
+    }
+
+    if (!isNonNegative(balcony.offset)) {
+      errors.push(`Balcony ${balcony.id} offset must be non-negative.`);
+    }
+
+    if (!isPositive(balcony.width)) {
+      errors.push(`Balcony ${balcony.id} width must be positive.`);
+    }
+
+    if (!isPositive(balcony.depth)) {
+      errors.push(`Balcony ${balcony.id} depth must be positive.`);
+    }
+
+    if (!isPositive(balcony.slabThickness)) {
+      errors.push(`Balcony ${balcony.id} slab thickness must be positive.`);
+    }
+
+    if (!isPositive(balcony.railingHeight)) {
+      errors.push(`Balcony ${balcony.id} railing height must be positive.`);
+    }
+
+    if (wall && balcony.offset + balcony.width > wallLength(wall)) {
+      errors.push(`Balcony ${balcony.id} exceeds wall ${balcony.attachedWallId} length.`);
+    }
+
+    if (!materialIds.has(balcony.materialId)) {
+      errors.push(`Balcony ${balcony.id} references missing material ${balcony.materialId}.`);
+    }
+
+    if (!materialIds.has(balcony.railingMaterialId)) {
+      errors.push(`Balcony ${balcony.id} references missing railing material ${balcony.railingMaterialId}.`);
+    }
+  }
+
   return errors;
 }
 

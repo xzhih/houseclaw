@@ -1,9 +1,12 @@
+import type { KeyboardEvent } from "react";
 import type { HouseProject, ViewId } from "../domain/types";
 import { projectElevationView } from "../projection/elevation";
 import { projectPlanView } from "../projection/plan";
 import type {
+  ElevationBalconyRect,
   ElevationProjection,
   ElevationSide,
+  PlanBalconyGlyph,
   PlanOpeningGlyph,
   PlanProjection,
   PlanWallSegment,
@@ -59,7 +62,15 @@ function createPointProjector(bounds: Bounds): ProjectPoint {
 }
 
 function planBounds(projection: PlanProjection): Bounds {
-  const points = projection.wallSegments.flatMap((wall) => [wall.start, wall.end]);
+  const wallsById = new Map(projection.wallSegments.map((wall) => [wall.wallId, wall]));
+  const points = [
+    ...projection.wallSegments.flatMap((wall) => [wall.start, wall.end]),
+    ...projection.balconies.flatMap((balcony) => {
+      const wall = wallsById.get(balcony.wallId);
+      return wall ? balconyPolygon(balcony, wall) : [];
+    }),
+  ];
+
   if (points.length === 0) {
     return { minX: 0, maxX: 1, minY: 0, maxY: 1 };
   }
@@ -78,6 +89,10 @@ function elevationBounds(projection: ElevationProjection): Bounds {
   for (const opening of projection.openings) {
     xValues.push(opening.x, opening.x + opening.width);
     yValues.push(opening.y, opening.y + opening.height);
+  }
+  for (const balcony of projection.balconies) {
+    xValues.push(balcony.x, balcony.x + balcony.width);
+    yValues.push(balcony.y, balcony.y + balcony.height);
   }
 
   if (xValues.length === 0 || yValues.length === 0) {
@@ -115,6 +130,67 @@ function openingLine(
       y: start.y + unitY * opening.width,
     },
   };
+}
+
+function balconyPolygon(balcony: PlanBalconyGlyph, segment: PlanWallSegment) {
+  const dx = segment.end.x - segment.start.x;
+  const dy = segment.end.y - segment.start.y;
+  const length = Math.hypot(dx, dy);
+  if (length === 0) return [];
+
+  const unitX = dx / length;
+  const unitY = dy / length;
+  const normalX = unitY;
+  const normalY = -unitX;
+  const innerStart = {
+    x: segment.start.x + unitX * balcony.offset,
+    y: segment.start.y + unitY * balcony.offset,
+  };
+  const innerEnd = {
+    x: segment.start.x + unitX * (balcony.offset + balcony.width),
+    y: segment.start.y + unitY * (balcony.offset + balcony.width),
+  };
+
+  return [
+    innerStart,
+    innerEnd,
+    {
+      x: innerEnd.x + normalX * balcony.depth,
+      y: innerEnd.y + normalY * balcony.depth,
+    },
+    {
+      x: innerStart.x + normalX * balcony.depth,
+      y: innerStart.y + normalY * balcony.depth,
+    },
+  ];
+}
+
+function renderSelectableBalcony(
+  balconyId: string,
+  selected: boolean,
+  onSelectObject: DrawingSurface2DProps["onSelectObject"],
+  props: { className: string; points?: string; x?: number; y?: number; width?: number; height?: number },
+) {
+  const commonProps = {
+    role: "button",
+    tabIndex: 0,
+    "aria-label": `选择阳台 ${balconyId}`,
+    "aria-pressed": selected,
+    className: selected ? `${props.className} is-selected` : props.className,
+    onClick: () => onSelectObject(balconyId),
+    onKeyDown: (event: KeyboardEvent<SVGElement>) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        onSelectObject(balconyId);
+      }
+    },
+  };
+
+  if (props.points) {
+    return <polygon {...commonProps} points={props.points} />;
+  }
+
+  return <rect {...commonProps} x={props.x} y={props.y} width={props.width} height={props.height} />;
 }
 
 function renderPlan(projection: PlanProjection, selectedObjectId: string | undefined, onSelectObject: DrawingSurface2DProps["onSelectObject"]) {
@@ -179,6 +255,27 @@ function renderPlan(projection: PlanProjection, selectedObjectId: string | undef
           </g>
         );
       })}
+      {projection.balconies.map((balcony) => {
+        const wall = wallsById.get(balcony.wallId);
+        if (!wall) return null;
+
+        const points = balconyPolygon(balcony, wall).map(projectPoint);
+        if (points.length === 0) return null;
+
+        return (
+          <g key={balcony.balconyId}>
+            {renderSelectableBalcony(
+              balcony.balconyId,
+              selectedObjectId === balcony.balconyId,
+              onSelectObject,
+              {
+                className: "plan-balcony",
+                points: points.map((point) => `${point.x},${point.y}`).join(" "),
+              },
+            )}
+          </g>
+        );
+      })}
     </>
   );
 }
@@ -232,6 +329,27 @@ function renderElevation(
               }
             }}
           />
+        );
+      })}
+      {projection.balconies.map((balcony: ElevationBalconyRect) => {
+        const topLeft = projectPoint({ x: balcony.x, y: balcony.y + balcony.height });
+        const bottomRight = projectPoint({ x: balcony.x + balcony.width, y: balcony.y });
+
+        return (
+          <g key={balcony.balconyId}>
+            {renderSelectableBalcony(
+              balcony.balconyId,
+              selectedObjectId === balcony.balconyId,
+              onSelectObject,
+              {
+                className: "elevation-balcony",
+                x: topLeft.x,
+                y: topLeft.y,
+                width: bottomRight.x - topLeft.x,
+                height: bottomRight.y - topLeft.y,
+              },
+            )}
+          </g>
         );
       })}
     </>

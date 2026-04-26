@@ -6,6 +6,7 @@ const TOOLS: { id: ToolId; label: string }[] = [
   { id: "door", label: "门" },
   { id: "window", label: "窗" },
   { id: "opening", label: "开孔" },
+  { id: "balcony", label: "阳台" },
   { id: "material", label: "材质" },
 ];
 

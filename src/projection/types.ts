@@ -16,10 +16,19 @@ export type PlanOpeningGlyph = {
   width: number;
 };
 
+export type PlanBalconyGlyph = {
+  balconyId: string;
+  wallId: string;
+  offset: number;
+  width: number;
+  depth: number;
+};
+
 export type PlanProjection = {
   viewId: PlanViewId;
   wallSegments: PlanWallSegment[];
   openings: PlanOpeningGlyph[];
+  balconies: PlanBalconyGlyph[];
 };
 
 export type ElevationSide = "front" | "back" | "left" | "right";
@@ -43,9 +52,19 @@ export type ElevationOpeningRect = {
   height: number;
 };
 
+export type ElevationBalconyRect = {
+  balconyId: string;
+  wallId: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
+
 export type ElevationProjection = {
   viewId: ElevationViewId;
   side: ElevationSide;
   wallBands: ElevationWallBand[];
   openings: ElevationOpeningRect[];
+  balconies: ElevationBalconyRect[];
 };

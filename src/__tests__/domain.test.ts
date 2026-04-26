@@ -17,10 +17,27 @@ describe("house domain model", () => {
     const project = createSampleProject();
     const frontWall = project.walls.find((wall) => wall.id === "wall-front-1f");
 
+    expect(project.storeys.map((storey) => project.walls.filter((wall) => wall.storeyId === storey.id).length)).toEqual([
+      4, 4, 4,
+    ]);
     expect(frontWall).toBeDefined();
     expect(wallLength(frontWall!)).toBe(10);
     expect(frontWall!.thickness).toBe(0.24);
     expect(frontWall!.storeyId).toBe("1f");
+  });
+
+  it("includes a simple balcony attached to an upper exterior wall", () => {
+    const project = createSampleProject();
+
+    expect(project.balconies).toEqual([
+      expect.objectContaining({
+        id: "balcony-front-2f",
+        storeyId: "2f",
+        attachedWallId: "wall-front-2f",
+        materialId: "mat-gray-stone",
+        railingMaterialId: "mat-dark-frame",
+      }),
+    ]);
   });
 
   it("uses the planned sample material definitions", () => {

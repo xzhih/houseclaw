@@ -21,6 +21,20 @@ export type WallGeometry = {
   panels: WallPanel[];
 };
 
+export type BalconyGeometry = {
+  balconyId: string;
+  storeyId: string;
+  attachedWallId: string;
+  offset: number;
+  width: number;
+  depth: number;
+  slabThickness: number;
+  railingHeight: number;
+  materialId: string;
+  railingMaterialId: string;
+};
+
 export type HouseGeometry = {
   walls: WallGeometry[];
+  balconies: BalconyGeometry[];
 };

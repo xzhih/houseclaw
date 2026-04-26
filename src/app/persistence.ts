@@ -1,7 +1,15 @@
 import { assertValidProject } from "../domain/constraints";
 import type { HouseProject, MaterialKind, OpeningType, ToolId, ViewId } from "../domain/types";
 
-const VALID_TOOL_IDS = ["select", "wall", "door", "window", "opening", "material"] as const satisfies readonly ToolId[];
+const VALID_TOOL_IDS = [
+  "select",
+  "wall",
+  "door",
+  "window",
+  "opening",
+  "balcony",
+  "material",
+] as const satisfies readonly ToolId[];
 const VALID_VIEW_IDS = [
   "plan-1f",
   "plan-2f",
@@ -25,6 +33,20 @@ function assertProjectJsonObject(value: unknown): asserts value is ProjectJsonOb
   if (value === null || typeof value !== "object" || Array.isArray(value)) {
     invalidProjectJson("expected a project object.");
   }
+}
+
+function withImportedDefaults(value: unknown): unknown {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    return value;
+  }
+
+  const project = value as ProjectJsonObject;
+
+  if (project.balconies === undefined) {
+    return { ...project, balconies: [] };
+  }
+
+  return project;
 }
 
 function assertObject(value: unknown, field: string): asserts value is ProjectJsonObject {
@@ -156,6 +178,20 @@ function assertOpeningShape(value: unknown): void {
   assertPositiveNumberField(value, "height");
 }
 
+function assertBalconyShape(value: unknown): void {
+  assertObject(value, "balcony");
+  assertStringField(value, "id");
+  assertStringField(value, "storeyId");
+  assertStringField(value, "attachedWallId");
+  assertStringField(value, "materialId");
+  assertStringField(value, "railingMaterialId");
+  assertNonNegativeNumberField(value, "offset");
+  assertPositiveNumberField(value, "width");
+  assertPositiveNumberField(value, "depth");
+  assertPositiveNumberField(value, "slabThickness");
+  assertPositiveNumberField(value, "railingHeight");
+}
+
 function assertImportedProjectShape(value: unknown): asserts value is HouseProject {
   assertProjectJsonObject(value);
 
@@ -163,6 +199,7 @@ function assertImportedProjectShape(value: unknown): asserts value is HouseProje
   const materials = assertArrayField(value, "materials");
   const walls = assertArrayField(value, "walls");
   const openings = assertArrayField(value, "openings");
+  const balconies = assertArrayField(value, "balconies");
 
   for (const field of ["id", "name", "unitSystem", "mode", "activeView", "activeTool"]) {
     assertStringField(value, field);
@@ -194,6 +231,7 @@ function assertImportedProjectShape(value: unknown): asserts value is HouseProje
   materials.forEach(assertMaterialShape);
   walls.forEach(assertWallShape);
   openings.forEach(assertOpeningShape);
+  balconies.forEach(assertBalconyShape);
 }
 
 export function exportProjectJson(project: HouseProject): string {
@@ -201,7 +239,7 @@ export function exportProjectJson(project: HouseProject): string {
 }
 
 export function importProjectJson(json: string): HouseProject {
-  const parsed = JSON.parse(json) as unknown;
+  const parsed = withImportedDefaults(JSON.parse(json) as unknown);
   assertImportedProjectShape(parsed);
 
   try {

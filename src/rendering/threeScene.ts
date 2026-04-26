@@ -2,7 +2,7 @@ import * as THREE from "three";
 import { wallLength } from "../domain/measurements";
 import type { HouseProject, Wall } from "../domain/types";
 import { buildHouseGeometry } from "../geometry/houseGeometry";
-import type { HouseGeometry, WallGeometry, WallPanel } from "../geometry/types";
+import type { BalconyGeometry, HouseGeometry, WallGeometry, WallPanel } from "../geometry/types";
 
 type MountedScene = {
   dispose: () => void;
@@ -44,7 +44,7 @@ function createRenderer(container: HTMLElement) {
 
 function projectBounds(project: HouseProject): SceneBounds {
   const storeyElevations = new Map(project.storeys.map((storey) => [storey.id, storey.elevation]));
-  const bounds = project.walls.reduce<SceneBounds>(
+  const wallBounds = project.walls.reduce<SceneBounds>(
     (current, wall) => ({
       minX: Math.min(current.minX, wall.start.x, wall.end.x),
       maxX: Math.max(current.maxX, wall.start.x, wall.end.x),
@@ -61,11 +61,34 @@ function projectBounds(project: HouseProject): SceneBounds {
     },
   );
 
-  if (![bounds.minX, bounds.maxX, bounds.minZ, bounds.maxZ].every(Number.isFinite)) {
+  if (![wallBounds.minX, wallBounds.maxX, wallBounds.minZ, wallBounds.maxZ].every(Number.isFinite)) {
     return { minX: -4, maxX: 4, minZ: -4, maxZ: 4, maxY: project.defaultStoreyHeight };
   }
 
-  return bounds;
+  return project.balconies.reduce((current, balcony) => {
+    const wall = project.walls.find((candidate) => candidate.id === balcony.attachedWallId);
+    if (!wall) return current;
+
+    const length = wallLength(wall);
+    if (length <= 0) return current;
+
+    const directionX = (wall.end.x - wall.start.x) / length;
+    const directionZ = (wall.end.y - wall.start.y) / length;
+    const normalX = directionZ;
+    const normalZ = -directionX;
+    const startX = wall.start.x + directionX * balcony.offset + normalX * balcony.depth;
+    const startZ = wall.start.y + directionZ * balcony.offset + normalZ * balcony.depth;
+    const endX = wall.start.x + directionX * (balcony.offset + balcony.width) + normalX * balcony.depth;
+    const endZ = wall.start.y + directionZ * (balcony.offset + balcony.width) + normalZ * balcony.depth;
+
+    return {
+      minX: Math.min(current.minX, startX, endX),
+      maxX: Math.max(current.maxX, startX, endX),
+      minZ: Math.min(current.minZ, startZ, endZ),
+      maxZ: Math.max(current.maxZ, startZ, endZ),
+      maxY: current.maxY,
+    };
+  }, wallBounds);
 }
 
 function createCamera(bounds: SceneBounds, aspect: number) {
@@ -83,7 +106,7 @@ function createCamera(bounds: SceneBounds, aspect: number) {
     (bounds.minZ + bounds.maxZ) / 2,
   );
   const camera = new THREE.PerspectiveCamera(42, aspect, 0.1, Math.max(span * 12, distance * 2));
-  const direction = new THREE.Vector3(0.85, 0.62, 1).normalize();
+  const direction = new THREE.Vector3(0.85, 0.62, -1).normalize();
 
   camera.position.copy(center).addScaledVector(direction, distance);
   camera.lookAt(center);
@@ -154,6 +177,94 @@ function createWallMeshes(project: HouseProject, geometry: HouseGeometry) {
   return { meshes, materials: [...materials.values()] };
 }
 
+function createBalconyMaterial(project: HouseProject, materialId: string) {
+  const material = project.materials.find((candidate) => candidate.id === materialId);
+
+  return new THREE.MeshStandardMaterial({
+    color: material?.color ?? FALLBACK_WALL_COLOR,
+    roughness: 0.72,
+    metalness: 0.02,
+  });
+}
+
+function createBalconyMeshes(project: HouseProject, geometry: HouseGeometry) {
+  const wallsById = new Map(project.walls.map((wall) => [wall.id, wall]));
+  const storeyElevations = new Map(project.storeys.map((storey) => [storey.id, storey.elevation]));
+  const materials = new Map<string, THREE.MeshStandardMaterial>();
+  const meshes: THREE.Mesh[] = [];
+
+  const getMaterial = (materialId: string) => {
+    let material = materials.get(materialId);
+    if (!material) {
+      material = createBalconyMaterial(project, materialId);
+      materials.set(materialId, material);
+    }
+
+    return material;
+  };
+
+  for (const balcony of geometry.balconies) {
+    const wall = wallsById.get(balcony.attachedWallId);
+    if (!wall) continue;
+
+    meshes.push(...createBalconyParts(wall, balcony, storeyElevations.get(balcony.storeyId) ?? 0, getMaterial));
+  }
+
+  return { meshes, materials: [...materials.values()] };
+}
+
+function createBalconyParts(
+  wall: Wall,
+  balcony: BalconyGeometry,
+  storeyElevation: number,
+  getMaterial: (materialId: string) => THREE.MeshStandardMaterial,
+) {
+  const length = wallLength(wall);
+  if (length <= 0) return [];
+
+  const directionX = (wall.end.x - wall.start.x) / length;
+  const directionZ = (wall.end.y - wall.start.y) / length;
+  const normalX = directionZ;
+  const normalZ = -directionX;
+  const rotationY = -Math.atan2(directionZ, directionX);
+  const centerOffset = balcony.offset + balcony.width / 2;
+  const baseX = wall.start.x + directionX * centerOffset + normalX * (wall.thickness / 2 + balcony.depth / 2);
+  const baseZ = wall.start.y + directionZ * centerOffset + normalZ * (wall.thickness / 2 + balcony.depth / 2);
+  const slab = new THREE.Mesh(
+    new THREE.BoxGeometry(balcony.width, balcony.slabThickness, balcony.depth),
+    getMaterial(balcony.materialId),
+  );
+  const outerRail = new THREE.Mesh(
+    new THREE.BoxGeometry(balcony.width, balcony.railingHeight, 0.08),
+    getMaterial(balcony.railingMaterialId),
+  );
+  const leftRail = new THREE.Mesh(
+    new THREE.BoxGeometry(0.08, balcony.railingHeight, balcony.depth),
+    getMaterial(balcony.railingMaterialId),
+  );
+  const rightRail = new THREE.Mesh(
+    new THREE.BoxGeometry(0.08, balcony.railingHeight, balcony.depth),
+    getMaterial(balcony.railingMaterialId),
+  );
+  const railY = storeyElevation + balcony.slabThickness + balcony.railingHeight / 2;
+  const sideOffset = balcony.width / 2 - 0.04;
+
+  slab.position.set(baseX, storeyElevation + balcony.slabThickness / 2, baseZ);
+  outerRail.position.set(
+    wall.start.x + directionX * centerOffset + normalX * (wall.thickness / 2 + balcony.depth),
+    railY,
+    wall.start.y + directionZ * centerOffset + normalZ * (wall.thickness / 2 + balcony.depth),
+  );
+  leftRail.position.set(baseX - directionX * sideOffset, railY, baseZ - directionZ * sideOffset);
+  rightRail.position.set(baseX + directionX * sideOffset, railY, baseZ + directionZ * sideOffset);
+
+  for (const mesh of [slab, outerRail, leftRail, rightRail]) {
+    mesh.rotation.y = rotationY;
+  }
+
+  return [slab, outerRail, leftRail, rightRail];
+}
+
 function createGround(bounds: SceneBounds) {
   const width = bounds.maxX - bounds.minX;
   const depth = bounds.maxZ - bounds.minZ;
@@ -178,10 +289,13 @@ export function mountHouseScene(container: HTMLElement, project: HouseProject): 
   const houseGeometry = buildHouseGeometry(project);
   const bounds = projectBounds(project);
   const camera = createCamera(bounds, width / height);
-  const { meshes, materials } = createWallMeshes(project, houseGeometry);
+  const { meshes: wallMeshes, materials: wallMaterials } = createWallMeshes(project, houseGeometry);
+  const { meshes: balconyMeshes, materials: balconyMaterials } = createBalconyMeshes(project, houseGeometry);
   const { ground, geometry: groundGeometry, material: groundMaterial } = createGround(bounds);
   const ambient = new THREE.HemisphereLight("#ffffff", "#9aa7a0", 1.6);
   const keyLight = new THREE.DirectionalLight("#ffffff", 2.4);
+  const meshes = [...wallMeshes, ...balconyMeshes];
+  const materials = [...wallMaterials, ...balconyMaterials];
 
   keyLight.position.set(5, 9, 6);
   scene.add(ambient, keyLight, ground, ...meshes);

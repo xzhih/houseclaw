@@ -18,6 +18,7 @@ export type ToolId =
   | "door"
   | "window"
   | "opening"
+  | "balcony"
   | "material";
 
 export type Point2 = {
@@ -68,6 +69,19 @@ export type Opening = {
   frameMaterialId: string;
 };
 
+export type Balcony = {
+  id: string;
+  storeyId: string;
+  attachedWallId: string;
+  offset: number;
+  width: number;
+  depth: number;
+  slabThickness: number;
+  railingHeight: number;
+  materialId: string;
+  railingMaterialId: string;
+};
+
 export type HouseProject = {
   id: string;
   name: string;
@@ -82,4 +96,5 @@ export type HouseProject = {
   materials: Material[];
   walls: Wall[];
   openings: Opening[];
+  balconies: Balcony[];
 };

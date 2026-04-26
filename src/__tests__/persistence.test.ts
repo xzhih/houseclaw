@@ -39,7 +39,16 @@ describe("project persistence", () => {
 
     expect(restored.id).toBe(project.id);
     expect(restored.walls).toHaveLength(project.walls.length);
+    expect(restored.balconies).toHaveLength(project.balconies.length);
     expect(restored.openings[0].id).toBe("window-front-1f");
+  });
+
+  it("imports older project JSON without balcony data", () => {
+    const project = createSampleProject();
+    const { balconies: _balconies, ...legacyProject } = project;
+    const restored = importProjectJson(JSON.stringify(legacyProject));
+
+    expect(restored.balconies).toEqual([]);
   });
 
   it("rejects invalid top-level enum values", () => {
@@ -59,6 +68,10 @@ describe("project persistence", () => {
 
   it("rejects invalid nested wall items", () => {
     expectInvalidProjectJson({ ...createSampleProject(), walls: [null] });
+  });
+
+  it("rejects invalid nested balcony items", () => {
+    expectInvalidProjectJson({ ...createSampleProject(), balconies: [null] });
   });
 
   it("rejects invalid material kinds", () => {
@@ -106,6 +119,18 @@ describe("project persistence", () => {
 
     expect(() => importProjectJson(json)).toThrow(
       /Invalid project JSON:[\s\S]*Opening window-front-1f references missing wall missing-wall\./,
+    );
+  });
+
+  it("wraps balcony invariant errors from imported JSON", () => {
+    const project = createSampleProject();
+    const json = exportProjectJson({
+      ...project,
+      balconies: [{ ...project.balconies[0], attachedWallId: "missing-wall" }],
+    });
+
+    expect(() => importProjectJson(json)).toThrow(
+      /Invalid project JSON:[\s\S]*Balcony balcony-front-2f references missing wall missing-wall\./,
     );
   });
 

@@ -21,6 +21,7 @@ describe("HouseClaw UI", () => {
     expect(screen.getByRole("button", { name: "2D" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByRole("button", { name: "1F" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByText("墙")).toBeInTheDocument();
+    expect(screen.getByText("阳台")).toBeInTheDocument();
     expect(screen.getByLabelText("2D drawing surface")).toBeInTheDocument();
   });
 
@@ -129,6 +130,17 @@ describe("HouseClaw UI", () => {
     expect(opening).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByText("窗宽")).toBeInTheDocument();
     expect(screen.getByText("离地高度")).toBeInTheDocument();
+  });
+
+  it("shows balcony geometry in the second-floor plan and front elevation", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: "2F" }));
+    expect(screen.getByRole("button", { name: "选择阳台 balcony-front-2f" })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "正面" }));
+    expect(screen.getByRole("button", { name: "选择阳台 balcony-front-2f" })).toBeInTheDocument();
   });
 
   it("shows a reusable material catalog", () => {

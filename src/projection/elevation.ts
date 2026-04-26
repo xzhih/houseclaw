@@ -64,6 +64,7 @@ export function projectElevationView(
   const isSideWall = sideWallPredicate(project, side);
   const walls = project.walls.filter(isSideWall);
   const wallsById = new Map(walls.map((wall) => [wall.id, wall]));
+  const storeysById = new Map(project.storeys.map((storey) => [storey.id, storey]));
 
   return {
     viewId: `elevation-${side}`,
@@ -81,13 +82,33 @@ export function projectElevationView(
     }),
     openings: project.openings
       .filter((opening) => wallsById.has(opening.wallId))
-      .map((opening) => ({
-        openingId: opening.id,
-        wallId: opening.wallId,
-        x: sideAxisStart(wallsById.get(opening.wallId)!, side) + opening.offset,
-        y: opening.sillHeight,
-        width: opening.width,
-        height: opening.height,
-      })),
+      .map((opening) => {
+        const wall = wallsById.get(opening.wallId)!;
+        const storey = storeysById.get(wall.storeyId);
+
+        return {
+          openingId: opening.id,
+          wallId: opening.wallId,
+          x: sideAxisStart(wall, side) + opening.offset,
+          y: (storey?.elevation ?? 0) + opening.sillHeight,
+          width: opening.width,
+          height: opening.height,
+        };
+      }),
+    balconies: project.balconies
+      .filter((balcony) => wallsById.has(balcony.attachedWallId))
+      .map((balcony) => {
+        const wall = wallsById.get(balcony.attachedWallId)!;
+        const storey = storeysById.get(balcony.storeyId);
+
+        return {
+          balconyId: balcony.id,
+          wallId: balcony.attachedWallId,
+          x: sideAxisStart(wall, side) + balcony.offset,
+          y: storey?.elevation ?? 0,
+          width: balcony.width,
+          height: balcony.slabThickness + balcony.railingHeight,
+        };
+      }),
   };
 }

@@ -211,6 +211,13 @@ select {
   cursor: pointer;
 }
 
+.plan-balcony {
+  fill: rgba(20, 33, 37, 0.18);
+  stroke: #142125;
+  stroke-width: 3;
+  cursor: pointer;
+}
+
 .elevation-wall {
   fill: #f1ede5;
   stroke: #2f3a42;
@@ -220,6 +227,13 @@ select {
 .elevation-opening {
   fill: #c7dee2;
   stroke: #315e66;
+  stroke-width: 2;
+  cursor: pointer;
+}
+
+.elevation-balcony {
+  fill: rgba(20, 33, 37, 0.82);
+  stroke: #142125;
   stroke-width: 2;
   cursor: pointer;
 }

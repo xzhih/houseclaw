@@ -21,5 +21,17 @@ export function buildHouseGeometry(project: HouseProject): HouseGeometry {
         project.openings.filter((opening) => opening.wallId === wall.id),
       ),
     })),
+    balconies: project.balconies.map((balcony) => ({
+      balconyId: balcony.id,
+      storeyId: balcony.storeyId,
+      attachedWallId: balcony.attachedWallId,
+      offset: balcony.offset,
+      width: balcony.width,
+      depth: balcony.depth,
+      slabThickness: balcony.slabThickness,
+      railingHeight: balcony.railingHeight,
+      materialId: balcony.materialId,
+      railingMaterialId: balcony.railingMaterialId,
+    })),
   };
 }

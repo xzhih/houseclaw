@@ -6,7 +6,8 @@ import { createSampleProject } from "../domain/sampleProject";
 
 function createSetbackSecondFloorProject(): HouseProject {
   const project = createSampleProject();
-  const secondFloorWalls: Wall[] = [
+  const secondFloorWalls = new Map<string, Wall>(
+    [
     {
       id: "wall-front-2f",
       storeyId: "2f",
@@ -47,11 +48,15 @@ function createSetbackSecondFloorProject(): HouseProject {
       exterior: true,
       materialId: "mat-white-render",
     },
-  ];
+    ].map((wall) => [wall.id, wall]),
+  );
 
   return {
     ...project,
-    walls: [...project.walls, ...secondFloorWalls],
+    walls: project.walls.map((wall) => secondFloorWalls.get(wall.id) ?? wall),
+    balconies: project.balconies.map((balcony) =>
+      balcony.attachedWallId === "wall-front-2f" ? { ...balcony, offset: 1.4, width: 2.8 } : balcony,
+    ),
     openings: [
       ...project.openings,
       {
@@ -85,7 +90,11 @@ describe("2D projections", () => {
     const projection = projectElevationView(createSampleProject(), "front");
 
     expect(projection.viewId).toBe("elevation-front");
-    expect(projection.wallBands).toHaveLength(1);
+    expect(projection.wallBands.map((band) => band.wallId)).toEqual([
+      "wall-front-1f",
+      "wall-front-2f",
+      "wall-front-3f",
+    ]);
     expect(projection.openings[0]).toMatchObject({
       openingId: "window-front-1f",
       wallId: "wall-front-1f",
@@ -94,6 +103,34 @@ describe("2D projections", () => {
       width: 1.6,
       height: 1.3,
     });
+    expect(projection.openings.find((opening) => opening.openingId === "window-front-2f")?.y).toBeCloseTo(4.1);
+    expect(projection.openings.find((opening) => opening.openingId === "window-front-3f")?.y).toBeCloseTo(7.3);
+  });
+
+  it("projects balconies into plan and elevation space", () => {
+    const project = createSampleProject();
+    const plan = projectPlanView(project, "2f");
+    const elevation = projectElevationView(project, "front");
+
+    expect(plan.balconies).toEqual([
+      expect.objectContaining({
+        balconyId: "balcony-front-2f",
+        wallId: "wall-front-2f",
+        offset: 3.1,
+        width: 3.2,
+        depth: 1.25,
+      }),
+    ]);
+    expect(elevation.balconies).toEqual([
+      expect.objectContaining({
+        balconyId: "balcony-front-2f",
+        wallId: "wall-front-2f",
+        x: 3.1,
+        y: 3.2,
+        width: 3.2,
+        height: 1.23,
+      }),
+    ]);
   });
 
   it("clones projected plan points away from the source project", () => {
@@ -111,6 +148,7 @@ describe("2D projections", () => {
     expect(projection.wallBands.map((band) => band.wallId)).toEqual([
       "wall-front-1f",
       "wall-front-2f",
+      "wall-front-3f",
     ]);
   });
 

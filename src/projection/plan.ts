@@ -21,5 +21,14 @@ export function projectPlanView(project: HouseProject, storeyId: string): PlanPr
         offset: opening.offset,
         width: opening.width,
       })),
+    balconies: project.balconies
+      .filter((balcony) => balcony.storeyId === storeyId && wallIds.has(balcony.attachedWallId))
+      .map((balcony) => ({
+        balconyId: balcony.id,
+        wallId: balcony.attachedWallId,
+        offset: balcony.offset,
+        width: balcony.width,
+        depth: balcony.depth,
+      })),
   };
 }
