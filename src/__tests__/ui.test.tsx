@@ -231,4 +231,17 @@ describe("HouseClaw UI", () => {
 
     expect(screen.queryByRole("group", { name: "楼层高度" })).not.toBeInTheDocument();
   });
+
+  it("shows a wall-tool banner only while the wall tool is active in a plan view", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    expect(screen.queryByText("墙工具：点击两点画墙；按 Esc 取消")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "墙" }));
+    expect(screen.getByText("墙工具：点击两点画墙；按 Esc 取消")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "正面" }));
+    expect(screen.queryByText("墙工具：点击两点画墙；按 Esc 取消")).not.toBeInTheDocument();
+  });
 });
