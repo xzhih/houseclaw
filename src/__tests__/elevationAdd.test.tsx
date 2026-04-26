@@ -3,18 +3,23 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import App from "../App";
 
-async function clickAddMenu(label: string, user: ReturnType<typeof userEvent.setup>) {
+async function addToStorey(
+  typeLabel: string,
+  storeyLabel: string,
+  user: ReturnType<typeof userEvent.setup>,
+) {
   await user.click(screen.getByRole("button", { name: "添加组件" }));
-  await user.click(screen.getByRole("menuitem", { name: label }));
+  await user.click(screen.getByRole("menuitem", { name: typeLabel }));
+  await user.click(screen.getByRole("menuitem", { name: storeyLabel }));
 }
 
 describe("Add components from elevation views", () => {
-  it("adds a door on the front wall of the active storey from 正面 view", async () => {
+  it("adds a door on the front wall of the chosen storey from 正面 view", async () => {
     const user = userEvent.setup();
     render(<App />);
 
     await user.click(screen.getByRole("button", { name: "正视" }));
-    await clickAddMenu("添加门", user);
+    await addToStorey("添加门", "1F", user);
 
     expect(
       screen.getByRole("button", { name: /^选择开孔 door-wall-front-1f-/ }),
@@ -27,20 +32,20 @@ describe("Add components from elevation views", () => {
 
     await user.click(screen.getByRole("button", { name: "正视" }));
     await user.click(screen.getByRole("button", { name: "背面" }));
-    await clickAddMenu("添加窗", user);
+    await addToStorey("添加窗", "1F", user);
 
     expect(
       screen.getByRole("button", { name: /^选择开孔 window-wall-back-1f-/ }),
     ).toBeInTheDocument();
   });
 
-  it("adds a balcony attached to the side wall when in 左侧 view", async () => {
+  it("adds a balcony attached to the side wall when in 左面 view", async () => {
     const user = userEvent.setup();
     render(<App />);
 
     await user.click(screen.getByRole("button", { name: "正视" }));
     await user.click(screen.getByRole("button", { name: "左面" }));
-    await clickAddMenu("添加阳台", user);
+    await addToStorey("添加阳台", "1F", user);
 
     expect(
       screen.getByRole("button", { name: /^选择阳台 balcony-1f-/ }),
@@ -58,7 +63,7 @@ describe("Add components from elevation views", () => {
     expect(screen.getByRole("menuitem", { name: "添加门" })).toBeInTheDocument();
   });
 
-  it("attaches the added opening to the selected element's storey, not the first storey", async () => {
+  it("places the opening on the storey picked in the menu, regardless of selection", async () => {
     const user = userEvent.setup();
     render(<App />);
 
@@ -68,10 +73,11 @@ describe("Add components from elevation views", () => {
     balcony.focus();
     await user.keyboard("{Enter}");
 
-    await clickAddMenu("添加门", user);
+    // selection is on a 2F balcony, but we explicitly target 3F via the menu
+    await addToStorey("添加门", "3F", user);
 
     expect(
-      screen.getByRole("button", { name: /^选择开孔 door-wall-front-2f-/ }),
+      screen.getByRole("button", { name: /^选择开孔 door-wall-front-3f-/ }),
     ).toBeInTheDocument();
   });
 
@@ -98,18 +104,5 @@ describe("Add components from elevation views", () => {
     await user.click(screen.getByRole("button", { name: "俯视" }));
 
     expect(screen.getByRole("button", { name: "2F" })).toHaveAttribute("aria-pressed", "true");
-  });
-
-  it("uses the last visited plan storey as the default add-target in elevation", async () => {
-    const user = userEvent.setup();
-    render(<App />);
-
-    await user.click(screen.getByRole("button", { name: "2F" }));
-    await user.click(screen.getByRole("button", { name: "正视" }));
-    await clickAddMenu("添加门", user);
-
-    expect(
-      screen.getByRole("button", { name: /^选择开孔 door-wall-front-2f-/ }),
-    ).toBeInTheDocument();
   });
 });

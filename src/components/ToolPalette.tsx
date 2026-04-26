@@ -23,29 +23,42 @@ const PLUS_ICON: ReactNode = (
   </svg>
 );
 
+export type StoreyOption = { id: string; label: string };
+
 type ToolPaletteProps = {
   activeTool: ToolId;
-  onToolButtonClick: (toolId: ToolId) => void;
+  storeys: StoreyOption[];
+  onSelectMode: () => void;
+  onAddComponent: (toolId: ToolId, storeyId: string) => void;
   allowWallAdd: boolean;
 };
 
-export function ToolPalette({ activeTool, onToolButtonClick, allowWallAdd }: ToolPaletteProps) {
-  const visibleAddOptions = allowWallAdd
-    ? ADD_OPTIONS
-    : ADD_OPTIONS.filter((option) => option.id !== "wall");
+export function ToolPalette({
+  activeTool,
+  storeys,
+  onSelectMode,
+  onAddComponent,
+  allowWallAdd,
+}: ToolPaletteProps) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [pendingType, setPendingType] = useState<ToolId | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
+
+  const closeMenu = () => {
+    setMenuOpen(false);
+    setPendingType(null);
+  };
 
   useEffect(() => {
     if (!menuOpen) return undefined;
     const onDocPointer = (event: PointerEvent) => {
       const target = event.target as Node | null;
       if (target && menuRef.current && !menuRef.current.contains(target)) {
-        setMenuOpen(false);
+        closeMenu();
       }
     };
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setMenuOpen(false);
+      if (event.key === "Escape") closeMenu();
     };
     document.addEventListener("pointerdown", onDocPointer);
     document.addEventListener("keydown", onKey);
@@ -55,6 +68,13 @@ export function ToolPalette({ activeTool, onToolButtonClick, allowWallAdd }: Too
     };
   }, [menuOpen]);
 
+  const visibleAddOptions = allowWallAdd
+    ? ADD_OPTIONS
+    : ADD_OPTIONS.filter((option) => option.id !== "wall");
+  const pendingLabel = pendingType
+    ? ADD_OPTIONS.find((option) => option.id === pendingType)?.label
+    : "";
+
   return (
     <aside className="tool-palette" aria-label="2D tools">
       <button
@@ -63,7 +83,7 @@ export function ToolPalette({ activeTool, onToolButtonClick, allowWallAdd }: Too
         aria-label="选择"
         aria-pressed={activeTool === "select"}
         title="选择"
-        onClick={() => onToolButtonClick("select")}
+        onClick={onSelectMode}
       >
         {SELECT_ICON}
         <span className="tool-button-label">选择</span>
@@ -78,29 +98,56 @@ export function ToolPalette({ activeTool, onToolButtonClick, allowWallAdd }: Too
           aria-expanded={menuOpen}
           aria-pressed={menuOpen ? true : undefined}
           title="添加组件"
-          onClick={() => setMenuOpen((open) => !open)}
+          onClick={() => {
+            setMenuOpen((open) => !open);
+            setPendingType(null);
+          }}
         >
           {PLUS_ICON}
           <span className="tool-button-label">添加</span>
         </button>
 
         {menuOpen ? (
-          <div className="add-menu" role="menu" aria-label="添加组件">
-            {visibleAddOptions.map((option) => (
+          pendingType === null ? (
+            <div className="add-menu" role="menu" aria-label="添加组件">
+              {visibleAddOptions.map((option) => (
+                <button
+                  key={option.id}
+                  type="button"
+                  role="menuitem"
+                  className="add-menu-item"
+                  onClick={() => setPendingType(option.id)}
+                >
+                  添加{option.label}
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div className="add-menu" role="menu" aria-label="选择楼层">
               <button
-                key={option.id}
                 type="button"
-                role="menuitem"
-                className="add-menu-item"
-                onClick={() => {
-                  setMenuOpen(false);
-                  onToolButtonClick(option.id);
-                }}
+                className="add-menu-back"
+                onClick={() => setPendingType(null)}
               >
-                添加{option.label}
+                ← 返回
               </button>
-            ))}
-          </div>
+              <p className="add-menu-header">添加{pendingLabel}到</p>
+              {storeys.map((storey) => (
+                <button
+                  key={storey.id}
+                  type="button"
+                  role="menuitem"
+                  className="add-menu-item"
+                  onClick={() => {
+                    onAddComponent(pendingType, storey.id);
+                    closeMenu();
+                  }}
+                >
+                  {storey.label}
+                </button>
+              ))}
+            </div>
+          )
         ) : null}
       </div>
     </aside>
