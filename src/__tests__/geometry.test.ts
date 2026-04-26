@@ -189,6 +189,28 @@ describe("house geometry descriptors", () => {
     expect(geometry.walls[0].materialId).toBe("mat-white-render");
   });
 
+  it("attaches a mitered footprint per wall, computed independently per storey", () => {
+    const geometry = buildHouseGeometry(createSampleProject());
+    const front1f = geometry.walls.find((wall) => wall.wallId === "wall-front-1f");
+    const front2f = geometry.walls.find((wall) => wall.wallId === "wall-front-2f");
+
+    expect(front1f).toBeDefined();
+    expect(front2f).toBeDefined();
+
+    const fp = front1f!.footprint;
+    expect(fp.rightStart.x).toBeCloseTo(-0.12, 4);
+    expect(fp.rightStart.y).toBeCloseTo(-0.12, 4);
+    expect(fp.rightEnd.x).toBeCloseTo(10.12, 4);
+    expect(fp.rightEnd.y).toBeCloseTo(-0.12, 4);
+    expect(fp.leftStart.x).toBeCloseTo(0.12, 4);
+    expect(fp.leftStart.y).toBeCloseTo(0.12, 4);
+    expect(fp.leftEnd.x).toBeCloseTo(9.88, 4);
+    expect(fp.leftEnd.y).toBeCloseTo(0.12, 4);
+
+    // 2F shares the same XY layout but is built from its own per-storey network.
+    expect(front2f!.footprint).toEqual(front1f!.footprint);
+  });
+
   it("clones geometry points away from the source project", () => {
     const project = createSampleProject();
     const geometry = buildHouseGeometry(project);

@@ -1,4 +1,5 @@
 import type { Point2 } from "../domain/types";
+import type { FootprintQuad } from "./wallNetwork";
 
 export type WallPanelRole = "full" | "left" | "right" | "between" | "below" | "above";
 
@@ -19,6 +20,7 @@ export type WallGeometry = {
   height: number;
   materialId: string;
   panels: WallPanel[];
+  footprint: FootprintQuad;
 };
 
 export type BalconyGeometry = {
