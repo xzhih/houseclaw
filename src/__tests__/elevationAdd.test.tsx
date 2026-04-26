@@ -25,7 +25,8 @@ describe("Add components from elevation views", () => {
     const user = userEvent.setup();
     render(<App />);
 
-    await user.click(screen.getByRole("button", { name: "背视" }));
+    await user.click(screen.getByRole("button", { name: "正视" }));
+    await user.click(screen.getByRole("button", { name: "背面" }));
     await clickAddMenu("添加窗", user);
 
     expect(
@@ -37,7 +38,8 @@ describe("Add components from elevation views", () => {
     const user = userEvent.setup();
     render(<App />);
 
-    await user.click(screen.getByRole("button", { name: "左视" }));
+    await user.click(screen.getByRole("button", { name: "正视" }));
+    await user.click(screen.getByRole("button", { name: "左面" }));
     await clickAddMenu("添加阳台", user);
 
     expect(
@@ -73,15 +75,18 @@ describe("Add components from elevation views", () => {
     ).toBeInTheDocument();
   });
 
-  it("keeps the storey rail visible in elevation views alongside the 俯视 tab", async () => {
+  it("swaps the storey rail for elevation side tabs when 正视 is active", async () => {
     const user = userEvent.setup();
     render(<App />);
 
     await user.click(screen.getByRole("button", { name: "正视" }));
 
-    expect(screen.getByRole("group", { name: "楼层" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "俯视" })).toBeInTheDocument();
+    expect(screen.queryByRole("group", { name: "楼层" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "正视" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "正面" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "背面" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "左面" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "右面" })).toBeInTheDocument();
   });
 
   it("clicking 俯视 returns to the plan view of the last visited storey", async () => {

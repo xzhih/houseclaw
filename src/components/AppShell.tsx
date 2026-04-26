@@ -27,8 +27,9 @@ import { DrawingSurface2D } from "./DrawingSurface2D";
 import { Preview3D } from "./Preview3D";
 import { PropertyPanel } from "./PropertyPanel";
 import { StoreyHeightStrip } from "./StoreyHeightStrip";
+import { ElevationSideTabs } from "./ElevationSideTabs";
 import { ToolPalette } from "./ToolPalette";
-import { ViewTabs, type ViewType } from "./ViewTabs";
+import { ViewTabs, primaryFromView, type PrimaryView } from "./ViewTabs";
 
 const MODE_TABS: { id: Mode; label: string }[] = [
   { id: "2d", label: "2D" },
@@ -174,10 +175,15 @@ export function AppShell() {
   const [lastPlanStorey, setLastPlanStorey] = useState<string>(
     () => PLAN_STOREY_BY_VIEW[project.activeView] ?? project.storeys[0]?.id ?? "1f",
   );
+  const [lastElevationSide, setLastElevationSide] = useState<ElevationSide>(
+    () => ELEVATION_SIDE_BY_VIEW[project.activeView] ?? "front",
+  );
 
   useEffect(() => {
     const planStorey = PLAN_STOREY_BY_VIEW[project.activeView];
     if (planStorey) setLastPlanStorey(planStorey);
+    const side = ELEVATION_SIDE_BY_VIEW[project.activeView];
+    if (side) setLastElevationSide(side);
   }, [project.activeView]);
 
   const dispatch = (action: ProjectAction) => dispatchHistory(action);
@@ -325,14 +331,17 @@ export function AppShell() {
     handleAddComponent(toolId);
   };
 
-  const handleViewTypeChange = (type: ViewType) => {
-    if (type === "plan") {
+  const handlePrimaryChange = (primary: PrimaryView) => {
+    if (primary === "plan") {
       setView(`plan-${lastPlanStorey}` as ViewId);
-    } else if (type === "roof") {
-      setView("roof");
     } else {
-      setView(`elevation-${type}` as ViewId);
+      setView(`elevation-${lastElevationSide}` as ViewId);
     }
+  };
+
+  const handleSideChange = (side: ElevationSide) => {
+    setLastElevationSide(side);
+    setView(`elevation-${side}` as ViewId);
   };
 
   const handleStoreyClick = (storeyId: string) => {
@@ -449,13 +458,17 @@ export function AppShell() {
           />
 
           <div className="bottom-overlay">
-            <ViewTabs activeView={project.activeView} onViewTypeChange={handleViewTypeChange} />
-            <StoreyHeightStrip
-              storeys={project.storeys}
-              activeView={project.activeView}
-              currentStoreyId={activeStoreyId(project, lastPlanStorey)}
-              onSelectStorey={handleStoreyClick}
-            />
+            <ViewTabs activeView={project.activeView} onPrimaryChange={handlePrimaryChange} />
+            {primaryFromView(project.activeView) === "plan" ? (
+              <StoreyHeightStrip
+                storeys={project.storeys}
+                activeView={project.activeView}
+                currentStoreyId={activeStoreyId(project, lastPlanStorey)}
+                onSelectStorey={handleStoreyClick}
+              />
+            ) : (
+              <ElevationSideTabs activeView={project.activeView} onSideChange={handleSideChange} />
+            )}
           </div>
 
           <PropertyPanel
