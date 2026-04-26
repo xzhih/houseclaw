@@ -15,8 +15,14 @@ type PropertyPanelProps = {
 const wallMaterials = materialCatalog.filter((material) => material.kind === "wall");
 
 export function PropertyPanel({ project, onApplyWallMaterial }: PropertyPanelProps) {
-  const selectedOpening = project.openings.find((opening) => opening.id === project.selectedObjectId);
-  const firstWall = project.walls[0];
+  const selection = project.selection;
+  const selectedOpening =
+    selection?.kind === "opening"
+      ? project.openings.find((opening) => opening.id === selection.id)
+      : undefined;
+  const targetWallId =
+    selection?.kind === "wall" ? selection.id : project.walls[0]?.id;
+  const targetWall = project.walls.find((wall) => wall.id === targetWallId);
 
   return (
     <aside className="property-panel" aria-label="Properties">
@@ -48,11 +54,11 @@ export function PropertyPanel({ project, onApplyWallMaterial }: PropertyPanelPro
         <div className="material-list">
           {wallMaterials.map((material) => (
             <button
-              aria-pressed={firstWall?.materialId === material.id}
+              aria-pressed={targetWall?.materialId === material.id}
               className="material-swatch"
-              disabled={!firstWall}
+              disabled={!targetWall}
               key={material.id}
-              onClick={() => firstWall && onApplyWallMaterial(firstWall.id, material.id)}
+              onClick={() => targetWall && onApplyWallMaterial(targetWall.id, material.id)}
               type="button"
             >
               <span aria-hidden="true" className="material-swatch-color" style={{ backgroundColor: material.color }} />

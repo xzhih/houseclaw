@@ -1,4 +1,6 @@
 import type { KeyboardEvent } from "react";
+import type { Selection } from "../domain/selection";
+import { isSelected } from "../domain/selection";
 import type { HouseProject, ViewId } from "../domain/types";
 import { projectElevationView } from "../projection/elevation";
 import { projectPlanView } from "../projection/plan";
@@ -31,7 +33,7 @@ const ELEVATION_SIDE_BY_VIEW: Partial<Record<ViewId, ElevationSide>> = {
 
 type DrawingSurface2DProps = {
   project: HouseProject;
-  onSelectObject: (objectId: string | undefined) => void;
+  onSelect: (selection: Selection | undefined) => void;
 };
 
 type Bounds = {
@@ -168,7 +170,7 @@ function balconyPolygon(balcony: PlanBalconyGlyph, segment: PlanWallSegment) {
 function renderSelectableBalcony(
   balconyId: string,
   selected: boolean,
-  onSelectObject: DrawingSurface2DProps["onSelectObject"],
+  onSelect: DrawingSurface2DProps["onSelect"],
   props: { className: string; points?: string; x?: number; y?: number; width?: number; height?: number },
 ) {
   const commonProps = {
@@ -177,11 +179,11 @@ function renderSelectableBalcony(
     "aria-label": `选择阳台 ${balconyId}`,
     "aria-pressed": selected,
     className: selected ? `${props.className} is-selected` : props.className,
-    onClick: () => onSelectObject(balconyId),
+    onClick: () => onSelect({ kind: "balcony", id: balconyId }),
     onKeyDown: (event: KeyboardEvent<SVGElement>) => {
       if (event.key === "Enter" || event.key === " ") {
         event.preventDefault();
-        onSelectObject(balconyId);
+        onSelect({ kind: "balcony", id: balconyId });
       }
     },
   };
@@ -193,7 +195,11 @@ function renderSelectableBalcony(
   return <rect {...commonProps} x={props.x} y={props.y} width={props.width} height={props.height} />;
 }
 
-function renderPlan(projection: PlanProjection, selectedObjectId: string | undefined, onSelectObject: DrawingSurface2DProps["onSelectObject"]) {
+function renderPlan(
+  projection: PlanProjection,
+  selection: Selection | undefined,
+  onSelect: DrawingSurface2DProps["onSelect"],
+) {
   const projectPoint = createPointProjector(planBounds(projection));
   const wallsById = new Map(projection.wallSegments.map((wall) => [wall.wallId, wall]));
 
@@ -202,15 +208,29 @@ function renderPlan(projection: PlanProjection, selectedObjectId: string | undef
       {projection.wallSegments.map((wall) => {
         const start = projectPoint(wall.start);
         const end = projectPoint(wall.end);
+        const selected = isSelected(selection, "wall", wall.wallId);
+        const className = selected ? "plan-wall is-selected" : "plan-wall";
+
         return (
           <line
             key={wall.wallId}
-            className="plan-wall"
+            role="button"
+            tabIndex={0}
+            aria-label={`选择墙 ${wall.wallId}`}
+            aria-pressed={selected}
+            className={className}
             x1={start.x}
             y1={start.y}
             x2={end.x}
             y2={end.y}
             strokeWidth={Math.max(wall.thickness * 20, 6)}
+            onClick={() => onSelect({ kind: "wall", id: wall.wallId })}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                onSelect({ kind: "wall", id: wall.wallId });
+              }
+            }}
           />
         );
       })}
@@ -223,7 +243,7 @@ function renderPlan(projection: PlanProjection, selectedObjectId: string | undef
 
         const start = projectPoint(line.start);
         const end = projectPoint(line.end);
-        const selected = selectedObjectId === opening.openingId;
+        const selected = isSelected(selection, "opening", opening.openingId);
 
         return (
           <g key={opening.openingId} className="opening-glyph">
@@ -244,11 +264,11 @@ function renderPlan(projection: PlanProjection, selectedObjectId: string | undef
               y1={start.y}
               x2={end.x}
               y2={end.y}
-              onClick={() => onSelectObject(opening.openingId)}
+              onClick={() => onSelect({ kind: "opening", id: opening.openingId })}
               onKeyDown={(event) => {
                 if (event.key === "Enter" || event.key === " ") {
                   event.preventDefault();
-                  onSelectObject(opening.openingId);
+                  onSelect({ kind: "opening", id: opening.openingId });
                 }
               }}
             />
@@ -266,8 +286,8 @@ function renderPlan(projection: PlanProjection, selectedObjectId: string | undef
           <g key={balcony.balconyId}>
             {renderSelectableBalcony(
               balcony.balconyId,
-              selectedObjectId === balcony.balconyId,
-              onSelectObject,
+              isSelected(selection, "balcony", balcony.balconyId),
+              onSelect,
               {
                 className: "plan-balcony",
                 points: points.map((point) => `${point.x},${point.y}`).join(" "),
@@ -282,8 +302,8 @@ function renderPlan(projection: PlanProjection, selectedObjectId: string | undef
 
 function renderElevation(
   projection: ElevationProjection,
-  selectedObjectId: string | undefined,
-  onSelectObject: DrawingSurface2DProps["onSelectObject"],
+  selection: Selection | undefined,
+  onSelect: DrawingSurface2DProps["onSelect"],
 ) {
   const projectPoint = createPointProjector(elevationBounds(projection));
 
@@ -307,7 +327,7 @@ function renderElevation(
       {projection.openings.map((opening) => {
         const topLeft = projectPoint({ x: opening.x, y: opening.y + opening.height });
         const bottomRight = projectPoint({ x: opening.x + opening.width, y: opening.y });
-        const selected = selectedObjectId === opening.openingId;
+        const selected = isSelected(selection, "opening", opening.openingId);
 
         return (
           <rect
@@ -321,11 +341,11 @@ function renderElevation(
             y={topLeft.y}
             width={bottomRight.x - topLeft.x}
             height={bottomRight.y - topLeft.y}
-            onClick={() => onSelectObject(opening.openingId)}
+            onClick={() => onSelect({ kind: "opening", id: opening.openingId })}
             onKeyDown={(event) => {
               if (event.key === "Enter" || event.key === " ") {
                 event.preventDefault();
-                onSelectObject(opening.openingId);
+                onSelect({ kind: "opening", id: opening.openingId });
               }
             }}
           />
@@ -339,8 +359,8 @@ function renderElevation(
           <g key={balcony.balconyId}>
             {renderSelectableBalcony(
               balcony.balconyId,
-              selectedObjectId === balcony.balconyId,
-              onSelectObject,
+              isSelected(selection, "balcony", balcony.balconyId),
+              onSelect,
               {
                 className: "elevation-balcony",
                 x: topLeft.x,
@@ -368,18 +388,25 @@ function renderRoofPlaceholder() {
   );
 }
 
-export function DrawingSurface2D({ project, onSelectObject }: DrawingSurface2DProps) {
+export function DrawingSurface2D({ project, onSelect }: DrawingSurface2DProps) {
   const storeyId = PLAN_STOREY_BY_VIEW[project.activeView];
   const elevationSide = ELEVATION_SIDE_BY_VIEW[project.activeView];
 
   return (
     <section className="drawing-surface" aria-label="2D drawing surface">
       <svg viewBox={`0 0 ${SURFACE_WIDTH} ${SURFACE_HEIGHT}`} role="group" aria-label="当前 2D 结构视图">
-        <rect className="surface-grid" x="0" y="0" width={SURFACE_WIDTH} height={SURFACE_HEIGHT} />
+        <rect
+          className="surface-grid"
+          x="0"
+          y="0"
+          width={SURFACE_WIDTH}
+          height={SURFACE_HEIGHT}
+          onClick={() => onSelect(undefined)}
+        />
         {storeyId
-          ? renderPlan(projectPlanView(project, storeyId), project.selectedObjectId, onSelectObject)
+          ? renderPlan(projectPlanView(project, storeyId), project.selection, onSelect)
           : elevationSide
-            ? renderElevation(projectElevationView(project, elevationSide), project.selectedObjectId, onSelectObject)
+            ? renderElevation(projectElevationView(project, elevationSide), project.selection, onSelect)
             : renderRoofPlaceholder()}
       </svg>
     </section>

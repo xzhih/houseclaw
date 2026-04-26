@@ -28,4 +28,13 @@ describe("project reducer", () => {
       }),
     ).toThrow("Opening window-front-1f exceeds wall wall-front-1f height.");
   });
+
+  it("stores selection through the select action", () => {
+    const project = projectReducer(createSampleProject(), {
+      type: "select",
+      selection: { kind: "wall", id: "wall-front-1f" },
+    });
+
+    expect(project.selection).toEqual({ kind: "wall", id: "wall-front-1f" });
+  });
 });

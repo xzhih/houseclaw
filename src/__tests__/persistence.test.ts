@@ -62,8 +62,19 @@ describe("project persistence", () => {
     expect(() => importProjectJson("{}")).toThrow(/^Invalid project JSON:/);
   });
 
-  it("rejects invalid optional selected object values", () => {
-    expectInvalidProjectJson({ ...createSampleProject(), selectedObjectId: 42 });
+  it("ignores legacy selectedObjectId fields on import", () => {
+    const json = JSON.stringify({ ...createSampleProject(), selectedObjectId: "legacy" });
+    const restored = importProjectJson(json);
+
+    expect("selectedObjectId" in restored).toBe(false);
+    expect(restored.selection).toBeUndefined();
+  });
+
+  it("strips runtime selection from exported JSON", () => {
+    const project = { ...createSampleProject(), selection: { kind: "wall" as const, id: "wall-front-1f" } };
+    const json = exportProjectJson(project);
+
+    expect(JSON.parse(json).selection).toBeUndefined();
   });
 
   it("rejects invalid nested wall items", () => {

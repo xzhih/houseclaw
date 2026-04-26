@@ -40,11 +40,15 @@ function withImportedDefaults(value: unknown): unknown {
     return value;
   }
 
-  const project = value as ProjectJsonObject;
+  const project = { ...(value as ProjectJsonObject) };
 
   if (project.balconies === undefined) {
-    return { ...project, balconies: [] };
+    project.balconies = [];
   }
+
+  // Selection is transient; never honored on import.
+  delete project.selection;
+  delete project.selectedObjectId;
 
   return project;
 }
@@ -209,8 +213,6 @@ function assertImportedProjectShape(value: unknown): asserts value is HouseProje
     assertPositiveNumberField(value, field);
   }
 
-  assertOptionalStringField(value, "selectedObjectId");
-
   if (value.unitSystem !== "metric") {
     invalidProjectJson("unitSystem must be metric.");
   }
@@ -235,7 +237,8 @@ function assertImportedProjectShape(value: unknown): asserts value is HouseProje
 }
 
 export function exportProjectJson(project: HouseProject): string {
-  return JSON.stringify(project, null, 2);
+  const { selection: _selection, ...rest } = project;
+  return JSON.stringify(rest, null, 2);
 }
 
 export function importProjectJson(json: string): HouseProject {

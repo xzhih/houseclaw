@@ -1,3 +1,5 @@
+import type { Selection } from "./selection";
+
 export type UnitSystem = "metric";
 
 export type Mode = "2d" | "3d";
@@ -91,7 +93,7 @@ export type HouseProject = {
   mode: Mode;
   activeView: ViewId;
   activeTool: ToolId;
-  selectedObjectId?: string;
+  selection?: Selection;
   storeys: Storey[];
   materials: Material[];
   walls: Wall[];
