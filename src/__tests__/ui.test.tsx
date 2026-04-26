@@ -40,4 +40,11 @@ describe("HouseClaw UI", () => {
     expect(screen.getByText("窗宽")).toBeInTheDocument();
     expect(screen.getByText("离地高度")).toBeInTheDocument();
   });
+
+  it("shows a reusable material catalog", () => {
+    render(<App />);
+
+    expect(screen.getByText("白色外墙涂料")).toBeInTheDocument();
+    expect(screen.getByText("灰色石材")).toBeInTheDocument();
+  });
 });

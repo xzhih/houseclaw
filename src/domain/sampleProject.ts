@@ -1,4 +1,5 @@
-import type { HouseProject, Material, Opening, Storey, Wall } from "./types";
+import { materialCatalog } from "../materials/catalog";
+import type { HouseProject, Opening, Storey, Wall } from "./types";
 
 const DEFAULT_STOREY_HEIGHT = 3.2;
 const DEFAULT_WALL_THICKNESS = 0.24;
@@ -7,21 +8,10 @@ const WALL_MATERIAL_ID = "mat-white-render";
 const FRAME_MATERIAL_ID = "mat-dark-frame";
 
 export function createSampleProject(): HouseProject {
-  const materials: Material[] = [
-    {
-      id: WALL_MATERIAL_ID,
-      name: "白色外墙涂料",
-      kind: "wall",
-      color: "#f2eee6",
-      repeat: { x: 2, y: 2 },
-    },
-    {
-      id: FRAME_MATERIAL_ID,
-      name: "深灰窗框",
-      kind: "frame",
-      color: "#263238",
-    },
-  ];
+  const materials = materialCatalog.map((material) => ({
+    ...material,
+    ...(material.repeat ? { repeat: { ...material.repeat } } : {}),
+  }));
 
   const storeys: Storey[] = [
     {

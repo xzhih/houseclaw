@@ -220,6 +220,56 @@ select {
   font-size: 1rem;
 }
 
+.material-catalog {
+  margin-top: 24px;
+}
+
+.material-catalog h3 {
+  margin: 0 0 12px;
+  font-size: 0.95rem;
+}
+
+.material-list {
+  display: grid;
+  gap: 8px;
+}
+
+.material-swatch {
+  min-height: 38px;
+  display: grid;
+  grid-template-columns: 22px 1fr;
+  gap: 10px;
+  align-items: center;
+  padding: 7px 9px;
+  border: 1px solid #cbd3dc;
+  border-radius: 7px;
+  background: #ffffff;
+  color: #25313c;
+  text-align: left;
+  cursor: pointer;
+}
+
+.material-swatch:hover {
+  border-color: #78909c;
+}
+
+.material-swatch[aria-pressed="true"] {
+  border-color: #006b64;
+  background: #dcefeb;
+  font-weight: 700;
+}
+
+.material-swatch span {
+  min-width: 0;
+}
+
+.material-swatch-color {
+  width: 22px;
+  height: 22px;
+  border: 1px solid #9ba7af;
+  border-radius: 4px;
+}
+
 .property-list {
   display: grid;
   gap: 14px;

@@ -16,6 +16,8 @@ export function AppShell() {
   const setView = (viewId: ViewId) => dispatch({ type: "set-view", viewId });
   const setTool = (toolId: ToolId) => dispatch({ type: "set-tool", toolId });
   const selectObject = (objectId: string | undefined) => dispatch({ type: "select-object", objectId });
+  const applyWallMaterial = (wallId: string, materialId: string) =>
+    dispatch({ type: "apply-wall-material", wallId, materialId });
 
   return (
     <main className="app-shell">
@@ -34,7 +36,7 @@ export function AppShell() {
         <section className="workspace workspace-2d" aria-label="2D workspace">
           <ToolPalette activeTool={project.activeTool} onToolChange={setTool} />
           <DrawingSurface2D project={project} onSelectObject={selectObject} />
-          <PropertyPanel project={project} />
+          <PropertyPanel project={project} onApplyWallMaterial={applyWallMaterial} />
         </section>
       ) : (
         <section className="workspace workspace-3d" aria-label="3D workspace">
