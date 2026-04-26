@@ -499,6 +499,7 @@ select {
   stroke: #315e66;
   stroke-width: 2;
   cursor: pointer;
+  outline: none;
 }
 
 .elevation-balcony {
@@ -506,6 +507,7 @@ select {
   stroke: #142125;
   stroke-width: 2;
   cursor: pointer;
+  outline: none;
 }
 
 .is-selected {
@@ -917,31 +919,41 @@ select {
   }
 }
 
-/* 3D preview mode toggle */
+/* 3D preview mode toggle — matches view-tabs glass-pill language */
 .preview-mode-toggle {
   position: absolute;
-  top: 12px;
-  right: 12px;
-  display: flex;
-  gap: 4px;
-  background: rgba(255, 255, 255, 0.9);
-  border-radius: 8px;
-  padding: 4px;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+  bottom: 16px;
+  left: 16px;
   z-index: 10;
+  display: inline-flex;
+  gap: 2px;
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-md);
+  padding: 4px;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
 }
 .preview-mode-toggle button {
-  border: none;
+  border: 0;
   background: transparent;
+  color: var(--text-muted);
   padding: 6px 12px;
-  font-size: 13px;
-  border-radius: 6px;
+  border-radius: 8px;
   cursor: pointer;
-  color: #4a5552;
+  font-size: 0.8rem;
+  transition:
+    color 0.15s,
+    background 0.15s;
 }
-.preview-mode-toggle button.is-active {
-  background: #2f4a3f;
-  color: #ffffff;
+.preview-mode-toggle button:hover {
+  color: var(--text);
+  background: var(--accent-bg);
+}
+.preview-mode-toggle button[aria-pressed="true"] {
+  background: var(--accent-bg-strong);
+  color: var(--text);
+  font-weight: 600;
 }
 
 /* FPS HUD */

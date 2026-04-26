@@ -69,17 +69,17 @@ export function Preview3D({ project }: Preview3DProps) {
     <div className="preview-shell" aria-label="3D preview">
       <div ref={hostRef} className="three-host" aria-label="Three.js house preview" />
 
-      <div className="preview-mode-toggle" aria-hidden={mountFailed}>
+      <div className="preview-mode-toggle" role="group" aria-label="相机模式" aria-hidden={mountFailed}>
         <button
           type="button"
-          className={cameraMode === "orbit" ? "is-active" : ""}
+          aria-pressed={cameraMode === "orbit"}
           onClick={() => setCameraMode("orbit")}
         >
           环视
         </button>
         <button
           type="button"
-          className={cameraMode === "walk" ? "is-active" : ""}
+          aria-pressed={cameraMode === "walk"}
           onClick={() => setCameraMode("walk")}
         >
           漫游
