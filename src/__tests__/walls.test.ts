@@ -37,7 +37,7 @@ describe("wall draft", () => {
     const project = createSampleProject();
     const draft = createWallDraft(project, "1f", { x: 0, y: 0 }, { x: 4, y: 0 });
 
-    expect(draft).toMatchObject({
+    expect(draft).toEqual({
       id: "wall-1f-1",
       storeyId: "1f",
       start: { x: 0, y: 0 },
@@ -55,5 +55,14 @@ describe("wall draft", () => {
     const draft = createWallDraft(broken, "1f", { x: 0, y: 0 }, { x: 1, y: 0 });
 
     expect(draft.height).toBe(project.defaultStoreyHeight);
+  });
+
+  it("throws when the project has no materials at all", () => {
+    const project = createSampleProject();
+    const broken = { ...project, materials: [] };
+
+    expect(() => createWallDraft(broken, "1f", { x: 0, y: 0 }, { x: 1, y: 0 })).toThrow(
+      /no materials/,
+    );
   });
 });

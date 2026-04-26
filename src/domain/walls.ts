@@ -1,10 +1,13 @@
 import type { HouseProject, Point2, Wall } from "./types";
 
-const FALLBACK_WALL_MATERIAL = "mat-white-render";
+const CANONICAL_SLOT = /^[1-9]\d*$/;
 
 function pickWallMaterialId(project: HouseProject): string {
-  const walls = project.materials.filter((material) => material.kind === "wall");
-  return walls[0]?.id ?? project.materials[0]?.id ?? FALLBACK_WALL_MATERIAL;
+  const wallMaterial = project.materials.find((material) => material.kind === "wall");
+  if (wallMaterial) return wallMaterial.id;
+  const fallback = project.materials[0];
+  if (fallback) return fallback.id;
+  throw new Error("Cannot create wall: project has no materials.");
 }
 
 export function nextWallId(project: HouseProject, storeyId: string): string {
@@ -12,8 +15,9 @@ export function nextWallId(project: HouseProject, storeyId: string): string {
   const usedSlots = new Set<number>();
   for (const wall of project.walls) {
     if (!wall.id.startsWith(prefix)) continue;
-    const suffix = Number(wall.id.slice(prefix.length));
-    if (Number.isInteger(suffix) && suffix > 0) usedSlots.add(suffix);
+    const raw = wall.id.slice(prefix.length);
+    if (!CANONICAL_SLOT.test(raw)) continue;
+    usedSlots.add(Number(raw));
   }
 
   let slot = 1;
