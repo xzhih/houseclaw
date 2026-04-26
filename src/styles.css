@@ -348,7 +348,7 @@ select {
   background: var(--panel);
 }
 
-/* --- Bottom overlay (storey + view tabs) --- */
+/* --- Bottom overlay (view tabs centered) --- */
 .bottom-overlay {
   position: absolute;
   bottom: 16px;
@@ -357,6 +357,14 @@ select {
   display: inline-flex;
   align-items: center;
   gap: 10px;
+  z-index: 10;
+}
+
+/* --- Storey overlay (bottom-left) --- */
+.storey-overlay {
+  position: absolute;
+  bottom: 16px;
+  left: 16px;
   z-index: 10;
 }
 
@@ -605,7 +613,7 @@ select {
 
 .zoom-reset {
   position: absolute;
-  bottom: 16px;
+  bottom: 60px;
   left: 16px;
   display: inline-flex;
   align-items: center;
