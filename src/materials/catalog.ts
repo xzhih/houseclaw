@@ -1,6 +1,6 @@
 import type { Material } from "../domain/types";
 
-export const materialCatalog: Material[] = [
+export const materialCatalog: readonly Material[] = [
   {
     id: "mat-white-render",
     name: "白色外墙涂料",

@@ -47,4 +47,20 @@ describe("HouseClaw UI", () => {
     expect(screen.getByText("白色外墙涂料")).toBeInTheDocument();
     expect(screen.getByText("灰色石材")).toBeInTheDocument();
   });
+
+  it("applies a wall material from the catalog", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    const whiteRender = screen.getByRole("button", { name: "白色外墙涂料" });
+    const grayStone = screen.getByRole("button", { name: "灰色石材" });
+
+    expect(whiteRender).toHaveAttribute("aria-pressed", "true");
+    expect(grayStone).toHaveAttribute("aria-pressed", "false");
+
+    await user.click(grayStone);
+
+    expect(grayStone).toHaveAttribute("aria-pressed", "true");
+    expect(whiteRender).toHaveAttribute("aria-pressed", "false");
+  });
 });
