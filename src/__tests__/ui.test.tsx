@@ -115,7 +115,7 @@ describe("HouseClaw UI", () => {
     const user = userEvent.setup();
     render(<App />);
 
-    await user.click(screen.getByRole("button", { name: "正面" }));
+    await user.click(screen.getByRole("button", { name: "正视" }));
 
     expect(screen.getByRole("group", { name: "当前 2D 结构视图" })).toBeInTheDocument();
     const opening = screen.getByRole("button", { name: "选择开孔 window-front-1f" });
@@ -133,7 +133,7 @@ describe("HouseClaw UI", () => {
     const user = userEvent.setup();
     render(<App />);
 
-    await user.click(screen.getByRole("button", { name: "正面" }));
+    await user.click(screen.getByRole("button", { name: "正视" }));
     const opening = screen.getByRole("button", { name: "选择开孔 window-front-1f" });
     opening.focus();
     await user.keyboard("{Enter}");
@@ -155,7 +155,7 @@ describe("HouseClaw UI", () => {
     await user.click(screen.getByRole("button", { name: "2F" }));
     expect(screen.getByRole("button", { name: "选择阳台 balcony-front-2f" })).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "正面" }));
+    await user.click(screen.getByRole("button", { name: "正视" }));
     expect(screen.getByRole("button", { name: "选择阳台 balcony-front-2f" })).toBeInTheDocument();
   });
 

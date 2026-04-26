@@ -28,7 +28,7 @@ import { Preview3D } from "./Preview3D";
 import { PropertyPanel } from "./PropertyPanel";
 import { StoreyHeightStrip } from "./StoreyHeightStrip";
 import { ToolPalette } from "./ToolPalette";
-import { ViewTabs } from "./ViewTabs";
+import { ViewTabs, type ViewType } from "./ViewTabs";
 
 const MODE_TABS: { id: Mode; label: string }[] = [
   { id: "2d", label: "2D" },
@@ -325,6 +325,24 @@ export function AppShell() {
     handleAddComponent(toolId);
   };
 
+  const handleViewTypeChange = (type: ViewType) => {
+    if (type === "plan") {
+      setView(`plan-${lastPlanStorey}` as ViewId);
+    } else if (type === "roof") {
+      setView("roof");
+    } else {
+      setView(`elevation-${type}` as ViewId);
+    }
+  };
+
+  const handleStoreyClick = (storeyId: string) => {
+    setLastPlanStorey(storeyId);
+    if (PLAN_STOREY_BY_VIEW[project.activeView]) {
+      setView(`plan-${storeyId}` as ViewId);
+    }
+    select({ kind: "storey", id: storeyId });
+  };
+
   const handleExport = () => {
     setImportError(undefined);
     downloadTextFile("houseclaw-project.json", exportProjectJson(project));
@@ -430,35 +448,14 @@ export function AppShell() {
             allowWallAdd={PLAN_STOREY_BY_VIEW[project.activeView] !== undefined}
           />
 
-          <div className="storey-overlay">
-            {PLAN_STOREY_BY_VIEW[project.activeView] ? (
-              <StoreyHeightStrip
-                storeys={project.storeys}
-                activeView={project.activeView}
-                currentStoreyId={activeStoreyId(project, lastPlanStorey)}
-                onSelectStorey={(storeyId) => {
-                  setView(`plan-${storeyId}` as ViewId);
-                  select({ kind: "storey", id: storeyId });
-                }}
-              />
-            ) : (
-              <button
-                type="button"
-                className="overhead-button"
-                onClick={() => setView(`plan-${lastPlanStorey}` as ViewId)}
-                aria-label="俯视"
-              >
-                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <rect x="5" y="5" width="14" height="14" rx="1" />
-                  <path d="M5 12h14M12 5v14" />
-                </svg>
-                俯视
-              </button>
-            )}
-          </div>
-
           <div className="bottom-overlay">
-            <ViewTabs activeView={project.activeView} onViewChange={setView} />
+            <ViewTabs activeView={project.activeView} onViewTypeChange={handleViewTypeChange} />
+            <StoreyHeightStrip
+              storeys={project.storeys}
+              activeView={project.activeView}
+              currentStoreyId={activeStoreyId(project, lastPlanStorey)}
+              onSelectStorey={handleStoreyClick}
+            />
           </div>
 
           <PropertyPanel

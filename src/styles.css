@@ -348,46 +348,16 @@ select {
   background: var(--panel);
 }
 
-/* --- Bottom overlay (view tabs aligned next to storey rail) --- */
+/* --- Bottom overlay (view tabs + storey rail centered) --- */
 .bottom-overlay {
   position: absolute;
   bottom: 16px;
-  left: 96px;
+  left: 50%;
+  transform: translateX(-50%);
   display: inline-flex;
   align-items: center;
   gap: 10px;
   z-index: 10;
-}
-
-/* --- Storey overlay (bottom-left) --- */
-.storey-overlay {
-  position: absolute;
-  bottom: 16px;
-  left: 16px;
-  z-index: 10;
-}
-
-.overhead-button {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 14px;
-  background: var(--panel);
-  border: 1px solid var(--panel-border);
-  border-radius: var(--radius-md);
-  color: var(--text);
-  font-size: 0.82rem;
-  cursor: pointer;
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  transition:
-    border-color 0.15s,
-    background 0.15s;
-}
-
-.overhead-button:hover {
-  border-color: var(--panel-border-hover);
-  background: var(--panel-strong);
 }
 
 .view-tabs {
@@ -427,7 +397,6 @@ select {
 
 .storey-strip {
   display: inline-flex;
-  flex-direction: column;
   gap: 4px;
   padding: 4px;
   background: var(--panel);
@@ -472,7 +441,7 @@ select {
   position: absolute;
   top: 64px;
   right: 352px;
-  bottom: 64px;
+  bottom: 72px;
   left: 88px;
 }
 
