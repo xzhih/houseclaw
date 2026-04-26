@@ -94,9 +94,7 @@ export function computeStairConfig(storeyHeight: number, treadDepth: number): St
 
 ### 3. 几何（`src/geometry/stairGeometry.ts`）
 
-每架楼梯生成两组 mesh：
-
-#### A. 视觉踏步
+每架楼梯生成一组踏步 mesh（box per tread）+ L/U 形的平台 mesh。**不再额外生成隐形斜面碰撞体**——见下文 "3D 漫游" 节，现有物理常量已经能让人直接踩着 box 上下楼。
 
 每级踏步是一个 box：
 - 厚度 = `riserHeight`
@@ -127,17 +125,9 @@ export function computeStairConfig(storeyHeight: number, treadDepth: number): St
 - 下跑：bottomEdge 起到平台前，level = floor(treadCount / 2)
 - 上跑：平台另一侧返回，剩余级数
 
-#### B. 隐形斜面碰撞体
+#### B. 平台（仅 L / U）
 
-**关键修复**：`walkPhysics.ts` 没有 step-up 逻辑，水平探针打到第一级踏步立面就被挡住。所以为每段跑生成一个**斜面盒**——一个 box 几何旋转成倾斜的 ramp，覆盖该段跑的下沿到上沿。
-
-- straight：1 个斜面，从 bottomEdge 起到对边，厚度跨整段跑高，宽 = 跑宽。
-- L：2 个斜面（每跑一个）+ 1 个平台盒（与视觉平台同位置）。
-- U：同上。
-
-斜面 mesh 的 `material` 设为 `transparent: true, opacity: 0, depthWrite: false`，并且 `visible = false`。**仍然加入 `collidables`** 数组——`raycaster.intersectObjects` 命中可见性无关。
-
-垂直探针打到视觉踏步顶（每一级独立平台），水平探针打到斜面被推上去——脚还是一级一级踩，只是过墙时身体能"顺着斜面滑上去"。
+L 的转角方平台、U 的远端长平台，各 1 个 box mesh，位置见上文。
 
 #### 顶部对齐
 
@@ -251,5 +241,5 @@ stair 选中时显示：
 ## 风险 & 待办
 
 - L 形在长方形（width:depth 远离 1:1）洞口里跑长被挤压——本 Spec 不修，由用户调整洞口比例。
-- 斜面碰撞体在 L/U 转角处的拼接缝可能让水平探针抖动。先做最简实现，实际跑起来发现卡再补缝（如让斜面与平台盒重叠几 cm）。
+- 走路上下楼"踏感"：每级会有视觉跳变（snap 一级），不是平滑斜坡。这是预期行为，对 personal tool 够用；要真正平滑可以以后再加 ramp collider。
 - 默认 `bottomEdge="+y"` 不会自动按洞口长边方向调整——本 Spec 接受这个简单默认，用户进 PropertyPanel 改。
