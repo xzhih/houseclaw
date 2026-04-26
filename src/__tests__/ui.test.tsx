@@ -1,7 +1,9 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import { exportProjectJson } from "../app/persistence";
 import App from "../App";
+import { createSampleProject } from "../domain/sampleProject";
 
 describe("HouseClaw UI", () => {
   it("shows 2d plan tools by default", () => {
@@ -18,6 +20,78 @@ describe("HouseClaw UI", () => {
 
     expect(screen.getByRole("button", { name: "导出 JSON" })).toBeInTheDocument();
     expect(screen.getByLabelText("导入 JSON")).toBeInTheDocument();
+  });
+
+  it("downloads project JSON when export is clicked", async () => {
+    const user = userEvent.setup();
+    const createObjectURL = vi.fn(() => "blob:houseclaw-project");
+    const revokeObjectURL = vi.fn();
+    const anchorClick = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+    const originalCreateObjectURL = URL.createObjectURL;
+    const originalRevokeObjectURL = URL.revokeObjectURL;
+    Object.defineProperty(URL, "createObjectURL", { configurable: true, value: createObjectURL });
+    Object.defineProperty(URL, "revokeObjectURL", { configurable: true, value: revokeObjectURL });
+
+    try {
+      render(<App />);
+
+      await user.click(screen.getByRole("button", { name: "导出 JSON" }));
+
+      expect(createObjectURL).toHaveBeenCalledWith(expect.any(Blob));
+      expect(anchorClick).toHaveBeenCalledTimes(1);
+      expect(revokeObjectURL).toHaveBeenCalledWith("blob:houseclaw-project");
+    } finally {
+      Object.defineProperty(URL, "createObjectURL", { configurable: true, value: originalCreateObjectURL });
+      Object.defineProperty(URL, "revokeObjectURL", { configurable: true, value: originalRevokeObjectURL });
+      anchorClick.mockRestore();
+    }
+  });
+
+  it("imports valid project JSON from a file", async () => {
+    const user = userEvent.setup();
+    const importedProject = { ...createSampleProject(), name: "导入后的项目" };
+    const file = new File([exportProjectJson(importedProject)], "project.json", { type: "application/json" });
+
+    render(<App />);
+
+    await user.upload(screen.getByLabelText("导入 JSON"), file);
+    await user.click(screen.getByRole("button", { name: "3D" }));
+
+    expect(await screen.findByText("导入后的项目")).toBeInTheDocument();
+  });
+
+  it("shows a validation alert for invalid project JSON", async () => {
+    const user = userEvent.setup();
+    const file = new File([JSON.stringify({ mode: "bad" })], "bad-project.json", { type: "application/json" });
+
+    render(<App />);
+
+    await user.upload(screen.getByLabelText("导入 JSON"), file);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Invalid project JSON");
+  });
+
+  it("clears an import alert when a later valid import loads", async () => {
+    const user = userEvent.setup();
+    const invalidFile = new File([JSON.stringify({ mode: "bad" })], "bad-project.json", {
+      type: "application/json",
+    });
+    const validProject = { ...createSampleProject(), name: "恢复后的项目" };
+    const validFile = new File([exportProjectJson(validProject)], "project.json", {
+      type: "application/json",
+    });
+
+    render(<App />);
+
+    const input = screen.getByLabelText("导入 JSON");
+    await user.upload(input, invalidFile);
+    expect(await screen.findByRole("alert")).toHaveTextContent("Invalid project JSON");
+
+    await user.upload(input, validFile);
+    await waitFor(() => expect(screen.queryByRole("alert")).not.toBeInTheDocument());
+    await user.click(screen.getByRole("button", { name: "3D" }));
+
+    expect(await screen.findByText("恢复后的项目")).toBeInTheDocument();
   });
 
   it("switches to 3d preview", async () => {

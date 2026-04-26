@@ -39,8 +39,8 @@ export function AppShell() {
         dispatch({ type: "replace-project", project: importProjectJson(json) });
         setImportError(undefined);
       })
-      .catch(() => {
-        setImportError("无法导入 JSON，请检查文件格式。");
+      .catch((error: unknown) => {
+        setImportError(error instanceof Error ? error.message : "无法导入 JSON，请检查文件格式。");
       })
       .finally(() => {
         input.value = "";
