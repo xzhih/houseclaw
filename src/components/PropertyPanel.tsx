@@ -21,6 +21,12 @@ const OPENING_LABELS: Record<OpeningType, string> = {
 
 const wallMaterials = materialCatalog.filter((material) => material.kind === "wall");
 
+type EditorProps = {
+  project: HouseProject;
+  id: string;
+  onProjectChange: (project: HouseProject) => void;
+};
+
 type PropertyPanelProps = {
   project: HouseProject;
   onApplyWallMaterial: (wallId: string, materialId: string) => void;
@@ -36,8 +42,6 @@ function tryMutate(fn: () => HouseProject): HouseProject | string {
 }
 
 function commit<T>(
-  current: HouseProject,
-  mutate: (next: HouseProject) => HouseProject,
   onProjectChange: (project: HouseProject) => void,
   patch: T,
   build: (patch: T) => HouseProject,
@@ -60,10 +64,18 @@ export function PropertyPanel({ project, onApplyWallMaterial, onProjectChange }:
       <h2>属性</h2>
       {!selection ? <p className="panel-placeholder">选择墙、门、窗、开孔、阳台或楼层查看属性。</p> : null}
 
-      {selection?.kind === "opening" ? renderOpeningEditor(project, selection.id, onProjectChange) : null}
-      {selection?.kind === "wall" ? renderWallEditor(project, selection.id, onProjectChange) : null}
-      {selection?.kind === "balcony" ? renderBalconyEditor(project, selection.id, onProjectChange) : null}
-      {selection?.kind === "storey" ? renderStoreyEditor(project, selection.id, onProjectChange) : null}
+      {selection?.kind === "opening" ? (
+        <OpeningEditor project={project} id={selection.id} onProjectChange={onProjectChange} />
+      ) : null}
+      {selection?.kind === "wall" ? (
+        <WallEditor project={project} id={selection.id} onProjectChange={onProjectChange} />
+      ) : null}
+      {selection?.kind === "balcony" ? (
+        <BalconyEditor project={project} id={selection.id} onProjectChange={onProjectChange} />
+      ) : null}
+      {selection?.kind === "storey" ? (
+        <StoreyEditor project={project} id={selection.id} onProjectChange={onProjectChange} />
+      ) : null}
 
       <section className="material-catalog" aria-labelledby="material-catalog-heading">
         <h3 id="material-catalog-heading">材质库</h3>
@@ -90,17 +102,13 @@ export function PropertyPanel({ project, onApplyWallMaterial, onProjectChange }:
   );
 }
 
-function renderOpeningEditor(
-  project: HouseProject,
-  openingId: string,
-  onProjectChange: (project: HouseProject) => void,
-) {
-  const opening = project.openings.find((candidate) => candidate.id === openingId);
+function OpeningEditor({ project, id, onProjectChange }: EditorProps) {
+  const opening = project.openings.find((candidate) => candidate.id === id);
   if (!opening) return null;
 
   const widthLabel = opening.type === "window" ? "窗宽" : "宽度";
   const apply = (patch: OpeningPatch) =>
-    commit(project, (next) => next, onProjectChange, patch, (final) => updateOpening(project, openingId, final));
+    commit(onProjectChange, patch, (final) => updateOpening(project, id, final));
 
   return (
     <section className="property-section" aria-labelledby="opening-heading">
@@ -113,16 +121,12 @@ function renderOpeningEditor(
   );
 }
 
-function renderWallEditor(
-  project: HouseProject,
-  wallId: string,
-  onProjectChange: (project: HouseProject) => void,
-) {
-  const wall = project.walls.find((candidate) => candidate.id === wallId);
+function WallEditor({ project, id, onProjectChange }: EditorProps) {
+  const wall = project.walls.find((candidate) => candidate.id === id);
   if (!wall) return null;
 
   const apply = (patch: WallPatch) =>
-    commit(project, (next) => next, onProjectChange, patch, (final) => updateWall(project, wallId, final));
+    commit(onProjectChange, patch, (final) => updateWall(project, id, final));
 
   return (
     <section className="property-section" aria-labelledby="wall-heading">
@@ -139,16 +143,12 @@ function renderWallEditor(
   );
 }
 
-function renderBalconyEditor(
-  project: HouseProject,
-  balconyId: string,
-  onProjectChange: (project: HouseProject) => void,
-) {
-  const balcony = project.balconies.find((candidate) => candidate.id === balconyId);
+function BalconyEditor({ project, id, onProjectChange }: EditorProps) {
+  const balcony = project.balconies.find((candidate) => candidate.id === id);
   if (!balcony) return null;
 
   const apply = (patch: BalconyPatch) =>
-    commit(project, (next) => next, onProjectChange, patch, (final) => updateBalcony(project, balconyId, final));
+    commit(onProjectChange, patch, (final) => updateBalcony(project, id, final));
 
   return (
     <section className="property-section" aria-labelledby="balcony-heading">
@@ -162,16 +162,12 @@ function renderBalconyEditor(
   );
 }
 
-function renderStoreyEditor(
-  project: HouseProject,
-  storeyId: string,
-  onProjectChange: (project: HouseProject) => void,
-) {
-  const storey = project.storeys.find((candidate) => candidate.id === storeyId);
+function StoreyEditor({ project, id, onProjectChange }: EditorProps) {
+  const storey = project.storeys.find((candidate) => candidate.id === id);
   if (!storey) return null;
 
   const apply = (patch: StoreyPatch) =>
-    commit(project, (next) => next, onProjectChange, patch, (final) => updateStorey(project, storeyId, final));
+    commit(onProjectChange, patch, (final) => updateStorey(project, id, final));
 
   return (
     <section className="property-section" aria-labelledby="storey-heading">
