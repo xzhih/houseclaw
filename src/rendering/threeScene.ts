@@ -49,6 +49,10 @@ function createRenderer(container: HTMLElement) {
   renderer.setPixelRatio(Math.min(globalThis.devicePixelRatio || 1, 2));
   renderer.setSize(width, height, false);
   renderer.setClearColor(BACKGROUND_COLOR);
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.0;
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.domElement.setAttribute("aria-hidden", "true");
 
   return { renderer, width, height };
@@ -440,6 +444,7 @@ function createSlabMaterial(project: HouseProject, materialId: string) {
     color: material?.color ?? SLAB_FALLBACK_COLOR,
     roughness: 0.85,
     metalness: 0.02,
+    flatShading: true,
   });
 }
 
@@ -525,13 +530,58 @@ export function mountHouseScene(
   const { meshes: balconyMeshes, materials: balconyMaterials } = createBalconyMeshes(project, houseGeometry);
   const { meshes: slabMeshes, materials: slabMaterials } = createSlabMeshes(project, houseGeometry);
   const { ground, grid, geometry: groundGeometry, material: groundMaterial } = createGround(bounds);
-  const ambient = new THREE.HemisphereLight("#ffffff", "#9aa7a0", 1.6);
-  const keyLight = new THREE.DirectionalLight("#ffffff", 2.4);
+
+  const buildingCenter = new THREE.Vector3(
+    (bounds.minX + bounds.maxX) / 2,
+    bounds.maxY / 2,
+    (bounds.minZ + bounds.maxZ) / 2,
+  );
+  const buildingExtent = Math.max(
+    bounds.maxX - bounds.minX,
+    bounds.maxZ - bounds.minZ,
+    bounds.maxY,
+  );
+  const shadowSpan = Math.max(buildingExtent, 12);
+
+  const ambient = new THREE.HemisphereLight("#cfd9d2", "#3a4138", 0.55);
+
+  const keyLight = new THREE.DirectionalLight("#fff4dc", 2.6);
+  keyLight.position.copy(buildingCenter).add(new THREE.Vector3(8, 14, 6));
+  keyLight.target.position.copy(buildingCenter);
+  keyLight.castShadow = true;
+  keyLight.shadow.mapSize.set(2048, 2048);
+  keyLight.shadow.camera.left = -shadowSpan;
+  keyLight.shadow.camera.right = shadowSpan;
+  keyLight.shadow.camera.top = shadowSpan;
+  keyLight.shadow.camera.bottom = -shadowSpan;
+  keyLight.shadow.camera.near = 0.5;
+  keyLight.shadow.camera.far = shadowSpan * 4;
+  keyLight.shadow.bias = -0.0002;
+  keyLight.shadow.normalBias = 0.02;
+
+  const fillLight = new THREE.DirectionalLight("#a9c4e0", 0.55);
+  fillLight.position.copy(buildingCenter).add(new THREE.Vector3(-9, 6, -10));
+  fillLight.target.position.copy(buildingCenter);
+
   const meshes = [...wallMeshes, ...balconyMeshes, ...slabMeshes];
   const materials = [...wallMaterials, ...balconyMaterials, ...slabMaterials];
 
-  keyLight.position.set(5, 9, 6);
-  scene.add(ambient, keyLight, ground, grid, ...meshes);
+  for (const mesh of meshes) {
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+  }
+  ground.receiveShadow = true;
+
+  scene.add(
+    ambient,
+    keyLight,
+    keyLight.target,
+    fillLight,
+    fillLight.target,
+    ground,
+    grid,
+    ...meshes,
+  );
 
   container.replaceChildren(renderer.domElement);
   renderer.render(scene, camera);
