@@ -99,32 +99,6 @@ function historyReducer(state: HistoryState, action: HistoryAction): HistoryStat
 
 const roundToMm = (value: number) => Math.round(value * 1000) / 1000;
 
-function activeStoreyId(
-  project: HouseProject,
-  fallbackStoreyId?: string,
-): string | undefined {
-  const planStorey = PLAN_STOREY_BY_VIEW[project.activeView];
-  if (planStorey) return planStorey;
-
-  const sel = project.selection;
-  if (sel?.kind === "storey") return sel.id;
-  if (sel?.kind === "wall") {
-    return project.walls.find((wall) => wall.id === sel.id)?.storeyId;
-  }
-  if (sel?.kind === "opening") {
-    const opening = project.openings.find((entry) => entry.id === sel.id);
-    if (opening) return project.walls.find((wall) => wall.id === opening.wallId)?.storeyId;
-  }
-  if (sel?.kind === "balcony") {
-    return project.balconies.find((entry) => entry.id === sel.id)?.storeyId;
-  }
-
-  if (ELEVATION_SIDE_BY_VIEW[project.activeView]) {
-    return fallbackStoreyId ?? project.storeys[0]?.id;
-  }
-  return undefined;
-}
-
 function defaultWallEndpoints(project: HouseProject, storeyId: string): { start: { x: number; y: number }; end: { x: number; y: number } } {
   const wallsInStorey = project.walls.filter((wall) => wall.storeyId === storeyId);
   if (wallsInStorey.length === 0) {
@@ -266,11 +240,10 @@ export function AppShell() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [project, canUndo, canRedo]);
 
-  const handleAddComponent = (toolId: ToolId) => {
+  const handleAddComponent = (toolId: ToolId, storeyId: string) => {
     setAddError(undefined);
-    const storeyId = activeStoreyId(project, lastPlanStorey);
-    if (!storeyId) {
-      setAddError("请先选择一个楼层视图后再添加组件。");
+    if (!project.storeys.some((storey) => storey.id === storeyId)) {
+      setAddError("找不到目标楼层。");
       return;
     }
     const elevationSide = ELEVATION_SIDE_BY_VIEW[project.activeView];
@@ -282,7 +255,7 @@ export function AppShell() {
         const next = addWall(project, draft);
         dispatch({ type: "replace-project", project: next });
         dispatch({ type: "select", selection: { kind: "wall", id: draft.id } });
-        if (PLAN_STOREY_BY_VIEW[project.activeView] === undefined) {
+        if (PLAN_STOREY_BY_VIEW[project.activeView] !== storeyId) {
           dispatch({ type: "set-view", viewId: `plan-${storeyId}` as ViewId });
         }
         return;
@@ -322,13 +295,9 @@ export function AppShell() {
     }
   };
 
-  const handleToolButtonClick = (toolId: ToolId) => {
-    if (toolId === "select") {
-      setTool("select");
-      setAddError(undefined);
-      return;
-    }
-    handleAddComponent(toolId);
+  const handleSelectMode = () => {
+    setTool("select");
+    setAddError(undefined);
   };
 
   const handlePrimaryChange = (primary: PrimaryView) => {
@@ -453,7 +422,9 @@ export function AppShell() {
         <>
           <ToolPalette
             activeTool={project.activeTool}
-            onToolButtonClick={handleToolButtonClick}
+            storeys={project.storeys.map((storey) => ({ id: storey.id, label: storey.label }))}
+            onSelectMode={handleSelectMode}
+            onAddComponent={handleAddComponent}
             allowWallAdd={PLAN_STOREY_BY_VIEW[project.activeView] !== undefined}
           />
 
@@ -463,7 +434,6 @@ export function AppShell() {
               <StoreyHeightStrip
                 storeys={project.storeys}
                 activeView={project.activeView}
-                currentStoreyId={activeStoreyId(project, lastPlanStorey)}
                 onSelectStorey={handleStoreyClick}
               />
             ) : (
