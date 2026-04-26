@@ -23,7 +23,7 @@ export function PropertyPanel({ project }: PropertyPanelProps) {
             <dd>{OPENING_LABELS[selectedOpening.type]}</dd>
           </div>
           <div>
-            <dt>宽度</dt>
+            <dt>{selectedOpening.type === "window" ? "窗宽" : "宽度"}</dt>
             <dd>{selectedOpening.width.toFixed(2)} m</dd>
           </div>
           <div>
@@ -31,7 +31,7 @@ export function PropertyPanel({ project }: PropertyPanelProps) {
             <dd>{selectedOpening.height.toFixed(2)} m</dd>
           </div>
           <div>
-            <dt>窗台</dt>
+            <dt>离地高度</dt>
             <dd>{selectedOpening.sillHeight.toFixed(2)} m</dd>
           </div>
         </dl>

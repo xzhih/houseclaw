@@ -162,6 +162,7 @@ function renderPlan(projection: PlanProjection, selectedObjectId: string | undef
               role="button"
               tabIndex={0}
               aria-label={`选择开孔 ${opening.openingId}`}
+              aria-pressed={selected}
               className={selected ? "plan-opening is-selected" : "plan-opening"}
               x1={start.x}
               y1={start.y}
@@ -217,6 +218,7 @@ function renderElevation(
             role="button"
             tabIndex={0}
             aria-label={`选择开孔 ${opening.openingId}`}
+            aria-pressed={selected}
             className={selected ? "elevation-opening is-selected" : "elevation-opening"}
             x={topLeft.x}
             y={topLeft.y}
@@ -254,7 +256,7 @@ export function DrawingSurface2D({ project, onSelectObject }: DrawingSurface2DPr
 
   return (
     <section className="drawing-surface" aria-label="2D drawing surface">
-      <svg viewBox={`0 0 ${SURFACE_WIDTH} ${SURFACE_HEIGHT}`} role="img" aria-label="当前二维视图">
+      <svg viewBox={`0 0 ${SURFACE_WIDTH} ${SURFACE_HEIGHT}`} role="group" aria-label="当前 2D 结构视图">
         <rect className="surface-grid" x="0" y="0" width={SURFACE_WIDTH} height={SURFACE_HEIGHT} />
         {storeyId
           ? renderPlan(projectPlanView(project, storeyId), project.selectedObjectId, onSelectObject)
