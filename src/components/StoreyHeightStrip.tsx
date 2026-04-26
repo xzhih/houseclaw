@@ -10,7 +10,7 @@ type StoreyHeightStripProps = {
 
 export function StoreyHeightStrip({ storeys, selection, onSelectStorey }: StoreyHeightStripProps) {
   return (
-    <div className="storey-strip" role="group" aria-label="楼层高度">
+    <div className="storey-strip" role="group" aria-label="楼层">
       {storeys.map((storey) => {
         const selected = isSelected(selection, "storey", storey.id);
         return (
@@ -21,7 +21,7 @@ export function StoreyHeightStrip({ storeys, selection, onSelectStorey }: Storey
             aria-pressed={selected}
             onClick={() => onSelectStorey(storey.id)}
           >
-            {storey.label} · {Math.round(storey.height * 1000)} mm
+            {storey.label}
           </button>
         );
       })}

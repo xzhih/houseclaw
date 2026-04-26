@@ -387,7 +387,7 @@ export function AppShell() {
         <>
           <ToolPalette activeTool={project.activeTool} onToolButtonClick={handleToolButtonClick} />
 
-          <div className="bottom-overlay">
+          <div className="storey-overlay">
             <StoreyHeightStrip
               storeys={project.storeys}
               selection={project.selection}
@@ -396,6 +396,9 @@ export function AppShell() {
                 select({ kind: "storey", id: storeyId });
               }}
             />
+          </div>
+
+          <div className="bottom-overlay">
             <ViewTabs activeView={project.activeView} onViewChange={setView} />
           </div>
 

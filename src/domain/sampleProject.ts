@@ -144,6 +144,7 @@ export function createSampleProject(): HouseProject {
     mode: "2d",
     activeView: "plan-1f",
     activeTool: "select",
+    selection: { kind: "storey", id: storeys[0].id },
     storeys,
     materials,
     walls,
