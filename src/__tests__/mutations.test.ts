@@ -10,6 +10,7 @@ import {
   updateRoof,
   toggleRoofEdge,
   addSkirt,
+  updateSkirt,
 } from "../domain/mutations";
 import { createSampleProject } from "../domain/sampleProject";
 
@@ -332,6 +333,31 @@ describe("storey mutations clear roof", () => {
     // Sample has 1f, 2f, 3f — remove 2f.
     const next = removeStorey(project, "2f");
     expect(next.roof).toBeUndefined();
+  });
+});
+
+describe("updateSkirt", () => {
+  it("applies a patch and validates ranges", () => {
+    let project = createSampleProject();
+    project = addSkirt(project, "wall-front-2f");
+    const id = project.skirts[0].id;
+    const next = updateSkirt(project, id, { depth: 1.5, pitch: Math.PI / 4 });
+    expect(next.skirts[0].depth).toBeCloseTo(1.5);
+    expect(next.skirts[0].pitch).toBeCloseTo(Math.PI / 4);
+  });
+
+  it("rejects pitch out of range", () => {
+    let project = createSampleProject();
+    project = addSkirt(project, "wall-front-2f");
+    const id = project.skirts[0].id;
+    expect(() => updateSkirt(project, id, { pitch: Math.PI })).toThrow();
+  });
+
+  it("rejects offset+width exceeding wall length", () => {
+    let project = createSampleProject();
+    project = addSkirt(project, "wall-front-2f");
+    const id = project.skirts[0].id;
+    expect(() => updateSkirt(project, id, { offset: 8, width: 5 })).toThrow();
   });
 });
 

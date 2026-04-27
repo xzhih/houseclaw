@@ -1,8 +1,8 @@
-import { storeyTop } from "./measurements";
+import { storeyTop, wallLength } from "./measurements";
 import { assertValidProject } from "./constraints";
 import { canBuildRoof } from "./views";
 import { createSkirtDraft } from "./drafts";
-import type { Balcony, HouseProject, Opening, Point2, Roof, RoofEdgeKind, Stair, Storey, Wall } from "./types";
+import type { Balcony, HouseProject, Opening, Point2, Roof, RoofEdgeKind, SkirtRoof, Stair, Storey, Wall } from "./types";
 
 export type OpeningPatch = Partial<Omit<Opening, "id" | "wallId">>;
 export type WallPatch = Partial<Omit<Wall, "id" | "storeyId" | "start" | "end">>;
@@ -42,6 +42,52 @@ export function addSkirt(project: HouseProject, hostWallId: string): HouseProjec
   if (!wall.exterior) throw new Error(`Skirt must attach to an exterior wall`);
   const skirt = createSkirtDraft(project, wall);
   return { ...project, skirts: [...project.skirts, skirt] };
+}
+
+export type SkirtPatch = Partial<Omit<SkirtRoof, "id" | "hostWallId">>;
+
+const SKIRT_LIMITS = {
+  width: { min: 0.3 },
+  depth: { min: 0.3, max: 4 },
+  overhang: { min: 0.05, max: 1.5 },
+  pitch: { min: Math.PI / 36, max: Math.PI / 3 },
+};
+
+export function updateSkirt(
+  project: HouseProject,
+  id: string,
+  patch: SkirtPatch,
+): HouseProject {
+  const idx = project.skirts.findIndex((s) => s.id === id);
+  if (idx === -1) throw new Error(`Skirt ${id} not found`);
+  const current = project.skirts[idx];
+  const merged: SkirtRoof = { ...current, ...patch };
+
+  const wall = project.walls.find((w) => w.id === merged.hostWallId);
+  if (!wall) throw new Error(`Host wall ${merged.hostWallId} not found`);
+  const wlen = wallLength(wall);
+  const storey = project.storeys.find((s) => s.id === wall.storeyId);
+  if (!storey) throw new Error(`Storey ${wall.storeyId} not found`);
+
+  if (merged.offset < 0) throw new Error("offset 不能为负");
+  if (merged.width < SKIRT_LIMITS.width.min) throw new Error("宽度过小");
+  if (merged.offset + merged.width > wlen + 1e-6) throw new Error("披檐超出墙长");
+  if (merged.depth < SKIRT_LIMITS.depth.min || merged.depth > SKIRT_LIMITS.depth.max) {
+    throw new Error("外伸深度超出范围");
+  }
+  if (merged.overhang < SKIRT_LIMITS.overhang.min || merged.overhang > SKIRT_LIMITS.overhang.max) {
+    throw new Error("出檐超出范围");
+  }
+  if (merged.pitch < SKIRT_LIMITS.pitch.min || merged.pitch > SKIRT_LIMITS.pitch.max) {
+    throw new Error("坡度超出范围");
+  }
+  if (merged.elevation <= storey.elevation || merged.elevation > storey.elevation + storey.height + 1e-6) {
+    throw new Error("挂接高度必须在所属楼层范围内");
+  }
+
+  const skirts = [...project.skirts];
+  skirts[idx] = merged;
+  return { ...project, skirts };
 }
 
 export function updateOpening(project: HouseProject, openingId: string, patch: OpeningPatch): HouseProject {
