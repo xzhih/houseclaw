@@ -400,6 +400,14 @@ function elevationBounds(projection: ElevationProjection): Bounds {
       }
     }
   }
+  if (projection.skirts) {
+    for (const poly of projection.skirts) {
+      for (const v of poly.vertices) {
+        xValues.push(v.x);
+        yValues.push(v.y);
+      }
+    }
+  }
 
   if (xValues.length === 0 || yValues.length === 0) {
     return { minX: 0, maxX: 1, minY: 0, maxY: 1 };
@@ -1066,6 +1074,21 @@ function renderElevation(
           <polygon
             key={`roof-${poly.kind}-${index}`}
             className={`elevation-roof elevation-roof--${poly.kind}`}
+            points={points}
+          />
+        );
+      })}
+      {projection.skirts?.map((poly, index) => {
+        const points = poly.vertices
+          .map((v) => {
+            const p = projectPoint(v);
+            return `${p.x},${p.y}`;
+          })
+          .join(" ");
+        return (
+          <polygon
+            key={`skirt-${poly.kind}-${index}`}
+            className={`elevation-roof elevation-roof--${poly.kind === "panel" ? "panel" : "gable"}`}
             points={points}
           />
         );
