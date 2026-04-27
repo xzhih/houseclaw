@@ -200,6 +200,39 @@ describe("2D projections", () => {
     expect(planFor3F.stairs[0].half).toBe("upper");
   });
 
+  it("populates rotation and center on PlanStairSymbol", () => {
+    // createSampleProject has stairs on 2F and 3F with no rotation set (undefined → 0).
+    const project = createSampleProject();
+    const planFor2F = projectPlanView(project, "2f");
+    const upperHalf = planFor2F.stairs.find((s) => s.storeyId === "2f" && s.half === "upper");
+    expect(upperHalf).toBeDefined();
+    expect(upperHalf!.rotation).toBe(0);
+    expect(upperHalf!.center).toMatchObject({
+      x: expect.any(Number),
+      y: expect.any(Number),
+    });
+    // Center should be the midpoint of the stair's bounding rect.
+    const twoF = project.storeys.find((s) => s.id === "2f")!;
+    const stair = twoF.stair!;
+    expect(upperHalf!.center.x).toBeCloseTo(stair.x + stair.width / 2, 6);
+    expect(upperHalf!.center.y).toBeCloseTo(stair.y + stair.depth / 2, 6);
+  });
+
+  it("propagates a non-zero rotation from the Stair data model into PlanStairSymbol", () => {
+    const project = createSampleProject();
+    const twoF = project.storeys.find((s) => s.id === "2f")!;
+    const stairWithRot = { ...twoF.stair!, rotation: Math.PI / 6 };
+    const modifiedProject = {
+      ...project,
+      storeys: project.storeys.map((s) =>
+        s.id === "2f" ? { ...s, stair: stairWithRot } : s,
+      ),
+    };
+    const planFor2F = projectPlanView(modifiedProject, "2f");
+    const upperHalf = planFor2F.stairs.find((s) => s.storeyId === "2f" && s.half === "upper");
+    expect(upperHalf!.rotation).toBeCloseTo(Math.PI / 6, 6);
+  });
+
   it("flips the back elevation horizontally relative to the front", () => {
     // Front and back of the same symmetric box; place identical-shape openings on both walls
     // at offsets that place them at the same *world* x. From outside, the back view should

@@ -36,6 +36,11 @@ export function projectPlanView(project: HouseProject, storeyId: string): PlanPr
       treadCount: cfg.treadCount,
       turn: currentStorey.stair.turn,
       color: colorForStair(project, currentStorey.stair),
+      rotation: currentStorey.stair.rotation ?? 0,
+      center: {
+        x: currentStorey.stair.x + currentStorey.stair.width / 2,
+        y: currentStorey.stair.y + currentStorey.stair.depth / 2,
+      },
     });
   }
 
@@ -56,6 +61,11 @@ export function projectPlanView(project: HouseProject, storeyId: string): PlanPr
       treadCount: cfg.treadCount,
       turn: upperStorey.stair.turn,
       color: colorForStair(project, upperStorey.stair),
+      rotation: upperStorey.stair.rotation ?? 0,
+      center: {
+        x: upperStorey.stair.x + upperStorey.stair.width / 2,
+        y: upperStorey.stair.y + upperStorey.stair.depth / 2,
+      },
     });
   }
 

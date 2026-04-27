@@ -3,6 +3,7 @@ import type { ObjectSelection } from "../domain/selection";
 import { isSelected } from "../domain/selection";
 import { wallLength } from "../domain/measurements";
 import { moveWall, updateBalcony, updateOpening } from "../domain/mutations";
+import { rotatePoint } from "../domain/stairs";
 import type { HouseProject, Point2, ToolId, ViewId } from "../domain/types";
 import { snapPlanPoint, snapToEndpoint } from "../geometry/snapping";
 import { buildWallNetwork, slicePanelFootprint, type WallFootprint } from "../geometry/wallNetwork";
@@ -415,6 +416,10 @@ function buildStairSymbolGeometry(
 ): StairSymbolGeometry {
   const { rect, bottomEdge, treadDepth, treadCount, shape } = stair;
 
+  // Rotate a world-space plan point around the stair's center before projecting.
+  const rotateAndProject = (p: Point2): Point2D =>
+    projectPoint(stair.rotation !== 0 ? rotatePoint(p, stair.center, stair.rotation) : p);
+
   // Map (run, cross) — local coords where run=0 is bottomEdge — to world (x, y).
   const worldFromRunCross = (run: number, cross: number): Point2 => {
     switch (bottomEdge) {
@@ -426,17 +431,17 @@ function buildStairSymbolGeometry(
   };
   const runLength = bottomEdge === "+y" || bottomEdge === "-y" ? rect.depth : rect.width;
   const crossLength = bottomEdge === "+y" || bottomEdge === "-y" ? rect.width : rect.depth;
-  const proj = (run: number, cross: number) => projectPoint(worldFromRunCross(run, cross));
+  const proj = (run: number, cross: number) => rotateAndProject(worldFromRunCross(run, cross));
 
   const rectAt = (r0: number, c0: number, r1: number, c1: number): Point2D[] => [
     proj(r0, c0), proj(r0, c1), proj(r1, c1), proj(r1, c0),
   ];
 
   const outline: Point2D[] = [
-    projectPoint({ x: rect.x, y: rect.y }),
-    projectPoint({ x: rect.x + rect.width, y: rect.y }),
-    projectPoint({ x: rect.x + rect.width, y: rect.y + rect.depth }),
-    projectPoint({ x: rect.x, y: rect.y + rect.depth }),
+    rotateAndProject({ x: rect.x, y: rect.y }),
+    rotateAndProject({ x: rect.x + rect.width, y: rect.y }),
+    rotateAndProject({ x: rect.x + rect.width, y: rect.y + rect.depth }),
+    rotateAndProject({ x: rect.x, y: rect.y + rect.depth }),
   ];
 
   const flights: Point2D[][] = [];

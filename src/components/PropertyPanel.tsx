@@ -344,6 +344,15 @@ function StairEditor({ project, id, onProjectChange }: EditorProps) {
         <MmField label="进深" value={stair.depth} min={0.6} onCommit={(depth) => apply({ depth })} />
         <MmField label="位置 X" value={stair.x} min={0} onCommit={(x) => apply({ x })} />
         <MmField label="位置 Y" value={stair.y} min={0} onCommit={(y) => apply({ y })} />
+        <NumberField
+          label="旋转角度"
+          value={Math.round((stair.rotation ?? 0) * (180 / Math.PI))}
+          step={1}
+          min={-180}
+          max={180}
+          unit="°"
+          onCommit={(deg) => apply({ rotation: deg * (Math.PI / 180) })}
+        />
         <MmField
           label="踏步深度"
           value={stair.treadDepth}
