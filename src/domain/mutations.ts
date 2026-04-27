@@ -364,7 +364,9 @@ export function duplicateStorey(project: HouseProject, sourceStoreyId: string): 
     elevation,
     height: source.height,
     slabThickness: source.slabThickness,
-    stair: source.stair ? { ...source.stair } : undefined,
+    // Drop the stair on the duplicate: it becomes the new top storey, which
+    // cannot own a stair under the lower-storey ownership rule.
+    stair: undefined,
   };
 
   return assertValidProject({

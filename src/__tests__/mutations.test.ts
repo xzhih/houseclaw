@@ -191,14 +191,12 @@ describe("duplicateStorey", () => {
     expect(cloneBalconies).toHaveLength(sourceBalconies.length);
   });
 
-  it("copies stair opening when the source has one", () => {
+  it("drops the stair on the duplicate (it becomes the new top storey)", () => {
     const project = createSampleProject();
     const next = duplicateStorey(project, "2f");
     const clone = next.storeys[next.storeys.length - 1];
 
-    expect(clone.stair).toBeDefined();
-    expect(clone.stair?.x).toBeCloseTo(0.6);
-    expect(clone.stair?.depth).toBeCloseTo(2.5);
+    expect(clone.stair).toBeUndefined();
   });
 
   it("preserves wall geometry (start/end points) from the source", () => {
