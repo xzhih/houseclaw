@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   resolveHorizontalCollision,
   resolveVerticalState,
+  pickFloorSwitchXZ,
   type HorizontalProbe,
   type VerticalProbe,
 } from "../rendering/walkPhysics";
@@ -179,6 +180,61 @@ describe("resolveVerticalState", () => {
       probe,
     );
     expect(next).toBe("respawn");
+  });
+
+  it("reports grounded=true on the snap branch and false in free fall", () => {
+    const groundProbe: VerticalProbe = () => 0;
+    const grounded = resolveVerticalState({ cameraY: 1.6, vy: 0 }, { x: 0, z: 0 }, 0.016, config, groundProbe);
+    if (grounded === "respawn") throw new Error("expected snap");
+    expect(grounded.grounded).toBe(true);
+
+    const fallProbe: VerticalProbe = () => -3.0;
+    const falling = resolveVerticalState({ cameraY: 1.6, vy: 0 }, { x: 0, z: 0 }, 0.1, config, fallProbe);
+    if (falling === "respawn") throw new Error("expected fall");
+    expect(falling.grounded).toBe(false);
+  });
+
+  it("preserves a positive vy (jump) instead of snapping it to zero", () => {
+    // Right after a jump, the player is still within snapThreshold of the
+    // floor. If the snap branch fired with vy>0, the jump would be cancelled
+    // immediately. Gating snap on vy<=0 lets the impulse carry the camera up.
+    const probe: VerticalProbe = () => 0; // floor at y=0, feet at y=0 → drop=0
+    const next = resolveVerticalState(
+      { cameraY: 1.6, vy: 4.5 },
+      { x: 0, z: 0 },
+      0.016,
+      config,
+      probe,
+    );
+    if (next === "respawn") throw new Error("expected rise");
+    expect(next.grounded).toBe(false);
+    expect(next.vy).toBeLessThan(4.5); // gravity has decayed it slightly
+    expect(next.vy).toBeGreaterThan(4.0); // but it's still moving up
+    expect(next.cameraY).toBeGreaterThan(1.6); // camera rose
+  });
+});
+
+describe("pickFloorSwitchXZ", () => {
+  const bounds = { minX: -5, maxX: 5, minZ: -3, maxZ: 3 };
+
+  it("preserves XZ when the player is inside the building footprint", () => {
+    const out = pickFloorSwitchXZ({ x: 1.2, z: -0.4 }, bounds);
+    expect(out).toEqual({ x: 1.2, z: -0.4 });
+  });
+
+  it("falls back to the building center when player is outside in X", () => {
+    const out = pickFloorSwitchXZ({ x: 99, z: 0 }, bounds);
+    expect(out).toEqual({ x: 0, z: 0 });
+  });
+
+  it("falls back to the building center when player is outside in Z", () => {
+    const out = pickFloorSwitchXZ({ x: 0, z: -99 }, bounds);
+    expect(out).toEqual({ x: 0, z: 0 });
+  });
+
+  it("treats the boundary as inside (inclusive)", () => {
+    const out = pickFloorSwitchXZ({ x: 5, z: 3 }, bounds);
+    expect(out).toEqual({ x: 5, z: 3 });
   });
 });
 

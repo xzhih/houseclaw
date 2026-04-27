@@ -9,13 +9,21 @@ import {
 const EYE_HEIGHT = 1.6;
 const CHEST_OFFSET_BELOW_EYE = 0.6;
 const PLAYER_RADIUS = 0.3;
-const FOV_DEGREES = 70;
+const FOV_DEGREES = 80;
 const WALK_SPEED = 1.4;
 const RUN_SPEED = 2.8;
 const GRAVITY = -9.8;
 const SNAP_THRESHOLD = 0.2;
-const MAX_DOWN_RAY = 5;
-const STEP_RATE = 5; // m/s — vertical lerp speed when snapping onto a new surface
+// Down-ray spans the whole house plus margin so falling from a rooftop lands on
+// the ground instead of triggering a respawn (formerly 5m, which respawned the
+// player whenever they were >5m above any geometry).
+const MAX_DOWN_RAY = 50;
+// Vertical lerp speed when snapping onto a new surface. Higher = stairs feel
+// more like a smooth ramp than a sequence of micro-pops.
+const STEP_RATE = 8;
+// Initial upward velocity on jump. ~1m apex over ~0.45s — enough to step over
+// thresholds but not pop above doorways.
+const JUMP_VELOCITY = 4.5;
 const MOUSE_SENSITIVITY = 0.0025;
 const PITCH_LIMIT = THREE.MathUtils.degToRad(85);
 
@@ -37,7 +45,11 @@ export type WalkControls = {
   enable(spawn: WalkSpawn): void;
   disable(): void;
   setSpawn(spawn: WalkSpawn): void;
+  /** Teleport the camera to a new position while preserving yaw/pitch. Used
+   * for explicit floor switches so the user keeps their look direction. */
+  teleportTo(position: { x: number; y: number; z: number }): void;
   getYaw(): number;
+  getPosition(): { x: number; z: number };
   dispose(): void;
 };
 
@@ -55,6 +67,7 @@ export function attachWalkControls(
   let yaw = 0;
   let pitch = 0;
   let vy = 0;
+  let grounded = false;
   let enabled = false;
   let respawnPosition: WalkSpawn = { x: 0, y: EYE_HEIGHT, z: 0, yaw: 0, pitch: 0 };
   let rafId = 0;
@@ -94,6 +107,15 @@ export function attachWalkControls(
     }
     if (event.key === "1" || event.key === "2" || event.key === "3") {
       callbacks.onDigitKey(Number(event.key));
+      return;
+    }
+    if (event.code === "Space" || event.key === " ") {
+      // Block default scroll; jump only when grounded so you can't double-jump.
+      event.preventDefault();
+      if (grounded) {
+        vy = JUMP_VELOCITY;
+        grounded = false;
+      }
       return;
     }
     keys.add(event.key.toLowerCase());
@@ -167,9 +189,11 @@ export function attachWalkControls(
     if (verticalNext === "respawn") {
       camera.position.set(respawnPosition.x, respawnPosition.y, respawnPosition.z);
       vy = 0;
+      grounded = false;
     } else {
       camera.position.y = verticalNext.cameraY;
       vy = verticalNext.vy;
+      grounded = verticalNext.grounded;
     }
 
     // 4. Apply look
@@ -219,14 +243,24 @@ export function attachWalkControls(
     yaw = spawn.yaw;
     pitch = spawn.pitch;
     vy = 0;
+    grounded = false;
     respawnPosition = { ...spawn };
+  };
+
+  const teleportTo = (position: { x: number; y: number; z: number }) => {
+    camera.position.set(position.x, position.y, position.z);
+    vy = 0;
+    grounded = false;
+    respawnPosition = { x: position.x, y: position.y, z: position.z, yaw, pitch };
   };
 
   return {
     enable,
     disable,
     setSpawn,
+    teleportTo,
     getYaw: () => yaw,
+    getPosition: () => ({ x: camera.position.x, z: camera.position.z }),
     dispose: () => {
       disable();
     },

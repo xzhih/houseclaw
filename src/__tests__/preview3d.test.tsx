@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
 const setCameraMode = vi.fn();
-const setActiveStorey = vi.fn();
+const teleportToStorey = vi.fn();
 const setLighting = vi.fn();
 const dispose = vi.fn();
 
@@ -18,7 +18,7 @@ vi.mock("../rendering/threeScene", () => ({
   },
   mountHouseScene: vi.fn(() => ({
     setCameraMode,
-    setActiveStorey,
+    teleportToStorey,
     setLighting,
     dispose,
   })),
@@ -39,15 +39,26 @@ describe("Preview3D camera-mode wiring", () => {
     expect(setCameraMode).toHaveBeenCalledWith("walk");
   });
 
-  it("forwards floor-button clicks to setActiveStorey while in walk mode", async () => {
-    setActiveStorey.mockReset();
+  it("forwards floor-button clicks to teleportToStorey while in walk mode", async () => {
+    teleportToStorey.mockReset();
     const user = userEvent.setup();
     render(<Preview3D project={createSampleProject()} />);
 
     await user.click(screen.getByRole("button", { name: "漫游" }));
     await user.click(screen.getByRole("button", { name: "2F" }));
 
-    expect(setActiveStorey).toHaveBeenCalledWith("2f");
+    expect(teleportToStorey).toHaveBeenCalledWith("2f");
+  });
+
+  it("does NOT teleport when activeStoreyId changes from passive HUD detection", async () => {
+    // Regression: previously a useEffect on activeStoreyId would teleport the
+    // camera every time the player walked across a storey boundary, producing
+    // the jarring "切换" jolt when ascending stairs. The HUD update path must
+    // never reach teleportToStorey.
+    teleportToStorey.mockReset();
+    render(<Preview3D project={createSampleProject()} />);
+    // No interaction → no teleports. Entering walk mode alone shouldn't fire it.
+    expect(teleportToStorey).not.toHaveBeenCalled();
   });
 
   it("hides floor buttons in orbit mode", () => {

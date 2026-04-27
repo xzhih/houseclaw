@@ -62,10 +62,18 @@ export function Preview3D({ project }: Preview3DProps) {
       sceneRef.current = mountHouseScene(host, project, {
         onWalkExit: () => setCameraMode("orbit"),
         onDigitKey: (digit) => {
+          // Explicit floor jump — update HUD AND teleport. Distinct from
+          // onCameraMove which is a passive HUD-only update.
           const storey = projectRef.current.storeys[digit - 1];
-          if (storey) setActiveStoreyId(storey.id);
+          if (storey) {
+            setActiveStoreyId(storey.id);
+            sceneRef.current?.teleportToStorey(storey.id);
+          }
         },
         onCameraMove: (cameraY) => {
+          // HUD highlight only — never teleport. The user is walking; their
+          // position is already where they want it. Auto-teleporting on
+          // storey crossing was the source of the upstairs "切换" jolt.
           const storeys = projectRef.current.storeys;
           const feetY = cameraY - 1.6;
           // Pick the highest storey whose elevation <= feetY (closest floor below feet).
@@ -95,14 +103,15 @@ export function Preview3D({ project }: Preview3DProps) {
   }, [cameraMode]);
 
   useEffect(() => {
-    if (cameraMode === "walk") {
-      sceneRef.current?.setActiveStorey(activeStoreyId);
-    }
-  }, [cameraMode, activeStoreyId]);
-
-  useEffect(() => {
     sceneRef.current?.setLighting(lighting);
   }, [lighting]);
+
+  const handleFloorButton = (storeyId: string) => {
+    setActiveStoreyId(storeyId);
+    if (cameraMode === "walk") {
+      sceneRef.current?.teleportToStorey(storeyId);
+    }
+  };
 
   const updateLighting = <K extends keyof LightingParams>(key: K, value: LightingParams[K]) => {
     setLightingState((prev) => ({ ...prev, [key]: value }));
@@ -229,13 +238,13 @@ export function Preview3D({ project }: Preview3DProps) {
                   key={storey.id}
                   type="button"
                   className={storey.id === activeStoreyId ? "is-active" : ""}
-                  onClick={() => setActiveStoreyId(storey.id)}
+                  onClick={() => handleFloorButton(storey.id)}
                 >
                   {storey.label}
                 </button>
               ))}
             </div>
-            <p className="walk-hint">Esc 退出 · WASD 移动 · 鼠标看 · 1/2/3 切楼层</p>
+            <p className="walk-hint">Esc 退出 · WASD 移动 · 空格跳 · 鼠标看 · 1/2/3 跳楼层</p>
           </div>
         </>
       )}
