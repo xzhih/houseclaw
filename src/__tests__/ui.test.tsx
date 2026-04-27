@@ -380,3 +380,41 @@ describe("roof view", () => {
     expect(screen.queryByRole("combobox")).toBeNull();
   });
 });
+
+describe("skirt roof", () => {
+  it("ToolPalette has 添加披檐 entry", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole("button", { name: "添加组件" }));
+    expect(screen.getByRole("menuitem", { name: "添加披檐" })).toBeInTheDocument();
+  });
+
+  it("adding a skirt selects it and surfaces SkirtEditor with material swatches", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole("button", { name: "添加组件" }));
+    await user.click(screen.getByRole("menuitem", { name: "添加披檐" }));
+    // If storey sub-menu appears, pick 1F.
+    const oneF = screen.queryByRole("menuitem", { name: "1F" });
+    if (oneF) await user.click(oneF);
+    // SkirtEditor heading visible.
+    expect(await screen.findByRole("heading", { name: /披檐/ })).toBeInTheDocument();
+    // Material swatches: 灰瓦 should be aria-pressed (default chosen).
+    const grayTile = screen.getByRole("button", { name: "灰瓦" });
+    expect(grayTile).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("changing pitch via SkirtEditor accepts the value", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole("button", { name: "添加组件" }));
+    await user.click(screen.getByRole("menuitem", { name: "添加披檐" }));
+    const oneF = screen.queryByRole("menuitem", { name: "1F" });
+    if (oneF) await user.click(oneF);
+    const pitchField = await screen.findByRole("spinbutton", { name: /坡度/ });
+    await user.clear(pitchField);
+    await user.type(pitchField, "20");
+    await user.tab();
+    expect((pitchField as HTMLInputElement).value).toBe("20");
+  });
+});
