@@ -100,4 +100,5 @@ export type ElevationProjection = {
   openings: ElevationOpeningRect[];
   balconies: ElevationBalconyRect[];
   roof?: ElevationRoofPolygon[];
+  skirts?: ElevationRoofPolygon[];
 };

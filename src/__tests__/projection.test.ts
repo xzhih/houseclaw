@@ -255,6 +255,16 @@ describe("2D projections", () => {
     expect(upperHalf!.rotation).toBeCloseTo(Math.PI / 6, 6);
   });
 
+  describe("elevation — skirts", () => {
+    it("includes skirt polygons in front elevation when skirt is on a front wall", () => {
+      let project = createSampleProject();
+      project = addSkirt(project, "wall-front-2f");
+      const front = projectElevationView(project, "front");
+      expect(front.skirts).toBeDefined();
+      expect(front.skirts!.length).toBeGreaterThan(0);
+    });
+  });
+
   describe("plan view — skirts", () => {
     it("includes skirts for the queried storey only", () => {
       let project = createSampleProject();
