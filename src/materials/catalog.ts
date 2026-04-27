@@ -24,6 +24,13 @@ export const materialCatalog: readonly Material[] = [
     color: "#8a4f3a",
   },
   {
+    id: "mat-gray-tile",
+    name: "灰瓦",
+    kind: "roof",
+    // 深灰小青瓦，中式坡屋顶常见
+    color: "#3a3f43",
+  },
+  {
     id: "mat-dark-frame",
     name: "深灰窗框",
     kind: "frame",
