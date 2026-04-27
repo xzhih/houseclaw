@@ -7,6 +7,7 @@ import { rotatePoint } from "../domain/stairs";
 import type { HouseProject, Point2, ToolId, ViewId } from "../domain/types";
 import { planStoreyIdFromView } from "../domain/views";
 import { snapPlanPoint, snapToEndpoint } from "../geometry/snapping";
+import { collectPlanAnchors, findAxisAlignedGuides, type GuideMatch } from "../geometry/smartGuides";
 import { buildWallNetwork, slicePanelFootprint, type WallFootprint } from "../geometry/wallNetwork";
 import { elevationOffsetSign, projectElevationView } from "../projection/elevation";
 import { projectPlanView } from "../projection/plan";
@@ -22,6 +23,7 @@ import type {
 } from "../projection/types";
 import { GridOverlay } from "./canvas/GridOverlay";
 import { ScaleRuler } from "./canvas/ScaleRuler";
+import { SmartGuides } from "./canvas/SmartGuides";
 import { StatusReadout } from "./canvas/StatusReadout";
 import { ZoomControls } from "./canvas/ZoomControls";
 import type { DragReadout } from "./canvas/types";
@@ -1152,6 +1154,7 @@ export function DrawingSurface2D({
   const [cursorWorld, setCursorWorld] = useState<Point2D | null>(null);
   const [gridVisible, setGridVisible] = useState(true);
   const [dragReadout, setDragReadout] = useState<DragReadout | null>(null);
+  const [guideMatches, setGuideMatches] = useState<GuideMatch[]>([]);
 
   useEffect(() => {
     setViewport(DEFAULT_VIEWPORT);
@@ -1649,6 +1652,10 @@ export function DrawingSurface2D({
     const dx = currentWorld.x - state.startWorld.x;
     const dy = currentWorld.y - state.startWorld.y;
 
+    if (state.kind !== "wall-endpoint" && state.kind !== "stair-resize") {
+      setGuideMatches([]);
+    }
+
     try {
       switch (state.kind) {
         case "wall-translate": {
@@ -1689,15 +1696,45 @@ export function DrawingSurface2D({
           const candidate = { x: state.origPoint.x + dx, y: state.origPoint.y + dy };
           const endpointSnap = snapToEndpoint(candidate, others, PLAN_ENDPOINT_THRESHOLD);
           setActiveSnap(endpointSnap ?? null);
-          const newPt = roundPointToMm(
-            snapPlanPoint(candidate, others, {
+
+          let resolved: Point2D;
+          if (endpointSnap) {
+            resolved = endpointSnap;
+            setGuideMatches([]);
+          } else if (planProjection) {
+            const anchors = collectPlanAnchors(
+              planProjection,
+              new Set([`wall:${state.wallId}`]),
+            );
+            const matches = findAxisAlignedGuides(candidate, anchors, PLAN_ENDPOINT_THRESHOLD);
+            setGuideMatches(matches);
+            if (matches.length > 0) {
+              let x = candidate.x;
+              let y = candidate.y;
+              for (const m of matches) {
+                if (m.axis === "x") x = m.pos;
+                if (m.axis === "y") y = m.pos;
+              }
+              resolved = { x, y };
+            } else {
+              resolved = snapPlanPoint(candidate, others, {
+                gridSize: PLAN_GRID_SIZE,
+                endpointThreshold: PLAN_ENDPOINT_THRESHOLD,
+              });
+            }
+          } else {
+            setGuideMatches([]);
+            resolved = snapPlanPoint(candidate, others, {
               gridSize: PLAN_GRID_SIZE,
               endpointThreshold: PLAN_ENDPOINT_THRESHOLD,
-            }),
-          );
+            });
+          }
+
+          const newPt = roundPointToMm(resolved);
           const newStart = state.endpoint === "start" ? newPt : roundPointToMm(state.fixedPoint);
           const newEnd = state.endpoint === "end" ? newPt : roundPointToMm(state.fixedPoint);
           onProjectChange(moveWall(project, state.wallId, newStart, newEnd));
+
           const endpointLen = Math.hypot(newPt.x - state.fixedPoint.x, newPt.y - state.fixedPoint.y);
           setDragReadout({ kind: "wall-endpoint", length: roundToMm(endpointLen) });
           break;
@@ -1876,7 +1913,28 @@ export function DrawingSurface2D({
         }
         case "stair-resize": {
           const minSize = 0.6;
-          const mouseWorld = currentWorld;
+          let adjusted: Point2D = currentWorld;
+          if (planProjection) {
+            const anchors = collectPlanAnchors(
+              planProjection,
+              new Set([`stair:${state.storeyId}`]),
+            );
+            const matches = findAxisAlignedGuides(currentWorld, anchors, PLAN_ENDPOINT_THRESHOLD);
+            setGuideMatches(matches);
+            if (matches.length > 0) {
+              let x = currentWorld.x;
+              let y = currentWorld.y;
+              for (const m of matches) {
+                if (m.axis === "x") x = m.pos;
+                if (m.axis === "y") y = m.pos;
+              }
+              adjusted = { x, y };
+            }
+          } else {
+            setGuideMatches([]);
+          }
+          const mouseWorld = adjusted;
+
           const newCenter: Point2D = {
             x: (state.worldAnchor.x + mouseWorld.x) / 2,
             y: (state.worldAnchor.y + mouseWorld.y) / 2,
@@ -1988,6 +2046,7 @@ export function DrawingSurface2D({
       setDragState(undefined);
       setActiveSnap(null);
       setDragReadout(null);
+      setGuideMatches([]);
       if (svgRef.current?.hasPointerCapture(event.pointerId)) {
         svgRef.current.releasePointerCapture(event.pointerId);
       }
@@ -2084,6 +2143,14 @@ export function DrawingSurface2D({
                 elevationDragHandlers,
               )
             : renderRoofPlaceholder()}
+        {storeyId && planMapping ? (
+          <SmartGuides
+            matches={guideMatches}
+            cursorWorld={cursorWorld}
+            mapping={planMapping}
+            viewport={viewport}
+          />
+        ) : null}
       </svg>
       {(() => {
         const activeMapping = planMapping ?? elevationMapping;

@@ -915,6 +915,13 @@ select {
   filter: drop-shadow(0 0 4px rgba(37, 99, 235, 0.6));
 }
 
+.smart-guide-line {
+  stroke: #ff8a3d;
+  stroke-dasharray: 4 3;
+  fill: none;
+  vector-effect: non-scaling-stroke;
+}
+
 .wall-endpoint-handle:hover,
 .resize-handle:hover {
   fill: rgba(255, 245, 236, 0.7);
