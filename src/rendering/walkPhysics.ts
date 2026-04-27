@@ -68,7 +68,7 @@ export function resolveVerticalState(
   probe: VerticalProbe,
 ): VerticalState | "respawn" {
   const feetY = state.cameraY - config.eyeHeight;
-  const origin: Vec3 = { x: cameraXZ.x, y: feetY + 0.01, z: cameraXZ.z };
+  const origin: Vec3 = { x: cameraXZ.x, y: feetY + config.snapThreshold, z: cameraXZ.z };
   const surfaceY = probe(origin, config.maxRayLength);
 
   if (surfaceY === null) {
