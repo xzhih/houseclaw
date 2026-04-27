@@ -63,15 +63,16 @@ export function buildHouseGeometry(project: HouseProject): HouseGeometry {
 
   const sortedStoreys = [...project.storeys].sort((a, b) => a.elevation - b.elevation);
 
-  // Compute a tight slab-hole polygon per storey based on the actual stair footprint
-  // (union of flights + landings), not the bbox. Without this the U/L flights leave
-  // empty hole space the walker can fall through when stepping from stair to slab.
+  // Compute a tight slab-hole polygon per storey based on the actual stair footprint.
+  // After the ownership flip the stair record lives on the LOWER storey of each climb;
+  // the slab being cut is the UPPER storey's slab.
   const slabHoleByStorey = new Map<string, Point2[]>();
-  for (let i = 1; i < sortedStoreys.length; i += 1) {
-    const storey = sortedStoreys[i];
-    if (!storey.stair) continue;
-    const climb = storey.elevation - sortedStoreys[i - 1].elevation;
-    slabHoleByStorey.set(storey.id, stairFootprintPolygon(storey.stair, climb));
+  for (let i = 0; i < sortedStoreys.length - 1; i += 1) {
+    const lowerStorey = sortedStoreys[i];
+    const upperStorey = sortedStoreys[i + 1];
+    if (!lowerStorey.stair) continue;
+    const climb = upperStorey.elevation - lowerStorey.elevation;
+    slabHoleByStorey.set(upperStorey.id, stairFootprintPolygon(lowerStorey.stair, climb));
   }
 
   const slabs: SlabGeometry[] = [];
@@ -98,15 +99,16 @@ export function buildHouseGeometry(project: HouseProject): HouseGeometry {
   }
 
   const stairs: StairRenderGeometry[] = [];
-  for (let i = 0; i < sortedStoreys.length; i += 1) {
-    const storey = sortedStoreys[i];
-    if (!storey.stair) continue;
-    if (i === 0) continue; // 最底层 storey 不应有 stair（防御）—— 由 constraints 阻止；这里加一道保险
-    const lowerStoreyTopY = sortedStoreys[i - 1].elevation;
-    const geom = buildStairGeometry(storey.stair, storey, lowerStoreyTopY);
+  for (let i = 0; i < sortedStoreys.length - 1; i += 1) {
+    const lowerStorey = sortedStoreys[i];
+    const upperStorey = sortedStoreys[i + 1];
+    if (!lowerStorey.stair) continue;
+    // buildStairGeometry signature: (stair, upperStorey, lowerStoreyTopY).
+    // upperStorey supplies elevation + slabThickness for climb math.
+    const geom = buildStairGeometry(lowerStorey.stair, upperStorey, lowerStorey.elevation);
     stairs.push({
-      storeyId: storey.id,
-      materialId: storey.stair.materialId,
+      storeyId: lowerStorey.id,
+      materialId: lowerStorey.stair.materialId,
       treads: geom.treads,
       landings: geom.landings,
     });
