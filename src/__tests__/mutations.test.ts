@@ -11,6 +11,7 @@ import {
   toggleRoofEdge,
   addSkirt,
   updateSkirt,
+  removeSkirt,
 } from "../domain/mutations";
 import { createSampleProject } from "../domain/sampleProject";
 
@@ -378,5 +379,26 @@ describe("addSkirt", () => {
   it("rejects when hostWallId does not exist", () => {
     const project = createSampleProject();
     expect(() => addSkirt(project, "wall-nonexistent")).toThrow();
+  });
+});
+
+describe("removeSkirt", () => {
+  it("removes the skirt and clears matching selection", () => {
+    let project = createSampleProject();
+    project = addSkirt(project, "wall-front-2f");
+    const id = project.skirts[0].id;
+    project = { ...project, selection: { kind: "skirt", id } };
+    const next = removeSkirt(project, id);
+    expect(next.skirts).toHaveLength(0);
+    expect(next.selection).toBeUndefined();
+  });
+
+  it("preserves other selections", () => {
+    let project = createSampleProject();
+    project = addSkirt(project, "wall-front-2f");
+    const id = project.skirts[0].id;
+    project = { ...project, selection: { kind: "wall", id: "wall-front-1f" } };
+    const next = removeSkirt(project, id);
+    expect(next.selection).toEqual({ kind: "wall", id: "wall-front-1f" });
   });
 });

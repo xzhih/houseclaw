@@ -90,6 +90,16 @@ export function updateSkirt(
   return { ...project, skirts };
 }
 
+export function removeSkirt(project: HouseProject, id: string): HouseProject {
+  const skirts = project.skirts.filter((s) => s.id !== id);
+  if (skirts.length === project.skirts.length) return project;
+  const selection =
+    project.selection?.kind === "skirt" && project.selection.id === id
+      ? undefined
+      : project.selection;
+  return { ...project, skirts, selection };
+}
+
 export function updateOpening(project: HouseProject, openingId: string, patch: OpeningPatch): HouseProject {
   const { id: _ignoredId, wallId: _ignoredWallId, ...allowedPatch } = patch as UnsafeOpeningPatch;
 
