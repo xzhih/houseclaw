@@ -23,6 +23,3 @@ export function pickRulerLength(pixelsPerMeter: number): number {
   }
   return bestInRange ?? bestOverall;
 }
-
-export const RULER_TARGET_PX_MIN = TARGET_PX_MIN;
-export const RULER_TARGET_PX_MAX = TARGET_PX_MAX;
