@@ -6,6 +6,7 @@ import type { RoofGeometry } from "../geometry/roofGeometry";
 import type { BalconyGeometry, HouseGeometry, SlabGeometry, WallGeometry, WallPanel } from "../geometry/types";
 import { slicePanelFootprint } from "../geometry/wallNetwork";
 import { attachWalkControls, type WalkCallbacks, type WalkSpawn } from "./walkControls";
+import { pickFloorSwitchXZ } from "./walkPhysics";
 
 export type CameraMode = "orbit" | "walk";
 
@@ -43,7 +44,11 @@ export type MountedSceneOptions = {
 
 export type MountedScene = {
   setCameraMode(mode: CameraMode): void;
-  setActiveStorey(storeyId: string): void;
+  /** Explicit floor switch — teleports the player to the requested storey,
+   * preserving XZ when they're inside the building footprint and their
+   * current view direction. Distinct from the passive HUD update driven by
+   * onCameraMove (walking up stairs must NOT teleport). */
+  teleportToStorey(storeyId: string): void;
   setLighting(params: LightingParams): void;
   dispose(): void;
 };
@@ -790,17 +795,6 @@ export function mountHouseScene(
   let currentOrbit: OrbitControls | null = attachOrbitControls(renderer, camera, scene, center, distance, container);
   let activeMode: CameraMode = "orbit";
 
-  const computeSpawn = (storeyId: string): WalkSpawn => {
-    const storey = project.storeys.find((s) => s.id === storeyId) ?? project.storeys[0];
-    return {
-      x: (bounds.minX + bounds.maxX) / 2,
-      z: (bounds.minZ + bounds.maxZ) / 2,
-      y: storey.elevation + 1.6,
-      yaw: activeMode === "walk" ? walkControls.getYaw() : 0,
-      pitch: 0,
-    };
-  };
-
   const computeInitialSpawn = (): WalkSpawn => {
     const lowestStorey = [...project.storeys].sort((a, b) => a.elevation - b.elevation)[0];
     const groundElevation = lowestStorey?.elevation ?? 0;
@@ -828,9 +822,16 @@ export function mountHouseScene(
     }
   };
 
-  const setActiveStorey = (storeyId: string) => {
+  const teleportToStorey = (storeyId: string) => {
     if (activeMode !== "walk") return;
-    walkControls.setSpawn(computeSpawn(storeyId));
+    const storey = project.storeys.find((s) => s.id === storeyId) ?? project.storeys[0];
+    if (!storey) return;
+    const xz = pickFloorSwitchXZ(walkControls.getPosition(), bounds);
+    walkControls.teleportTo({
+      x: xz.x,
+      z: xz.z,
+      y: storey.elevation + 1.6,
+    });
   };
 
   const setLighting = (params: LightingParams) => {
@@ -845,7 +846,7 @@ export function mountHouseScene(
 
   return {
     setCameraMode,
-    setActiveStorey,
+    teleportToStorey,
     setLighting,
     dispose: () => {
       walkControls.dispose();

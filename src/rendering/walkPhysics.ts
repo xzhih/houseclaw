@@ -28,6 +28,25 @@ export type VerticalState = {
   vy: number;
 };
 
+/** Result of a vertical resolve. `grounded` is true when the player is on a
+ * walkable surface (snap branch); used by walkControls to gate jump input. */
+export type VerticalResult = VerticalState & { grounded: boolean };
+
+export type Bounds2D = { minX: number; maxX: number; minZ: number; maxZ: number };
+
+/** When the player explicitly switches floors, keep them at their current XZ if
+ * they're inside the building footprint; otherwise fall back to the building
+ * center. Avoids losing your spot when peeking at another floor. */
+export function pickFloorSwitchXZ(current: Vec2XZ, bounds: Bounds2D): Vec2XZ {
+  const insideX = current.x >= bounds.minX && current.x <= bounds.maxX;
+  const insideZ = current.z >= bounds.minZ && current.z <= bounds.maxZ;
+  if (insideX && insideZ) return current;
+  return {
+    x: (bounds.minX + bounds.maxX) / 2,
+    z: (bounds.minZ + bounds.maxZ) / 2,
+  };
+}
+
 export function resolveHorizontalCollision(
   position: Vec3,
   desiredMove: Vec2XZ,
@@ -70,7 +89,7 @@ export function resolveVerticalState(
   dt: number,
   config: WalkConfig,
   probe: VerticalProbe,
-): VerticalState | "respawn" {
+): VerticalResult | "respawn" {
   const feetY = state.cameraY - config.eyeHeight;
   const origin: Vec3 = { x: cameraXZ.x, y: feetY + config.snapThreshold, z: cameraXZ.z };
   const surfaceY = probe(origin, config.maxRayLength);
@@ -80,7 +99,9 @@ export function resolveVerticalState(
   }
 
   const drop = feetY - surfaceY;
-  if (drop <= config.snapThreshold) {
+  // Snap only when the player isn't actively rising. A positive vy means a jump
+  // impulse is in flight; snapping would cancel it on the very next frame.
+  if (state.vy <= 0 && drop <= config.snapThreshold) {
     // Lerp camera Y toward the snap target at a fixed rate (m/s) instead of
     // teleporting. Each riser becomes a few-frame smooth ramp, eliminating the
     // jarring per-step jumps when climbing stairs.
@@ -91,11 +112,11 @@ export function resolveVerticalState(
       Math.abs(delta) <= maxDelta
         ? targetCameraY
         : state.cameraY + Math.sign(delta) * maxDelta;
-    return { cameraY: newCameraY, vy: 0 };
+    return { cameraY: newCameraY, vy: 0, grounded: true };
   }
 
-  // Free fall
+  // Free fall (or jump rise: positive vy decays under gravity until apex)
   const newVy = state.vy + config.gravity * dt;
   const newCameraY = state.cameraY + newVy * dt;
-  return { cameraY: newCameraY, vy: newVy };
+  return { cameraY: newCameraY, vy: newVy, grounded: false };
 }
