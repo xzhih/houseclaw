@@ -397,6 +397,114 @@ function balconyPolygon(balcony: PlanBalconyGlyph, segment: PlanWallSegment) {
   ];
 }
 
+function polyPoints(points: Point2D[]): string {
+  return points.map((p) => `${p.x},${p.y}`).join(" ");
+}
+
+type StairSymbolGeometry = {
+  outline: Point2D[];
+  flights: Point2D[][];
+  landings: Point2D[][];
+  treadLines: Array<{ from: Point2D; to: Point2D }>;
+  labelPos: Point2D;
+};
+
+function buildStairSymbolGeometry(
+  stair: PlanStairSymbol,
+  projectPoint: (point: Point2) => Point2D,
+): StairSymbolGeometry {
+  const { rect, bottomEdge, treadDepth, treadCount, shape } = stair;
+
+  // Map (run, cross) — local coords where run=0 is bottomEdge — to world (x, y).
+  const worldFromRunCross = (run: number, cross: number): Point2 => {
+    switch (bottomEdge) {
+      case "+y": return { x: rect.x + cross, y: rect.y + rect.depth - run };
+      case "-y": return { x: rect.x + cross, y: rect.y + run };
+      case "+x": return { x: rect.x + rect.width - run, y: rect.y + cross };
+      case "-x": return { x: rect.x + run, y: rect.y + cross };
+    }
+  };
+  const runLength = bottomEdge === "+y" || bottomEdge === "-y" ? rect.depth : rect.width;
+  const crossLength = bottomEdge === "+y" || bottomEdge === "-y" ? rect.width : rect.depth;
+  const proj = (run: number, cross: number) => projectPoint(worldFromRunCross(run, cross));
+
+  const rectAt = (r0: number, c0: number, r1: number, c1: number): Point2D[] => [
+    proj(r0, c0), proj(r0, c1), proj(r1, c1), proj(r1, c0),
+  ];
+
+  const outline: Point2D[] = [
+    projectPoint({ x: rect.x, y: rect.y }),
+    projectPoint({ x: rect.x + rect.width, y: rect.y }),
+    projectPoint({ x: rect.x + rect.width, y: rect.y + rect.depth }),
+    projectPoint({ x: rect.x, y: rect.y + rect.depth }),
+  ];
+
+  const flights: Point2D[][] = [];
+  const landings: Point2D[][] = [];
+  const treadLines: Array<{ from: Point2D; to: Point2D }> = [];
+
+  if (shape === "straight") {
+    flights.push(rectAt(0, 0, treadCount * treadDepth, crossLength));
+    for (let i = 1; i < treadCount; i += 1) {
+      treadLines.push({ from: proj(i * treadDepth, 0), to: proj(i * treadDepth, crossLength) });
+    }
+  } else if (shape === "l") {
+    const lw = Math.min(rect.width, rect.depth) / 2;
+    const nLow = Math.floor(treadCount / 2);
+    const nUp = treadCount - nLow - 1;
+    const turn = stair.turn ?? "right";
+    const lowerCrossStart = turn === "right" ? 0 : crossLength - lw;
+    const lowerCrossEnd = lowerCrossStart + lw;
+    flights.push(rectAt(0, lowerCrossStart, nLow * treadDepth, lowerCrossEnd));
+    for (let i = 1; i < nLow; i += 1) {
+      treadLines.push({
+        from: proj(i * treadDepth, lowerCrossStart),
+        to: proj(i * treadDepth, lowerCrossEnd),
+      });
+    }
+    landings.push(rectAt(nLow * treadDepth, lowerCrossStart, nLow * treadDepth + lw, lowerCrossEnd));
+    const upperCrossStart = turn === "right" ? lw : 0;
+    const upperCrossEnd = upperCrossStart + nUp * treadDepth;
+    flights.push(rectAt(nLow * treadDepth, upperCrossStart, nLow * treadDepth + lw, upperCrossEnd));
+    for (let j = 1; j < nUp; j += 1) {
+      const cs = upperCrossStart + j * treadDepth;
+      treadLines.push({
+        from: proj(nLow * treadDepth, cs),
+        to: proj(nLow * treadDepth + lw, cs),
+      });
+    }
+  } else {
+    // U
+    const GAP = 0.05;
+    const flightWidth = (crossLength - GAP) / 2;
+    const nLow = Math.floor(treadCount / 2);
+    const nUp = treadCount - nLow - 1;
+    flights.push(rectAt(0, 0, nLow * treadDepth, flightWidth));
+    for (let i = 1; i < nLow; i += 1) {
+      treadLines.push({ from: proj(i * treadDepth, 0), to: proj(i * treadDepth, flightWidth) });
+    }
+    landings.push(rectAt(nLow * treadDepth, 0, nLow * treadDepth + treadDepth, crossLength));
+    const upperRunStart = (nLow - nUp + 1) * treadDepth;
+    const upperRunEnd = (nLow + 1) * treadDepth;
+    flights.push(rectAt(upperRunStart, crossLength - flightWidth, upperRunEnd, crossLength));
+    for (let j = 1; j < nUp; j += 1) {
+      const r = upperRunEnd - j * treadDepth;
+      treadLines.push({
+        from: proj(r, crossLength - flightWidth),
+        to: proj(r, crossLength),
+      });
+    }
+  }
+
+  // Label centered on the half being shown:
+  // - lower half = run [0, runLength/2] (near bottomEdge)
+  // - upper half = run [runLength/2, runLength]
+  const labelRunCenter = stair.half === "lower" ? runLength * 0.25 : runLength * 0.75;
+  const labelPos = proj(labelRunCenter, crossLength / 2);
+
+  return { outline, flights, landings, treadLines, labelPos };
+}
+
 function renderSelectableBalcony(
   balconyId: string,
   selected: boolean,
@@ -557,42 +665,8 @@ function renderPlan(
       })}
       {projection.stairs.map((stair) => {
         const selected = isSelected(selection, "stair", stair.storeyId);
+        const symbol = buildStairSymbolGeometry(stair, projectPoint);
         const label = stair.half === "lower" ? "UP" : "DN";
-
-        // Project the four rect corners.
-        const tl = projectPoint({ x: stair.rect.x, y: stair.rect.y + stair.rect.depth });
-        const tr = projectPoint({ x: stair.rect.x + stair.rect.width, y: stair.rect.y + stair.rect.depth });
-        const br = projectPoint({ x: stair.rect.x + stair.rect.width, y: stair.rect.y });
-        const bl = projectPoint({ x: stair.rect.x, y: stair.rect.y });
-
-        const rectPoints = `${tl.x},${tl.y} ${tr.x},${tr.y} ${br.x},${br.y} ${bl.x},${bl.y}`;
-
-        // Compute tread lines inside the full rect.
-        // For a straight stair with bottomEdge on +y/-y, treads are horizontal lines.
-        // For +x/-x, treads are vertical lines.
-        const treadLines: Array<{ x1: number; y1: number; x2: number; y2: number }> = [];
-        const isVerticalRun = stair.bottomEdge === "+y" || stair.bottomEdge === "-y";
-        const halfCount = Math.ceil(stair.treadCount / 2);
-        for (let i = 1; i <= halfCount; i++) {
-          // fraction along run
-          const frac = i / (stair.treadCount + 1);
-          if (isVerticalRun) {
-            // y increases bottom→top in world; SVG y is flipped
-            const wy = stair.rect.y + frac * stair.rect.depth;
-            const left = projectPoint({ x: stair.rect.x, y: wy });
-            const right = projectPoint({ x: stair.rect.x + stair.rect.width, y: wy });
-            treadLines.push({ x1: left.x, y1: left.y, x2: right.x, y2: right.y });
-          } else {
-            const wx = stair.rect.x + frac * stair.rect.width;
-            const top = projectPoint({ x: wx, y: stair.rect.y + stair.rect.depth });
-            const bot = projectPoint({ x: wx, y: stair.rect.y });
-            treadLines.push({ x1: top.x, y1: top.y, x2: bot.x, y2: bot.y });
-          }
-        }
-
-        // Text at center of the rect.
-        const cx = (tl.x + br.x) / 2;
-        const cy = (tl.y + br.y) / 2;
 
         return (
           <g
@@ -602,6 +676,7 @@ function renderPlan(
             aria-label={`选择楼梯 ${stair.storeyId}`}
             aria-pressed={selected}
             className={selected ? "plan-stair is-selected" : "plan-stair"}
+            style={{ color: stair.color }}
             onClick={() => onSelect({ kind: "stair", id: stair.storeyId })}
             onKeyDown={(event) => {
               if (event.key === "Enter" || event.key === " ") {
@@ -610,18 +685,30 @@ function renderPlan(
               }
             }}
           >
-            <polygon className="plan-stair-outline" points={rectPoints} />
-            {treadLines.map((line, i) => (
+            <polygon className="plan-stair-outline" points={polyPoints(symbol.outline)} />
+            {symbol.flights.map((flight, i) => (
+              <polygon key={`f${i}`} className="plan-stair-flight" points={polyPoints(flight)} />
+            ))}
+            {symbol.landings.map((landing, i) => (
+              <polygon key={`l${i}`} className="plan-stair-landing" points={polyPoints(landing)} />
+            ))}
+            {symbol.treadLines.map((line, i) => (
               <line
-                key={i}
+                key={`t${i}`}
                 className="plan-stair-tread"
-                x1={line.x1}
-                y1={line.y1}
-                x2={line.x2}
-                y2={line.y2}
+                x1={line.from.x}
+                y1={line.from.y}
+                x2={line.to.x}
+                y2={line.to.y}
               />
             ))}
-            <text x={cx} y={cy} textAnchor="middle" dominantBaseline="middle" className="plan-stair-label">
+            <text
+              x={symbol.labelPos.x}
+              y={symbol.labelPos.y}
+              textAnchor="middle"
+              dominantBaseline="middle"
+              className="plan-stair-label"
+            >
               {label}
             </text>
           </g>

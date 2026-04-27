@@ -538,6 +538,58 @@ select {
   cursor: pointer;
 }
 
+/* 楼梯平面符号——颜色由 inline style.color 提供，下面用 currentColor 取 */
+.plan-stair {
+  cursor: pointer;
+}
+
+.plan-stair-outline {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-dasharray: 6 4;
+  opacity: 0.55;
+}
+
+.plan-stair-flight {
+  fill: currentColor;
+  fill-opacity: 0.12;
+  stroke: currentColor;
+  stroke-width: 1.5;
+}
+
+.plan-stair-landing {
+  fill: currentColor;
+  fill-opacity: 0.22;
+  stroke: currentColor;
+  stroke-width: 1.5;
+}
+
+.plan-stair-tread {
+  stroke: currentColor;
+  stroke-width: 1;
+  opacity: 0.75;
+}
+
+.plan-stair-label {
+  fill: currentColor;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  pointer-events: none;
+  user-select: none;
+}
+
+.plan-stair.is-selected .plan-stair-flight {
+  fill-opacity: 0.22;
+  stroke-width: 2;
+}
+
+.plan-stair.is-selected .plan-stair-outline {
+  opacity: 0.9;
+  stroke-dasharray: none;
+}
+
 .elevation-wall {
   fill: #f1ede5;
   stroke: #2f3a42;

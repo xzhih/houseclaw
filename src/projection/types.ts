@@ -33,6 +33,8 @@ export type PlanStairSymbol = {
   treadDepth: number;
   treadCount: number;
   turn?: StairTurn;
+  /** 楼梯材质颜色（hex）——平面符号的描边/标签使用 */
+  color: string;
 };
 
 export type PlanProjection = {

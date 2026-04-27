@@ -1,6 +1,12 @@
 import { computeStairConfig } from "../domain/stairs";
-import type { HouseProject } from "../domain/types";
+import type { HouseProject, Stair } from "../domain/types";
 import type { PlanProjection, PlanStairSymbol } from "./types";
+
+const STAIR_FALLBACK_COLOR = "#b58a64";
+
+function colorForStair(project: HouseProject, stair: Stair): string {
+  return project.materials.find((m) => m.id === stair.materialId)?.color ?? STAIR_FALLBACK_COLOR;
+}
 
 export function projectPlanView(project: HouseProject, storeyId: string): PlanProjection {
   const walls = project.walls.filter((wall) => wall.storeyId === storeyId);
@@ -29,6 +35,7 @@ export function projectPlanView(project: HouseProject, storeyId: string): PlanPr
       treadDepth: currentStorey.stair.treadDepth,
       treadCount: cfg.treadCount,
       turn: currentStorey.stair.turn,
+      color: colorForStair(project, currentStorey.stair),
     });
   }
 
@@ -48,6 +55,7 @@ export function projectPlanView(project: HouseProject, storeyId: string): PlanPr
       treadDepth: upperStorey.stair.treadDepth,
       treadCount: cfg.treadCount,
       turn: upperStorey.stair.turn,
+      color: colorForStair(project, upperStorey.stair),
     });
   }
 
