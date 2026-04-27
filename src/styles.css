@@ -1002,13 +1002,15 @@ select {
 }
 
 .zoom-controls-btn:hover {
-  background: var(--panel-strong);
-  border-color: var(--panel-border-hover);
+  background: var(--accent-bg);
 }
 
 .zoom-controls-btn.is-active {
-  background: var(--panel-strong);
-  color: var(--text);
+  background: var(--accent-bg-strong);
+}
+
+.zoom-controls-btn.is-active:hover {
+  background: var(--accent-bg-strong);
 }
 
 .scale-ruler {
