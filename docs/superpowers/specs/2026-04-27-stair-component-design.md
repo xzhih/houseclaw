@@ -16,7 +16,7 @@
 2. 自动计算：踢踏数 / 踢踏高度 / 踏步数从 storeyHeight + treadDepth 派生。
 3. 几何：三种形状（straight / L / U）的视觉踏步 + L/U 平台。
 4. 平面图：跨上下两层渲染楼梯符号（UP / DN + 折线）。
-5. 3D 漫游：踏步 + 平台 mesh 加入 `collidables`，沿用现有 walk physics，零物理代码修改。
+5. 3D 漫游：踏步 + 平台 mesh 加入 `collidables`，沿用现有 walk physics；`walkPhysics.ts` 一行修改（probe origin）。
 6. UI：ToolPalette 加 `stair` 工具；PropertyPanel 选中楼梯时编辑形状/踏步深度/朝向/转向/材质；只读显示派生值。
 7. 数据迁移：`stairOpening` → `stair` 一刀切，sample data + 现有 tests + 切洞代码同步改。
 
@@ -161,7 +161,7 @@ L/U 的折线放在转角平台位置；箭头沿主跑方向。
 - 要把多级踏步累计到 chest 高度（1m）需要 6+ 级，对应运行距离 ≥ 6 × treadDepth ≈ 1.6m，远超 chest probe 的最大射程（`movement + PLAYER_RADIUS ≈ 0.3m`）。所以走路时 chest probe 永远不会撞到踏步立面。
 - `SNAP_THRESHOLD = 0.2 > riserHeight = 0.165`，且 `resolveVerticalState` 的 snap 逻辑对 negative drop 也生效——所以踩级时会被自动拉上下一级。
 
-物理代码（`walkControls.ts` / `walkPhysics.ts`）零修改。
+`walkPhysics.ts` 一行修改：vertical probe origin 从 `feetY + 0.01` 改为 `feetY + snapThreshold`。原起点位于新踏步立面之下，downward ray 探测不到上面的踏步顶；新起点正好能看到一个 snapThreshold 内的台阶。`walkControls.ts` 零修改。
 
 ### 6. 选择 + 编辑
 
