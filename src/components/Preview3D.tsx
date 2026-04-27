@@ -214,7 +214,6 @@ export function Preview3D({ project }: Preview3DProps) {
       {cameraMode === "orbit" && (
         <div className="preview-overlay">
           <div className="preview-badge">
-            <p className="preview-name">{project.name}</p>
             <p className="preview-hint" aria-hidden="true">拖拽旋转 · 滚轮缩放</p>
           </div>
         </div>

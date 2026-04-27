@@ -57,15 +57,21 @@ describe("HouseClaw UI", () => {
 
   it("imports valid project JSON from a file", async () => {
     const user = userEvent.setup();
-    const importedProject = { ...createSampleProject(), name: "导入后的项目" };
+    const sample = createSampleProject();
+    const importedProject = {
+      ...sample,
+      storeys: sample.storeys.map((storey) =>
+        storey.id === "1f" ? { ...storey, label: "导入1F" } : storey,
+      ),
+    };
     const file = new File([exportProjectJson(importedProject)], "project.json", { type: "application/json" });
 
     render(<App />);
 
     await user.upload(screen.getByLabelText("导入 JSON"), file);
-    await user.click(screen.getByRole("button", { name: "3D" }));
 
-    expect(await screen.findByText("导入后的项目")).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "导入1F" })).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).toBeNull();
   });
 
   it("shows a validation alert for invalid project JSON", async () => {
@@ -84,7 +90,13 @@ describe("HouseClaw UI", () => {
     const invalidFile = new File([JSON.stringify({ mode: "bad" })], "bad-project.json", {
       type: "application/json",
     });
-    const validProject = { ...createSampleProject(), name: "恢复后的项目" };
+    const sample = createSampleProject();
+    const validProject = {
+      ...sample,
+      storeys: sample.storeys.map((storey) =>
+        storey.id === "1f" ? { ...storey, label: "恢复1F" } : storey,
+      ),
+    };
     const validFile = new File([exportProjectJson(validProject)], "project.json", {
       type: "application/json",
     });
@@ -97,9 +109,8 @@ describe("HouseClaw UI", () => {
 
     await user.upload(input, validFile);
     await waitFor(() => expect(screen.queryByRole("alert")).not.toBeInTheDocument());
-    await user.click(screen.getByRole("button", { name: "3D" }));
 
-    expect(await screen.findByText("恢复后的项目")).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "恢复1F" })).toBeInTheDocument();
   });
 
   it("switches to 3d preview", async () => {

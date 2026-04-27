@@ -1,5 +1,10 @@
 import { type ChangeEvent, useEffect, useReducer, useState } from "react";
-import { exportProjectJson, importProjectJson } from "../app/persistence";
+import {
+  exportProjectJson,
+  importProjectJson,
+  loadProjectFromLocalStorage,
+  saveProjectToLocalStorage,
+} from "../app/persistence";
 import { projectReducer, type ProjectAction } from "../app/projectReducer";
 import {
   createBalconyDraft,
@@ -134,13 +139,31 @@ function pickTargetWall(
   return project.walls.find((wall) => wall.storeyId === storeyId);
 }
 
+function loadInitialProject(): HouseProject {
+  try {
+    const saved = loadProjectFromLocalStorage();
+    if (saved) return saved;
+  } catch {
+    // Stale or unparseable storage — fall back to the sample project.
+  }
+  return createSampleProject();
+}
+
 export function AppShell() {
   const [history, dispatchHistory] = useReducer(
     historyReducer,
     undefined,
-    (): HistoryState => ({ past: [], present: createSampleProject(), future: [] }),
+    (): HistoryState => ({ past: [], present: loadInitialProject(), future: [] }),
   );
   const project = history.present;
+
+  useEffect(() => {
+    try {
+      saveProjectToLocalStorage(project);
+    } catch {
+      // localStorage may be unavailable (private mode, quota exceeded) — silently skip.
+    }
+  }, [project]);
   const canUndo = history.past.length > 0;
   const canRedo = history.future.length > 0;
 
