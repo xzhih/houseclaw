@@ -67,4 +67,23 @@ describe("project reducer", () => {
 
     expect(project.storeys.map((storey) => storey.elevation)).toEqual([0, 3.5, 6.7]);
   });
+
+  it("add-stair action creates a stair on the targeted storey", () => {
+    const project = createSampleProject();
+    // sample already has stair on 2f; clear it first
+    const cleared = projectReducer(project, { type: "remove-stair", storeyId: "2f" });
+    const stair = {
+      x: 1.0,
+      y: 3.0,
+      width: 1.2,
+      depth: 2.5,
+      shape: "straight" as const,
+      treadDepth: 0.27,
+      bottomEdge: "+y" as const,
+      materialId: "mat-dark-frame",
+    };
+    const next = projectReducer(cleared, { type: "add-stair", storeyId: "2f", stair });
+    const twoF = next.storeys.find((s) => s.id === "2f");
+    expect(twoF?.stair).toEqual(stair);
+  });
 });

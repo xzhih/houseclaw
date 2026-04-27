@@ -10,6 +10,7 @@ import {
 import {
   addBalcony,
   addOpening,
+  addStair,
   addWall,
   removeBalcony,
   removeOpening,
@@ -18,7 +19,7 @@ import {
 } from "../domain/mutations";
 import { createSampleProject } from "../domain/sampleProject";
 import type { ObjectSelection } from "../domain/selection";
-import type { HouseProject, Mode, OpeningType, ToolId, ViewId, Wall } from "../domain/types";
+import type { HouseProject, Mode, OpeningType, Stair, ToolId, ViewId, Wall } from "../domain/types";
 import { createWallDraft } from "../domain/walls";
 import { downloadTextFile } from "../export/exporters";
 import { projectElevationView } from "../projection/elevation";
@@ -132,6 +133,11 @@ function pickTargetWall(
     }
   }
   return project.walls.find((wall) => wall.storeyId === storeyId);
+}
+
+function pickFrameMaterialId(project: HouseProject): string {
+  const frame = project.materials.find((m) => m.kind === "frame");
+  return frame?.id ?? project.materials[0]?.id ?? "";
 }
 
 export function AppShell() {
@@ -255,6 +261,26 @@ export function AppShell() {
         const next = addWall(project, draft);
         dispatch({ type: "replace-project", project: next });
         dispatch({ type: "select", selection: { kind: "wall", id: draft.id } });
+        if (PLAN_STOREY_BY_VIEW[project.activeView] !== storeyId) {
+          dispatch({ type: "set-view", viewId: `plan-${storeyId}` as ViewId });
+        }
+        return;
+      }
+
+      if (toolId === "stair") {
+        const draftStair: Stair = {
+          x: 1.0,
+          y: 3.0,
+          width: 1.2,
+          depth: 2.5,
+          shape: "straight",
+          treadDepth: 0.27,
+          bottomEdge: "+y",
+          materialId: pickFrameMaterialId(project),
+        };
+        const next = addStair(project, storeyId, draftStair);
+        dispatch({ type: "replace-project", project: next });
+        dispatch({ type: "select", selection: { kind: "stair", id: storeyId } });
         if (PLAN_STOREY_BY_VIEW[project.activeView] !== storeyId) {
           dispatch({ type: "set-view", viewId: `plan-${storeyId}` as ViewId });
         }

@@ -8,6 +8,7 @@ const VALID_TOOL_IDS = [
   "window",
   "opening",
   "balcony",
+  "stair",
   "material",
 ] as const satisfies readonly ToolId[];
 const VALID_VIEW_IDS = [

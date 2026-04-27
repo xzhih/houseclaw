@@ -21,6 +21,7 @@ export type ToolId =
   | "window"
   | "opening"
   | "balcony"
+  | "stair"
   | "material";
 
 export type Point2 = {
