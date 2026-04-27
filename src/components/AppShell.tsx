@@ -30,6 +30,7 @@ import {
   duplicateStorey,
   removeBalcony,
   removeOpening,
+  removeSkirt,
   removeStair,
   removeStorey,
   removeWall,
@@ -271,6 +272,9 @@ export function AppShell() {
         case "stair":
           next = removeStair(project, sel.id);
           break;
+        case "skirt":
+          next = removeSkirt(project, sel.id);
+          break;
         case "storey": {
           if (project.storeys.length <= 1) return;
           next = removeStorey(project, sel.id);
@@ -323,7 +327,7 @@ export function AppShell() {
       if (!sel) return;
       const isStorey = sel.kind === "storey" && project.storeys.length > 1;
       const isOther =
-        sel.kind === "wall" || sel.kind === "opening" || sel.kind === "balcony" || sel.kind === "stair";
+        sel.kind === "wall" || sel.kind === "opening" || sel.kind === "balcony" || sel.kind === "stair" || sel.kind === "skirt";
       if (!isStorey && !isOther) return;
       event.preventDefault();
       handleDeleteSelection();
