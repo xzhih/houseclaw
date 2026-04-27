@@ -6,6 +6,7 @@ import type { HouseGeometry, SlabGeometry, StairRenderGeometry } from "./types";
 import { buildWallNetwork, type FootprintQuad } from "./wallNetwork";
 import { buildWallPanels } from "./wallPanels";
 import { buildStairGeometry, stairFootprintPolygon } from "./stairGeometry";
+import { buildSkirtGeometry } from "./skirtGeometry";
 
 const SLAB_MATERIAL_ID = "mat-gray-stone";
 
@@ -103,6 +104,12 @@ export function buildHouseGeometry(project: HouseProject): HouseGeometry {
   }
   const roof = buildProjectRoof(project);
 
+  const skirts = project.skirts.flatMap((skirt) => {
+    const wall = project.walls.find((w) => w.id === skirt.hostWallId);
+    if (!wall) return [];
+    return [buildSkirtGeometry(skirt, wall)];
+  });
+
   const stairs: StairRenderGeometry[] = [];
   for (let i = 0; i < sortedStoreys.length; i += 1) {
     const storey = sortedStoreys[i];
@@ -148,5 +155,6 @@ export function buildHouseGeometry(project: HouseProject): HouseGeometry {
     slabs,
     stairs,
     roof,
+    skirts,
   };
 }
