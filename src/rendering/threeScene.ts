@@ -610,6 +610,17 @@ function buildRoofPanelMesh(panel: RoofGeometry["panels"][number], material: THR
   return new THREE.Mesh(geom, material);
 }
 
+function createRoofGableMaterial(project: HouseProject, materialId: string) {
+  const material = project.materials.find((m) => m.id === materialId);
+  return new THREE.MeshStandardMaterial({
+    color: material?.color ?? "#dedbd2",
+    roughness: 0.85,
+    metalness: 0.02,
+    flatShading: true,
+    side: THREE.DoubleSide,
+  });
+}
+
 function buildRoofGableMesh(
   project: HouseProject,
   gable: RoofGeometry["gables"][number],
@@ -620,7 +631,7 @@ function buildRoofGableMesh(
   const materialId = wall?.materialId ?? "";
   let material = cache.get(materialId);
   if (!material) {
-    material = createSlabMaterial(project, materialId); // wall material is ok via slab path
+    material = createRoofGableMaterial(project, materialId);
     cache.set(materialId, material);
   }
   const positions: number[] = [];

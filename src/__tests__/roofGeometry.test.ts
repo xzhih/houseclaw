@@ -194,6 +194,65 @@ describe("buildRoofGeometry — half-hip (3 eaves + 1 gable)", () => {
   });
 });
 
+/** Cross product of two 3D vectors. */
+function cross3(
+  a: { x: number; y: number; z: number },
+  b: { x: number; y: number; z: number },
+): { x: number; y: number; z: number } {
+  return { x: a.y * b.z - a.z * b.y, y: a.z * b.x - a.x * b.z, z: a.x * b.y - a.y * b.x };
+}
+
+/** Outward direction from a polygon = (v1-v0) × (v2-v0). */
+function outwardNormal(verts: { x: number; y: number; z: number }[]): { x: number; y: number; z: number } {
+  const v0 = verts[0], v1 = verts[1], v2 = verts[2];
+  return cross3(
+    { x: v1.x - v0.x, y: v1.y - v0.y, z: v1.z - v0.z },
+    { x: v2.x - v0.x, y: v2.y - v0.y, z: v2.z - v0.z },
+  );
+}
+
+describe("buildRoofGeometry — gable winding (CCW from outside)", () => {
+  it("back gable in shed-with-front-eave configuration faces outward (+y)", () => {
+    const roof: Roof = {
+      edges: { "w-front": "eave", "w-right": "gable", "w-back": "gable", "w-left": "gable" },
+      pitch: PITCH,
+      overhang: OVERHANG,
+      materialId: "mat-roof",
+    };
+    const geom = buildRoofGeometry(TOP, RECT_RING, rectWalls(), roof)!;
+    const back = geom.gables.find((g) => g.wallId === "w-back")!;
+    const n = outwardNormal(back.vertices);
+    // Outward of back wall is +y in plan space.
+    expect(n.y).toBeGreaterThan(0);
+  });
+
+  it("back gable in gable2opp-with-vertical-eaves faces outward (+y)", () => {
+    const roof: Roof = {
+      edges: { "w-front": "gable", "w-right": "eave", "w-back": "gable", "w-left": "eave" },
+      pitch: PITCH,
+      overhang: OVERHANG,
+      materialId: "mat-roof",
+    };
+    const geom = buildRoofGeometry(TOP, RECT_RING, rectWalls(), roof)!;
+    const back = geom.gables.find((g) => g.wallId === "w-back")!;
+    const n = outwardNormal(back.vertices);
+    expect(n.y).toBeGreaterThan(0);
+  });
+
+  it("right gable in shed-with-front-eave faces outward (+x)", () => {
+    const roof: Roof = {
+      edges: { "w-front": "eave", "w-right": "gable", "w-back": "gable", "w-left": "gable" },
+      pitch: PITCH,
+      overhang: OVERHANG,
+      materialId: "mat-roof",
+    };
+    const geom = buildRoofGeometry(TOP, RECT_RING, rectWalls(), roof)!;
+    const right = geom.gables.find((g) => g.wallId === "w-right")!;
+    const n = outwardNormal(right.vertices);
+    expect(n.x).toBeGreaterThan(0);
+  });
+});
+
 describe("buildRoofGeometry — corner slope (2 adjacent eaves)", () => {
   const roof: Roof = {
     edges: { "w-front": "eave", "w-right": "eave", "w-back": "gable", "w-left": "gable" },

@@ -240,14 +240,23 @@ function triangleAlong(
   const { u0, u1 } = eaveAxes(side, outer);
   const baseStart = liftToWorld(side, outer, u0, sideV(side, outer), wallTopZ);
   const baseEnd = liftToWorld(side, outer, u1, sideV(side, outer), wallTopZ);
+  let verts: Point3[];
   if (mode === "full") {
     const mid = (u0 + u1) / 2;
     const apex = liftToWorld(side, outer, mid, sideV(side, outer), wallTopZ + apexRise);
-    return [baseStart, baseEnd, apex];
+    verts = [baseStart, baseEnd, apex];
+  } else {
+    const apexU = mode === "apex-at-u0" ? u0 : u1;
+    const apex = liftToWorld(side, outer, apexU, sideV(side, outer), wallTopZ + apexRise);
+    verts = [baseStart, baseEnd, apex];
   }
-  const apexU = mode === "apex-at-u0" ? u0 : u1;
-  const apex = liftToWorld(side, outer, apexU, sideV(side, outer), wallTopZ + apexRise);
-  return [baseStart, baseEnd, apex];
+  // liftToWorld swaps u→y and v→x for "left"/"right" sides. This swap changes
+  // the cross-product sign relative to "front"/"back", so gable triangles on
+  // left/right walls end up CW from outside. Reverse to restore CCW winding.
+  if (side === "left" || side === "right") {
+    verts.reverse();
+  }
+  return verts;
 }
 
 function sideV(side: ResolvedEdge["side"], outer: Rect): number {
@@ -372,10 +381,11 @@ function buildHalfHip3(
     const eaveV = sideV(e.side, outer);
     const lo0 = liftToWorld(e.side, outer, u0, eaveV, wallTopZ);
     const lo1 = liftToWorld(e.side, outer, u1, eaveV, wallTopZ);
-    panels.push({
-      vertices: [lo0, lo1, ridgeHipApex],
-      materialId,
-    });
+    let verts: Point3[] = [lo0, lo1, ridgeHipApex];
+    // Reverse for "left"/"right" sides: liftToWorld swaps u→y and v→x there,
+    // flipping the cross-product sign relative to "front"/"back".
+    if (e.side === "left" || e.side === "right") verts = verts.reverse();
+    panels.push({ vertices: verts, materialId });
   }
 
   return {
@@ -562,9 +572,15 @@ function buildCornerSlope2Adj(
 
     if (hipOnWall && hipDistinct) {
       // Knee in the gable's upper profile: emit 4-vert quad.
-      result.push({ wallId: g.wallId, vertices: [baseStart, baseEnd, highCorner, hipExit] });
+      // Reverse for "left"/"right" sides: liftToWorld swaps u→y and v→x there,
+      // flipping the cross-product sign relative to "front"/"back".
+      let verts: Point3[] = [baseStart, baseEnd, highCorner, hipExit];
+      if (g.side === "left" || g.side === "right") verts = verts.reverse();
+      result.push({ wallId: g.wallId, vertices: verts });
     } else {
-      result.push({ wallId: g.wallId, vertices: [baseStart, baseEnd, highCorner] });
+      let verts: Point3[] = [baseStart, baseEnd, highCorner];
+      if (g.side === "left" || g.side === "right") verts = verts.reverse();
+      result.push({ wallId: g.wallId, vertices: verts });
     }
   }
 
