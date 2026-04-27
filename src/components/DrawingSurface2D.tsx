@@ -21,6 +21,7 @@ import type {
   PlanWallSegment,
 } from "../projection/types";
 import { GridOverlay } from "./canvas/GridOverlay";
+import { ScaleRuler } from "./canvas/ScaleRuler";
 
 const SURFACE_WIDTH = 720;
 const SURFACE_HEIGHT = 520;
@@ -2074,6 +2075,11 @@ export function DrawingSurface2D({
               )
             : renderRoofPlaceholder()}
       </svg>
+      {(() => {
+        const activeMapping = planMapping ?? elevationMapping;
+        if (!activeMapping) return null;
+        return <ScaleRuler mapping={activeMapping} viewport={viewport} />;
+      })()}
       {isViewportTransformed ? (
         <button
           type="button"
