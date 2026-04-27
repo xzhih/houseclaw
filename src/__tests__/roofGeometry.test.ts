@@ -112,3 +112,26 @@ describe("buildRoofGeometry — gable (2 opposite eaves)", () => {
     expect(ridgeZ).toBeCloseTo(expected);
   });
 });
+
+describe("buildRoofGeometry — hip (4 eaves)", () => {
+  const roof: Roof = {
+    edges: { "w-front": "eave", "w-back": "eave", "w-left": "eave", "w-right": "eave" },
+    pitch: PITCH,
+    overhang: OVERHANG,
+    materialId: "mat-roof",
+  };
+
+  it("emits 4 panels and 0 gables", () => {
+    const geom = buildRoofGeometry(TOP, RECT_RING, rectWalls(), roof)!;
+    expect(geom.panels).toHaveLength(4);
+    expect(geom.gables).toHaveLength(0);
+  });
+
+  it("ridge height = (min(W, D) / 2) * tan(pitch) above wall top", () => {
+    const geom = buildRoofGeometry(TOP, RECT_RING, rectWalls(), roof)!;
+    const ridgeZ = Math.max(...geom.panels.flatMap((p) => p.vertices.map((v) => v.z)));
+    // Outer rect is (10+2*0.6) x (8+2*0.6) = 11.2 x 9.2; min half = 4.6.
+    const expected = WALL_TOP + 4.6 * Math.tan(PITCH);
+    expect(ridgeZ).toBeCloseTo(expected);
+  });
+});

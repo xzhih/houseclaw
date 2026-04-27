@@ -54,6 +54,8 @@ export function buildRoofGeometry(
       // 2-adjacent handled in a later task.
       return undefined;
     }
+    case 4:
+      return buildHip4(resolved, outer, wallTopZ, slope, roof.materialId);
     default:
       // Other cases added in later tasks.
       return undefined;
@@ -309,4 +311,69 @@ function midV(side: ResolvedEdge["side"], outer: Rect): number {
     case "right":
       return (outer.xMin + outer.xMax) / 2;
   }
+}
+
+function buildHip4(
+  edges: ResolvedEdge[],
+  outer: Rect,
+  wallTopZ: number,
+  slope: number,
+  materialId: string,
+): RoofGeometry {
+  const W = outer.xMax - outer.xMin;
+  const D = outer.yMax - outer.yMin;
+  const halfMin = Math.min(W, D) / 2;
+  const ridgeZ = wallTopZ + halfMin * slope;
+
+  // Inset the hip apex points: ridge is along the longer axis, of length
+  // |W - D|, centered.
+  const cx = (outer.xMin + outer.xMax) / 2;
+  const cy = (outer.yMin + outer.yMax) / 2;
+  const ridgeAlongX = W >= D;
+  const ridgeHalfLen = Math.abs(W - D) / 2;
+
+  const apexA: Point3 = ridgeAlongX
+    ? { x: cx - ridgeHalfLen, y: cy, z: ridgeZ }
+    : { x: cx, y: cy - ridgeHalfLen, z: ridgeZ };
+  const apexB: Point3 = ridgeAlongX
+    ? { x: cx + ridgeHalfLen, y: cy, z: ridgeZ }
+    : { x: cx, y: cy + ridgeHalfLen, z: ridgeZ };
+
+  // Helpers for the 4 outer corners (bottom-z = wall top).
+  const c00: Point3 = { x: outer.xMin, y: outer.yMin, z: wallTopZ };
+  const c10: Point3 = { x: outer.xMax, y: outer.yMin, z: wallTopZ };
+  const c11: Point3 = { x: outer.xMax, y: outer.yMax, z: wallTopZ };
+  const c01: Point3 = { x: outer.xMin, y: outer.yMax, z: wallTopZ };
+
+  const panels: RoofPanel[] = [];
+  for (const e of edges) {
+    let verts: Point3[];
+    switch (e.side) {
+      case "front":
+        verts = ridgeAlongX
+          ? [c00, c10, apexB, apexA]   // long-side trapezoid
+          : [c00, c10, apexA];         // short-side triangle
+        break;
+      case "back":
+        verts = ridgeAlongX
+          ? [c11, c01, apexA, apexB]
+          : [c11, c01, apexB];
+        break;
+      case "right":
+        verts = ridgeAlongX
+          ? [c10, c11, apexB]          // short-side triangle
+          : [c10, c11, apexB, apexA];  // long-side trapezoid
+        break;
+      case "left":
+        verts = ridgeAlongX
+          ? [c01, c00, apexA]
+          : [c01, c00, apexA, apexB];
+        break;
+      default:
+        verts = [];
+    }
+    panels.push({ vertices: verts, materialId });
+  }
+
+  return { panels, gables: [] };
 }
