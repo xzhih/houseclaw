@@ -116,10 +116,10 @@ describe("house constraints", () => {
 });
 
 describe("stair validation", () => {
-  it("rejects a stair on the 1F slab", () => {
+  it("rejects a stair on the top storey (3F)", () => {
     const project = createSampleProject();
-    const oneF = project.storeys.find((s) => s.id === "1f")!;
-    oneF.stair = {
+    const threeF = project.storeys.find((s) => s.id === "3f")!;
+    threeF.stair = {
       x: 1,
       y: 1,
       width: 1,
@@ -132,7 +132,7 @@ describe("stair validation", () => {
 
     const errors = validateProject(project);
     expect(errors).toContain(
-      "Storey 1f cannot have a stair (no storey below).",
+      "Storey 3f cannot have a stair (no storey above).",
     );
   });
 

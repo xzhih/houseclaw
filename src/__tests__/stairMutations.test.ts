@@ -15,33 +15,32 @@ const FULL_STAIR: Stair = {
 };
 
 describe("stair mutations", () => {
-  it("addStair attaches stair to a storey above the lowest", () => {
+  it("addStair attaches stair to a non-top storey", () => {
     const project = createSampleProject();
-    // sample already has stairs on 2f / 3f; clear 2f first
-    const cleared = removeStair(project, "2f");
-    const next = addStair(cleared, "2f", FULL_STAIR);
-    const twoF = next.storeys.find((s) => s.id === "2f");
-    expect(twoF?.stair).toEqual(FULL_STAIR);
+    // sample now has stairs on 1f / 2f; clear 1f then re-add
+    const cleared = removeStair(project, "1f");
+    const next = addStair(cleared, "1f", FULL_STAIR);
+    const oneF = next.storeys.find((s) => s.id === "1f");
+    expect(oneF?.stair).toEqual(FULL_STAIR);
   });
 
-  it("addStair on the lowest storey throws via constraints", () => {
+  it("addStair on the top storey throws via constraints", () => {
     const project = createSampleProject();
-    expect(() => addStair(project, "1f", FULL_STAIR)).toThrow(/cannot have a stair/);
-  });
-
-  it("updateStair patches selected fields and validates", () => {
-    const project = createSampleProject();
-    const next = updateStair(project, "2f", { shape: "u", treadDepth: 0.3 });
-    const twoF = next.storeys.find((s) => s.id === "2f");
-    expect(twoF?.stair?.shape).toBe("u");
-    expect(twoF?.stair?.treadDepth).toBe(0.3);
-    // other fields unchanged
-    expect(twoF?.stair?.bottomEdge).toBe("+y");
+    expect(() => addStair(project, "3f", FULL_STAIR)).toThrow(/cannot have a stair/);
   });
 
   it("removeStair clears the field", () => {
     const project = createSampleProject();
-    const next = removeStair(project, "2f");
-    expect(next.storeys.find((s) => s.id === "2f")?.stair).toBeUndefined();
+    const next = removeStair(project, "1f");
+    expect(next.storeys.find((s) => s.id === "1f")?.stair).toBeUndefined();
+  });
+
+  it("updateStair patches selected fields and validates", () => {
+    const project = createSampleProject();
+    const next = updateStair(project, "1f", { shape: "u", treadDepth: 0.3 });
+    const oneF = next.storeys.find((s) => s.id === "1f");
+    expect(oneF?.stair?.shape).toBe("u");
+    expect(oneF?.stair?.treadDepth).toBe(0.3);
+    expect(oneF?.stair?.bottomEdge).toBe("+y");
   });
 });
