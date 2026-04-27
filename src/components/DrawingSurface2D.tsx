@@ -23,6 +23,7 @@ import type {
 import { GridOverlay } from "./canvas/GridOverlay";
 import { ScaleRuler } from "./canvas/ScaleRuler";
 import { ZoomControls } from "./canvas/ZoomControls";
+import type { DragReadout } from "./canvas/types";
 
 const SURFACE_WIDTH = 720;
 const SURFACE_HEIGHT = 520;
@@ -1149,6 +1150,7 @@ export function DrawingSurface2D({
   const [activeSnap, setActiveSnap] = useState<Point2D | null>(null);
   const [cursorWorld, setCursorWorld] = useState<Point2D | null>(null);
   const [gridVisible, setGridVisible] = useState(true);
+  const [dragReadout, setDragReadout] = useState<DragReadout | null>(null);
 
   useEffect(() => {
     setViewport(DEFAULT_VIEWPORT);
@@ -1678,6 +1680,7 @@ export function DrawingSurface2D({
           const newStart = roundPointToMm({ x: state.origStart.x + finalDx, y: state.origStart.y + finalDy });
           const newEnd = roundPointToMm({ x: state.origEnd.x + finalDx, y: state.origEnd.y + finalDy });
           onProjectChange(moveWall(project, state.wallId, newStart, newEnd));
+          setDragReadout({ kind: "wall-translate", dx: roundToMm(finalDx), dy: roundToMm(finalDy) });
           break;
         }
         case "wall-endpoint": {
@@ -1694,6 +1697,8 @@ export function DrawingSurface2D({
           const newStart = state.endpoint === "start" ? newPt : roundPointToMm(state.fixedPoint);
           const newEnd = state.endpoint === "end" ? newPt : roundPointToMm(state.fixedPoint);
           onProjectChange(moveWall(project, state.wallId, newStart, newEnd));
+          const endpointLen = Math.hypot(newPt.x - state.fixedPoint.x, newPt.y - state.fixedPoint.y);
+          setDragReadout({ kind: "wall-endpoint", length: roundToMm(endpointLen) });
           break;
         }
         case "opening":
@@ -1711,8 +1716,10 @@ export function DrawingSurface2D({
           const snapped = roundToMm(snapToGrid(clamped));
           if (state.kind === "opening") {
             onProjectChange(updateOpening(project, state.openingId, { offset: snapped }));
+            setDragReadout({ kind: "opening", offset: snapped });
           } else {
             onProjectChange(updateBalcony(project, state.balconyId, { offset: snapped }));
+            setDragReadout({ kind: "balcony", offset: snapped });
           }
           break;
         }
@@ -1754,6 +1761,7 @@ export function DrawingSurface2D({
                 width: snappedWidth,
               }),
             );
+            setDragReadout({ kind: "plan-opening-resize", width: snappedWidth });
           } else {
             onProjectChange(
               updateBalcony(project, state.balconyId, {
@@ -1761,20 +1769,19 @@ export function DrawingSurface2D({
                 width: snappedWidth,
               }),
             );
+            setDragReadout({ kind: "plan-balcony-resize", width: snappedWidth });
           }
           break;
         }
         case "elev-opening-move": {
           const dxOffset = dx * state.projSign;
-          const newOffset = clamp(state.origOffset + dxOffset, 0, Math.max(0, state.wallLen - state.width));
+          const newOffsetRaw = clamp(state.origOffset + dxOffset, 0, Math.max(0, state.wallLen - state.width));
           const maxSill = Math.max(0, state.storeyHeight - state.height);
-          const newSill = clamp(state.origSill + dy, 0, maxSill);
-          onProjectChange(
-            updateOpening(project, state.openingId, {
-              offset: roundToMm(snapToGrid(newOffset)),
-              sillHeight: roundToMm(snapToGrid(newSill)),
-            }),
-          );
+          const newSillRaw = clamp(state.origSill + dy, 0, maxSill);
+          const offset = roundToMm(snapToGrid(newOffsetRaw));
+          const sill = roundToMm(snapToGrid(newSillRaw));
+          onProjectChange(updateOpening(project, state.openingId, { offset, sillHeight: sill }));
+          setDragReadout({ kind: "elev-opening-move", offset, sill });
           break;
         }
         case "elev-opening-resize": {
@@ -1817,24 +1824,27 @@ export function DrawingSurface2D({
           }
           if (newWidth < minSize || newHeight < minSize) return;
 
+          const offset = roundToMm(snapToGrid(newOffset));
+          const sill = roundToMm(snapToGrid(newSill));
+          const width = roundToMm(snapToGrid(newWidth));
+          const height = roundToMm(snapToGrid(newHeight));
           onProjectChange(
             updateOpening(project, state.openingId, {
-              offset: roundToMm(snapToGrid(newOffset)),
-              sillHeight: roundToMm(snapToGrid(newSill)),
-              width: roundToMm(snapToGrid(newWidth)),
-              height: roundToMm(snapToGrid(newHeight)),
+              offset,
+              sillHeight: sill,
+              width,
+              height,
             }),
           );
+          setDragReadout({ kind: "elev-opening-resize", width, height });
           break;
         }
         case "elev-balcony-move": {
           const dxOffset = dx * state.projSign;
           const newOffset = clamp(state.origOffset + dxOffset, 0, Math.max(0, state.wallLen - state.width));
-          onProjectChange(
-            updateBalcony(project, state.balconyId, {
-              offset: roundToMm(snapToGrid(newOffset)),
-            }),
-          );
+          const offset = roundToMm(snapToGrid(newOffset));
+          onProjectChange(updateBalcony(project, state.balconyId, { offset }));
+          setDragReadout({ kind: "elev-balcony-move", offset });
           break;
         }
         case "elev-balcony-resize": {
@@ -1857,12 +1867,10 @@ export function DrawingSurface2D({
             newWidth = state.wallLen - newOffset;
           }
           if (newWidth < minSize) return;
-          onProjectChange(
-            updateBalcony(project, state.balconyId, {
-              offset: roundToMm(snapToGrid(newOffset)),
-              width: roundToMm(snapToGrid(newWidth)),
-            }),
-          );
+          const offset = roundToMm(snapToGrid(newOffset));
+          const width = roundToMm(snapToGrid(newWidth));
+          onProjectChange(updateBalcony(project, state.balconyId, { offset, width }));
+          setDragReadout({ kind: "elev-balcony-resize", width });
           break;
         }
         case "stair-resize": {
@@ -1907,6 +1915,7 @@ export function DrawingSurface2D({
           const w = roundToMm(newWidth);
           const d = roundToMm(newDepth);
           onProjectChange(updateStair(project, state.storeyId, { x: newX, y: newY, width: w, depth: d }));
+          setDragReadout({ kind: "stair-resize", width: w, depth: d });
           break;
         }
         case "stair-rotate": {
@@ -1918,6 +1927,7 @@ export function DrawingSurface2D({
           while (newRotation > Math.PI) newRotation -= 2 * Math.PI;
           while (newRotation <= -Math.PI) newRotation += 2 * Math.PI;
           onProjectChange(updateStair(project, state.storeyId, { rotation: newRotation }));
+          setDragReadout({ kind: "stair-rotate", angleDeg: (newRotation * 180) / Math.PI });
           break;
         }
         case "elev-storey-translate": {
@@ -1926,6 +1936,7 @@ export function DrawingSurface2D({
           onProjectChange(
             translateStorey(state.origProject, state.storeyId, roundToMm(dwx), roundToMm(dwy)),
           );
+          setDragReadout({ kind: "elev-storey-translate", dy: roundToMm(grid) });
           break;
         }
       }
@@ -1975,6 +1986,7 @@ export function DrawingSurface2D({
       const finished = dragState;
       setDragState(undefined);
       setActiveSnap(null);
+      setDragReadout(null);
       if (svgRef.current?.hasPointerCapture(event.pointerId)) {
         svgRef.current.releasePointerCapture(event.pointerId);
       }
