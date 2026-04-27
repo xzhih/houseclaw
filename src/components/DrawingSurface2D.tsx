@@ -181,6 +181,16 @@ type DragState =
       projSign: 1 | -1;
     }
   | {
+      kind: "stair-translate";
+      pointerId: number;
+      startWorld: Point2D;
+      moved: boolean;
+      mapping: PointMapping;
+      storeyId: string;
+      origX: number;
+      origY: number;
+    }
+  | {
       kind: "stair-resize";
       pointerId: number;
       startWorld: Point2D;
@@ -231,6 +241,10 @@ type PlanDragHandlers = {
     event: PointerEvent<SVGElement>,
     balconyId: string,
     edge: "l" | "r",
+  ) => void;
+  onStairBodyPointerDown: (
+    event: PointerEvent<SVGElement>,
+    storeyId: string,
   ) => void;
   onStairCornerPointerDown: (
     event: PointerEvent<SVGElement>,
@@ -539,9 +553,10 @@ function buildStairSymbolGeometry(
     for (let i = 1; i < nLow; i += 1) {
       treadLines.push({ from: proj(i * treadDepth, 0), to: proj(i * treadDepth, flightWidth) });
     }
-    landings.push(rectAt(nLow * treadDepth, 0, nLow * treadDepth + treadDepth, crossLength));
-    const upperRunStart = (nLow - nUp + 1) * treadDepth;
-    const upperRunEnd = (nLow + 1) * treadDepth;
+    // Upper flight is right-justified to the lower flight's far edge, so the landing
+    // sits BEYOND both flights as a clean U-turn rectangle.
+    const upperRunEnd = nLow * treadDepth;
+    const upperRunStart = upperRunEnd - nUp * treadDepth;
     flights.push(rectAt(upperRunStart, crossLength - flightWidth, upperRunEnd, crossLength));
     for (let j = 1; j < nUp; j += 1) {
       const r = upperRunEnd - j * treadDepth;
@@ -549,6 +564,12 @@ function buildStairSymbolGeometry(
         from: proj(r, crossLength - flightWidth),
         to: proj(r, crossLength),
       });
+    }
+    // Landing: ideally one flight deep, but never beyond the stair bbox.
+    const landingNearRun = nLow * treadDepth;
+    const landingDepth = Math.max(0, Math.min(flightWidth, runLength - landingNearRun));
+    if (landingDepth > 0) {
+      landings.push(rectAt(landingNearRun, 0, landingNearRun + landingDepth, crossLength));
     }
   }
 
@@ -757,7 +778,7 @@ function renderPlan(
             aria-label={`选择楼梯 ${stair.storeyId}`}
             aria-pressed={selected}
             className={selected ? "plan-stair is-selected" : "plan-stair"}
-            style={{ color: stair.color }}
+            onPointerDown={(event) => handlers?.onStairBodyPointerDown(event, stair.storeyId)}
             onClick={() => onSelect({ kind: "stair", id: stair.storeyId })}
             onKeyDown={(event) => {
               if (event.key === "Enter" || event.key === " ") {
@@ -1416,6 +1437,25 @@ export function DrawingSurface2D({
     }));
   };
 
+  const onStairBodyHandlePointerDown: PlanDragHandlers["onStairBodyPointerDown"] = (
+    event,
+    storeyId,
+  ) => {
+    const storey = project.storeys.find((s) => s.id === storeyId);
+    const stair = storey?.stair;
+    if (!stair) return;
+    beginElementDrag(event, (pointerId, startWorld, mapping) => ({
+      kind: "stair-translate",
+      pointerId,
+      startWorld,
+      mapping,
+      moved: false,
+      storeyId,
+      origX: stair.x,
+      origY: stair.y,
+    }));
+  };
+
   const onStairCornerHandlePointerDown: PlanDragHandlers["onStairCornerPointerDown"] = (
     event,
     storeyId,
@@ -1476,6 +1516,7 @@ export function DrawingSurface2D({
     onWallEndpointPointerDown: onWallEndpointHandlePointerDown,
     onOpeningEdgePointerDown: onPlanOpeningEdgePointerDown,
     onBalconyEdgePointerDown: onPlanBalconyEdgePointerDown,
+    onStairBodyPointerDown: onStairBodyHandlePointerDown,
     onStairCornerPointerDown: onStairCornerHandlePointerDown,
     onStairRotatePointerDown: onStairRotateHandlePointerDown,
   };
@@ -1895,6 +1936,12 @@ export function DrawingSurface2D({
           setDragReadout({ kind: "elev-balcony-resize", width });
           break;
         }
+        case "stair-translate": {
+          const newX = roundToMm(snapToGrid(state.origX + dx));
+          const newY = roundToMm(snapToGrid(state.origY + dy));
+          onProjectChange(updateStair(project, state.storeyId, { x: newX, y: newY }));
+          break;
+        }
         case "stair-resize": {
           const minSize = 0.6;
           let adjusted: Point2D = currentWorld;
@@ -2046,6 +2093,9 @@ export function DrawingSurface2D({
           case "balcony":
           case "elev-balcony-move":
             onSelect({ kind: "balcony", id: finished.balconyId });
+            break;
+          case "stair-translate":
+            onSelect({ kind: "stair", id: finished.storeyId });
             break;
           case "elev-storey-translate":
             onSelect({ kind: "storey", id: finished.storeyId });

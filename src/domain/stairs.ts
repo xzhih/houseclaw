@@ -34,9 +34,25 @@ export type StairConfig = {
   treadCount: number;
 };
 
-export function computeStairConfig(storeyHeight: number, _treadDepth: number): StairConfig {
-  const riserCount = Math.max(2, Math.round(storeyHeight / TARGET_RISER));
-  const riserHeight = storeyHeight / riserCount;
-  const treadCount = riserCount - 1;
+/**
+ * Stair geometry config. The stair climbs to the upper storey's slab BOTTOM
+ * (storeyHeight - slabThickness); the slab's own thickness is the final
+ * "riser" the user steps over to reach the floor surface. So:
+ *   treadCount × riserHeight = storeyHeight - slabThickness
+ *   riserCount = treadCount + 1   (the +1 = slab thickness)
+ *
+ * Aligning the topmost tread's top with the slab bottom makes the slab read
+ * as a real, independent thickness band at the hole edge instead of just
+ * another riser.
+ */
+export function computeStairConfig(
+  storeyHeight: number,
+  slabThickness: number,
+  _treadDepth: number,
+): StairConfig {
+  const stairClimb = Math.max(TARGET_RISER, storeyHeight - slabThickness);
+  const treadCount = Math.max(1, Math.round(stairClimb / TARGET_RISER));
+  const riserHeight = stairClimb / treadCount;
+  const riserCount = treadCount + 1;
   return { riserCount, riserHeight, treadCount };
 }

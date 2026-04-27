@@ -741,41 +741,42 @@ select {
   cursor: pointer;
 }
 
-/* 楼梯平面符号——颜色由 inline style.color 提供，下面用 currentColor 取 */
+/* 楼梯平面符号——保持 2D 简洁：黑色线条、无背景填充 */
 .plan-stair {
   cursor: pointer;
 }
 
 .plan-stair-outline {
   fill: none;
-  stroke: currentColor;
-  stroke-width: 1.5;
+  stroke: #263238;
+  stroke-width: 1;
   stroke-dasharray: 6 4;
-  opacity: 0.55;
+  /* fill:none would skip hit-testing the interior; force pointer events
+     so the whole stair body is clickable/draggable. */
+  pointer-events: all;
 }
 
 .plan-stair-flight {
-  fill: currentColor;
-  fill-opacity: 0.12;
-  stroke: currentColor;
-  stroke-width: 1.5;
+  fill: none;
+  stroke: #263238;
+  stroke-width: 1;
+  pointer-events: all;
 }
 
 .plan-stair-landing {
-  fill: currentColor;
-  fill-opacity: 0.22;
-  stroke: currentColor;
-  stroke-width: 1.5;
+  fill: none;
+  stroke: #263238;
+  stroke-width: 1;
+  pointer-events: all;
 }
 
 .plan-stair-tread {
-  stroke: currentColor;
+  stroke: #263238;
   stroke-width: 1;
-  opacity: 0.75;
 }
 
 .plan-stair-label {
-  fill: currentColor;
+  fill: #263238;
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.08em;
@@ -783,13 +784,14 @@ select {
   user-select: none;
 }
 
-.plan-stair.is-selected .plan-stair-flight {
-  fill-opacity: 0.22;
+.plan-stair.is-selected .plan-stair-outline,
+.plan-stair.is-selected .plan-stair-flight,
+.plan-stair.is-selected .plan-stair-landing,
+.plan-stair.is-selected .plan-stair-tread {
   stroke-width: 2;
 }
 
 .plan-stair.is-selected .plan-stair-outline {
-  opacity: 0.9;
   stroke-dasharray: none;
 }
 
@@ -1550,10 +1552,14 @@ select {
 }
 
 .stair-rotate-handle {
-  fill: var(--accent-bg-strong);
-  stroke: var(--text);
-  stroke-width: 1.5;
+  fill: rgba(255, 255, 255, 0.35);
+  stroke: #c75300;
+  stroke-width: 2.5;
   cursor: grab;
+}
+
+.stair-rotate-handle:hover {
+  fill: rgba(255, 245, 236, 0.7);
 }
 
 .stair-rotate-handle:active {

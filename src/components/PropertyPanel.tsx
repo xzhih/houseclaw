@@ -292,7 +292,7 @@ function StairEditor({ project, id, onProjectChange }: EditorProps) {
   const apply = (patch: StairPatch) =>
     commit(onProjectChange, patch, (final) => updateStair(project, storey.id, final));
 
-  const cfg = computeStairConfig(storey.height, stair.treadDepth);
+  const cfg = computeStairConfig(storey.height, storey.slabThickness, stair.treadDepth);
 
   const shapes: { id: StairShape; label: string }[] = [
     { id: "straight", label: "一字" },

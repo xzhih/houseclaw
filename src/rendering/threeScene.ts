@@ -466,7 +466,8 @@ function createStairMeshes(project: HouseProject, geometry: HouseGeometry) {
         new THREE.BoxGeometry(box.sx, box.sy, box.sz),
         getMaterial(stair.materialId),
       );
-      mesh.position.set(box.cx, box.cy, box.cz);
+      // box.cz is in plan-y space; mirror to scene-z to match walls/slabs.
+      mesh.position.set(box.cx, box.cy, planYToSceneZ(box.cz));
       // Negate rotation: plan uses CCW-positive (standard math), but three.js Y-axis rotation
       // with the default right-hand rule rotates CW when viewed from above, so we negate.
       mesh.rotation.y = -(box.rotationY ?? 0);

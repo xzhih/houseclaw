@@ -3,7 +3,7 @@ import { buildRoofPlaceholder, buildSlabGeometry } from "./slabGeometry";
 import type { HouseGeometry, SlabGeometry, StairRenderGeometry } from "./types";
 import { buildWallNetwork, type FootprintQuad } from "./wallNetwork";
 import { buildWallPanels } from "./wallPanels";
-import { buildStairGeometry } from "./stairGeometry";
+import { buildStairGeometry, stairFootprintPolygon } from "./stairGeometry";
 
 const SLAB_MATERIAL_ID = "mat-gray-stone";
 
@@ -59,9 +59,28 @@ function pickTopStorey(project: HouseProject) {
 export function buildHouseGeometry(project: HouseProject): HouseGeometry {
   const footprints = buildFootprintIndex(project.walls);
 
+  const sortedStoreys = [...project.storeys].sort((a, b) => a.elevation - b.elevation);
+
+  // Compute a tight slab-hole polygon per storey based on the actual stair footprint
+  // (union of flights + landings), not the bbox. Without this the U/L flights leave
+  // empty hole space the walker can fall through when stepping from stair to slab.
+  const slabHoleByStorey = new Map<string, Point2[]>();
+  for (let i = 1; i < sortedStoreys.length; i += 1) {
+    const storey = sortedStoreys[i];
+    if (!storey.stair) continue;
+    const climb = storey.elevation - sortedStoreys[i - 1].elevation;
+    slabHoleByStorey.set(storey.id, stairFootprintPolygon(storey.stair, climb));
+  }
+
   const slabs: SlabGeometry[] = [];
   for (const storey of project.storeys) {
-    const slab = buildSlabGeometry(storey, project.walls, footprints, SLAB_MATERIAL_ID);
+    const slab = buildSlabGeometry(
+      storey,
+      project.walls,
+      footprints,
+      SLAB_MATERIAL_ID,
+      slabHoleByStorey.get(storey.id),
+    );
     if (slab) slabs.push(slab);
   }
   const topStorey = pickTopStorey(project);
@@ -71,7 +90,6 @@ export function buildHouseGeometry(project: HouseProject): HouseGeometry {
   }
 
   const stairs: StairRenderGeometry[] = [];
-  const sortedStoreys = [...project.storeys].sort((a, b) => a.elevation - b.elevation);
   for (let i = 0; i < sortedStoreys.length; i += 1) {
     const storey = sortedStoreys[i];
     if (!storey.stair) continue;

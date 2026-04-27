@@ -34,8 +34,6 @@ export type PlanStairSymbol = {
   treadDepth: number;
   treadCount: number;
   turn?: StairTurn;
-  /** 楼梯材质颜色（hex）——平面符号的描边/标签使用 */
-  color: string;
   /** Rotation in radians (CCW-positive, plan space). Default 0 for unrotated stairs. */
   rotation: number;
   /** Plan-space center of the bounding rectangle (rotation pivot). */

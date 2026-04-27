@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Stair, Storey } from "../domain/types";
-import { buildStairGeometry } from "../geometry/stairGeometry";
+import { buildStairGeometry, stairFootprintPolygon } from "../geometry/stairGeometry";
 
 const STOREY: Storey = {
   id: "2f",
@@ -19,34 +19,35 @@ const BASE_STAIR: Stair = {
 };
 
 describe("buildStairGeometry — straight", () => {
-  it("emits treadCount tread boxes (riserCount - 1)", () => {
+  // climb to slab BOTTOM = storeyHeight - slabThickness = 3.2 - 0.18 = 3.02
+  // treadCount = round(3.02 / 0.165) = 18; riserHeight = 3.02 / 18
+  const STAIR_CLIMB = STOREY.height - STOREY.slabThickness;
+  const TREAD_COUNT = 18;
+  const RISER = STAIR_CLIMB / TREAD_COUNT;
+
+  it("emits treadCount treads (no landings)", () => {
     const geom = buildStairGeometry(BASE_STAIR, STOREY, 0); // lowerStoreyTopY = 0
-    // computeStairConfig(3.2, 0.27): riserCount = round(3.2/0.165) = 19, treadCount = 18
-    expect(geom.treads).toHaveLength(18);
+    expect(geom.treads).toHaveLength(TREAD_COUNT);
     expect(geom.landings).toHaveLength(0);
   });
 
   it("first tread top y = riserHeight, climbs in -y direction (bottomEdge='+y' starts at high y)", () => {
     const geom = buildStairGeometry(BASE_STAIR, STOREY, 0);
-    const riserHeight = 3.2 / 19;
     const first = geom.treads[0];
-
-    // 第 0 级踏步顶面 y = riserHeight
-    expect(first.cy + first.sy / 2).toBeCloseTo(riserHeight, 4);
-    expect(first.sy).toBeCloseTo(riserHeight, 4);
-    // 第 0 级沿 Z 占据 (depth - 0.27, depth) 区间（贴 +y 边的第一格）
+    expect(first.cy + first.sy / 2).toBeCloseTo(RISER, 4);
+    expect(first.sy).toBeCloseTo(RISER, 4);
     expect(first.cz).toBeCloseTo(BASE_STAIR.depth - 0.27 / 2, 4);
     expect(first.sz).toBeCloseTo(0.27, 4);
-    // 沿 X 占满洞口宽
     expect(first.cx).toBeCloseTo(BASE_STAIR.width / 2, 4);
     expect(first.sx).toBeCloseTo(BASE_STAIR.width, 4);
   });
 
-  it("top tread top y = treadCount * riserHeight (one riser below upper floor)", () => {
+  it("top tread top y sits just below slab BOTTOM (5mm gap to avoid z-fighting)", () => {
     const geom = buildStairGeometry(BASE_STAIR, STOREY, 0);
-    const riserHeight = 3.2 / 19;
     const top = geom.treads[geom.treads.length - 1];
-    expect(top.cy + top.sy / 2).toBeCloseTo(18 * riserHeight, 4);
+    // Top tread top = (treadCount × riserHeight) - 5mm offset
+    expect(top.cy + top.sy / 2).toBeCloseTo(STAIR_CLIMB - 0.005, 4);
+    expect(top.cy + top.sy / 2).toBeLessThan(STAIR_CLIMB); // strictly below slab bottom
   });
 
   it("treads are placed in opening-local coords (offset by stair.x, stair.y)", () => {
@@ -87,17 +88,16 @@ describe("buildStairGeometry — straight", () => {
   });
 
   it("uses lowerStoreyTopY for vertical offset", () => {
-    // 拿 lowerStoreyTopY=1.0 的非零起点；climb = 3.2 - 1.0 = 2.2
+    // climb to slab bottom = (3.2 - 1.0) - 0.18 = 2.02
     const geom = buildStairGeometry(BASE_STAIR, STOREY, 1.0);
-    const climb = 2.2;
-    const riserCount = Math.round(climb / 0.165); // 13
-    const riserHeight = climb / riserCount;
+    const stairClimb = STOREY.height - STOREY.slabThickness - 1.0; // 2.02
+    const tc = Math.round(stairClimb / 0.165); // 12
+    const r = stairClimb / tc;
     const first = geom.treads[0];
-    // 第 0 级踏步顶面 y = lowerStoreyTopY + riserHeight
-    expect(first.cy + first.sy / 2).toBeCloseTo(1.0 + riserHeight, 4);
-    // 顶级踏步顶面 y = lowerStoreyTopY + treadCount * riserHeight
+    expect(first.cy + first.sy / 2).toBeCloseTo(1.0 + r, 4);
+    // Top tread top = lowerStoreyTopY + treadCount × riserHeight - 5mm z-fight offset
     const top = geom.treads[geom.treads.length - 1];
-    expect(top.cy + top.sy / 2).toBeCloseTo(1.0 + (riserCount - 1) * riserHeight, 4);
+    expect(top.cy + top.sy / 2).toBeCloseTo(1.0 + tc * r - 0.005, 4);
   });
 });
 
@@ -119,7 +119,7 @@ describe("buildStairGeometry — L", () => {
   it("landing is square LW = 2.5, top at (nLow+1)*riserHeight", () => {
     const geom = buildStairGeometry(STAIR, STOREY, 0);
     const lw = 2.5;
-    const r = 3.2 / 19;
+    const r = (STOREY.height - STOREY.slabThickness) / 18;
     const landing = geom.landings[0];
     expect(landing.sx).toBeCloseTo(lw, 4);
     expect(landing.sz).toBeCloseTo(lw, 4);
@@ -152,11 +152,13 @@ describe("buildStairGeometry — L", () => {
     expect(upper0.sz).toBeCloseTo(lw, 4);   // upper flight's "width" perpendicular = LW
   });
 
-  it("upper flight last tread top y = treadCount * riserHeight (one riser below upper floor)", () => {
+  it("upper flight last tread top y sits just below slab bottom (5mm gap)", () => {
     const geom = buildStairGeometry(STAIR, STOREY, 0);
-    const r = 3.2 / 19;
     const top = geom.treads[geom.treads.length - 1];
-    expect(top.cy + top.sy / 2).toBeCloseTo(18 * r, 4);
+    expect(top.cy + top.sy / 2).toBeCloseTo(
+      STOREY.height - STOREY.slabThickness - 0.005,
+      4,
+    );
   });
 
   it("turn='left' upper flight runs in -x direction", () => {
@@ -236,31 +238,93 @@ describe("buildStairGeometry — U", () => {
     expect(upper0.cx).toBeCloseTo(2.5 - fw / 2, 4);
   });
 
-  it("landing spans full crossLength, run-extent = treadDepth, top at (nLow+1)*riserHeight", () => {
+  it("landing sits beyond the flights as a U-turn platform, capped to fit the bbox", () => {
     const geom = buildStairGeometry(STAIR, STOREY, 0);
-    const r = 3.2 / 19;
+    const r = (STOREY.height - STOREY.slabThickness) / 18;
     const td = 0.27;
+    const fw = (STAIR.width - 0.05) / 2;
     const landing = geom.landings[0];
-    expect(landing.sx).toBeCloseTo(STAIR.width, 4);  // full crossLength
-    expect(landing.sz).toBeCloseTo(td, 4);            // run extent = one tread depth
+    const expectedDepth = Math.min(fw, STAIR.depth - 9 * td);
+    expect(landing.sx).toBeCloseTo(STAIR.width, 4);
+    expect(landing.sz).toBeCloseTo(expectedDepth, 4);
     expect(landing.cy + landing.sy / 2).toBeCloseTo(10 * r, 4);
-    // landing's run center = runLength - nLow*td - td/2 = 5.0 - 9*0.27 - 0.135 = 2.435
-    expect(landing.cz).toBeCloseTo(STAIR.depth - 9 * td - td / 2, 4);
+    expect(landing.cz).toBeCloseTo(STAIR.depth - (9 * td + expectedDepth / 2), 4);
   });
 
-  it("upper flight tread j runCenter = landing's near edge - (j+0.5)*td", () => {
+  it("upper flight is right-justified, with topmost tread widened to bbox edge", () => {
     const geom = buildStairGeometry(STAIR, STOREY, 0);
     const td = 0.27;
     const upper0 = geom.treads[9];
-    // landing near edge (toward bottomEdge) at run = runLength - nLow*td - td = 5.0 - 9*0.27 - 0.27 = 2.30
-    // upper flight tread 0 runCenter = 2.30 - 0.5*td = 2.165
-    expect(upper0.cz).toBeCloseTo(STAIR.depth - 9 * td - td - 0.5 * td, 4);
+    const upperLast = geom.treads[geom.treads.length - 1];
+    // Tread 0 (bottom of upper flight) shares run with lower-flight last tread
+    expect(upper0.cz).toBeCloseTo(STAIR.depth - (9 - 0.5) * td, 4);
+    expect(upper0.sz).toBeCloseTo(td, 4);
+    // Topmost tread is widened to cover [0, 2*td] in 2D-run, so cz center sits at
+    // depth - td and the box spans 2*td in run direction. This gives walkers
+    // descending from 2F a wide target tread to land on.
+    expect(upperLast.sz).toBeCloseTo(2 * td, 4);
+    expect(upperLast.cz).toBeCloseTo(STAIR.depth - td, 4);
+    // Run direction: top tread is closer to the +y bottomEdge than upper0.
+    expect(upperLast.cz).toBeGreaterThan(upper0.cz);
   });
 
-  it("top upper-flight tread top y = treadCount * riserHeight", () => {
+  it("top upper-flight tread top y sits just below slab bottom (5mm gap)", () => {
     const geom = buildStairGeometry(STAIR, STOREY, 0);
-    const r = 3.2 / 19;
     const top = geom.treads[geom.treads.length - 1];
-    expect(top.cy + top.sy / 2).toBeCloseTo(18 * r, 4);
+    expect(top.cy + top.sy / 2).toBeCloseTo(
+      STOREY.height - STOREY.slabThickness - 0.005,
+      4,
+    );
+  });
+});
+
+describe("stairFootprintPolygon", () => {
+  it("returns the bbox for a straight stair (whole well is open)", () => {
+    const stair: Stair = {
+      x: 1, y: 2, width: 1.2, depth: 5.0,
+      shape: "straight", treadDepth: 0.27,
+      bottomEdge: "+y", materialId: "m",
+    };
+    const poly = stairFootprintPolygon(stair, 3.2);
+    expect(poly).toHaveLength(4);
+    const xs = poly.map((p) => p.x).sort();
+    const ys = poly.map((p) => p.y).sort();
+    expect(xs).toEqual([1, 1, 2.2, 2.2]);
+    expect(ys).toEqual([2, 2, 7, 7]);
+  });
+
+  it("U-stair hole is the full bbox (well is fully open; the topmost tread is widened to catch the walker)", () => {
+    const stair: Stair = {
+      x: 0, y: 0, width: 2.5, depth: 5.0,
+      shape: "u", treadDepth: 0.27,
+      bottomEdge: "+y", materialId: "m",
+    };
+    const poly = stairFootprintPolygon(stair, 3.2);
+    expect(poly).toHaveLength(4);
+    let area = 0;
+    for (let i = 0; i < poly.length; i += 1) {
+      const a = poly[i];
+      const b = poly[(i + 1) % poly.length];
+      area += a.x * b.y - b.x * a.y;
+    }
+    expect(Math.abs(area / 2)).toBeCloseTo(2.5 * 5.0, 3);
+  });
+
+  it("polygon orientation is CCW in world plan (matches bbox-hole convention)", () => {
+    // "-y" basis flips local→world orientation; the function should re-orient the
+    // result so it's still CCW like the bbox hole.
+    const stair: Stair = {
+      x: 0, y: 0, width: 2.5, depth: 5.0,
+      shape: "u", treadDepth: 0.27,
+      bottomEdge: "-y", materialId: "m",
+    };
+    const poly = stairFootprintPolygon(stair, 3.2);
+    let area = 0;
+    for (let i = 0; i < poly.length; i += 1) {
+      const a = poly[i];
+      const b = poly[(i + 1) % poly.length];
+      area += a.x * b.y - b.x * a.y;
+    }
+    expect(area).toBeGreaterThan(0); // CCW
   });
 });

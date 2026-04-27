@@ -1,6 +1,11 @@
 import { computeStairConfig, rotatePoint } from "../domain/stairs";
 import type { StairConfig } from "../domain/stairs";
-import type { Stair, Storey } from "../domain/types";
+import type { Point2, Stair, Storey } from "../domain/types";
+
+// 5mm gap between the top tread's top face and the slab's underside, just enough
+// to avoid coplanar z-fighting and let the slab's 0.18m thickness face render
+// cleanly as an independent band above the stair.
+const Z_FIGHT_OFFSET = 0.005;
 
 export type StairBox = {
   cx: number; cy: number; cz: number;  // world-space center
@@ -23,6 +28,9 @@ type EdgeBasis = {
   crossLength: number;  // stair's footprint extent on the cross axis
   // Returns the run-axis center (in stair-local coords, 0..runLength) for the i-th tread
   runCenterAt: (i: number, treadDepth: number) => number;
+  // Maps a 2D-local run position (0 = bottomEdge, runLength = far end) to stair-local
+  // runCenter, accounting for the basis's climb direction.
+  runFrom2D: (run2D: number) => number;
 };
 
 function basisForEdge(stair: Stair): EdgeBasis {
@@ -31,21 +39,25 @@ function basisForEdge(stair: Stair): EdgeBasis {
       runAxis: "z", runLength: stair.depth,
       crossAxis: "x", crossLength: stair.width,
       runCenterAt: (i, td) => stair.depth - (i + 0.5) * td,
+      runFrom2D: (r) => stair.depth - r,
     };
     case "-y": return {
       runAxis: "z", runLength: stair.depth,
       crossAxis: "x", crossLength: stair.width,
       runCenterAt: (i, td) => (i + 0.5) * td,
+      runFrom2D: (r) => r,
     };
     case "+x": return {
       runAxis: "x", runLength: stair.width,
       crossAxis: "z", crossLength: stair.depth,
       runCenterAt: (i, td) => stair.width - (i + 0.5) * td,
+      runFrom2D: (r) => stair.width - r,
     };
     case "-x": return {
       runAxis: "x", runLength: stair.width,
       crossAxis: "z", crossLength: stair.depth,
       runCenterAt: (i, td) => (i + 0.5) * td,
+      runFrom2D: (r) => r,
     };
   }
 }
@@ -105,11 +117,42 @@ function appendLowerFlight(
   }
 }
 
-function buildStraight(stair: Stair, lowerStoreyTopY: number, climb: number): StairGeometry {
-  const cfg = computeStairConfig(climb, stair.treadDepth);
+function buildStraight(
+  stair: Stair,
+  lowerStoreyTopY: number,
+  climb: number,
+  slabThickness: number,
+): StairGeometry {
+  const cfg = computeStairConfig(climb, slabThickness, stair.treadDepth);
   const basis = basisForEdge(stair);
   const treads: StairBox[] = [];
-  appendLowerFlight(treads, stair, basis, cfg, cfg.treadCount, lowerStoreyTopY, basis.crossLength / 2, basis.crossLength);
+  // Standard treads, except the topmost is widened to cover [(treadCount-1)*td, runLength]
+  // so a walker stepping in from the upper floor lands on a tread regardless of where
+  // exactly they step over the bbox edge.
+  const td = stair.treadDepth;
+  const topRun2DStart = (cfg.treadCount - 1) * td;
+  const topRun2DEnd = Math.max(basis.runLength, cfg.treadCount * td);
+  for (let i = 0; i < cfg.treadCount; i += 1) {
+    const isTop = i === cfg.treadCount - 1;
+    const runCenter = isTop
+      ? basis.runFrom2D((topRun2DStart + topRun2DEnd) / 2)
+      : basis.runCenterAt(i, td);
+    const runSize = isTop ? topRun2DEnd - topRun2DStart : td;
+    // Top tread sits 5mm below the slab bottom to avoid coplanar z-fighting
+    // between its top face (= slab bottom) and the slab's underside, and to
+    // make the slab read as an independent thickness band above the stair.
+    const topTreadDrop = isTop ? Z_FIGHT_OFFSET : 0;
+    treads.push(
+      makeBoxAtCross({
+        stair, basis,
+        runCenter, runSize,
+        crossCenter: basis.crossLength / 2,
+        crossSize: basis.crossLength,
+        cy: lowerStoreyTopY + (i + 0.5) * cfg.riserHeight - topTreadDrop,
+        sy: cfg.riserHeight,
+      }),
+    );
+  }
   return { treads, landings: [] };
 }
 
@@ -117,8 +160,9 @@ function buildL(
   stair: Stair,
   lowerStoreyTopY: number,
   climb: number,
+  slabThickness: number,
 ): StairGeometry {
-  const cfg = computeStairConfig(climb, stair.treadDepth);
+  const cfg = computeStairConfig(climb, slabThickness, stair.treadDepth);
   const basis = basisForEdge(stair);
   const lw = Math.min(stair.width, stair.depth) / 2;
 
@@ -163,7 +207,9 @@ function buildL(
     const crossCenter = turn === "right"
       ? lw + (j + 0.5) * stair.treadDepth
       : (basis.crossLength - lw) - (j + 0.5) * stair.treadDepth;
-    const cy = lowerStoreyTopY + (nLow + 1 + j + 0.5) * cfg.riserHeight;
+    const isTop = j === nUp - 1;
+    const cy =
+      lowerStoreyTopY + (nLow + 1 + j + 0.5) * cfg.riserHeight - (isTop ? Z_FIGHT_OFFSET : 0);
     treads.push(
       makeBoxAtCross({
         stair, basis,
@@ -177,8 +223,13 @@ function buildL(
   return { treads, landings };
 }
 
-function buildU(stair: Stair, lowerStoreyTopY: number, climb: number): StairGeometry {
-  const cfg = computeStairConfig(climb, stair.treadDepth);
+function buildU(
+  stair: Stair,
+  lowerStoreyTopY: number,
+  climb: number,
+  slabThickness: number,
+): StairGeometry {
+  const cfg = computeStairConfig(climb, slabThickness, stair.treadDepth);
   const basis = basisForEdge(stair);
   const GAP = 0.05;
   const flightWidth = (basis.crossLength - GAP) / 2;
@@ -193,28 +244,48 @@ function buildU(stair: Stair, lowerStoreyTopY: number, climb: number): StairGeom
   const treads: StairBox[] = [];
   appendLowerFlight(treads, stair, basis, cfg, nLow, lowerStoreyTopY, lowerCrossCenter, flightWidth);
 
-  // Landing: one tread-depth deep at far end of run axis, full crossLength wide.
-  const landingRunSize = stair.treadDepth;
-  const landingRunCenter = basis.runLength - nLow * stair.treadDepth - landingRunSize / 2;
+  // Landing is the U-turn platform sitting BEYOND the flights: full crossLength wide,
+  // ideally one flight deep so a person can walk across and turn 180°. Capped to the
+  // remaining run space so it doesn't overflow the stair bbox; if there's no room left
+  // (the stair is too shallow for U-shape) the landing collapses to zero and the user
+  // sees flights with no platform — a hint to give the stair more depth.
+  const landing2DRunStart = nLow * stair.treadDepth;
+  const landingRunSize = Math.max(
+    0,
+    Math.min(flightWidth, basis.runLength - landing2DRunStart),
+  );
   const landingTopY = lowerStoreyTopY + (nLow + 1) * cfg.riserHeight;
-  const landings: StairBox[] = [
-    makeBoxAtCross({
-      stair, basis,
-      runCenter: landingRunCenter, runSize: landingRunSize,
-      crossCenter: basis.crossLength / 2, crossSize: basis.crossLength,
-      cy: landingTopY - cfg.riserHeight / 2, sy: cfg.riserHeight,
-    }),
-  ];
+  const landings: StairBox[] =
+    landingRunSize > 0
+      ? [
+          makeBoxAtCross({
+            stair, basis,
+            runCenter: basis.runFrom2D(landing2DRunStart + landingRunSize / 2),
+            runSize: landingRunSize,
+            crossCenter: basis.crossLength / 2, crossSize: basis.crossLength,
+            cy: landingTopY - cfg.riserHeight / 2, sy: cfg.riserHeight,
+          }),
+        ]
+      : [];
 
-  // Upper flight: from landing's near edge stepping toward bottomEdge.
-  const landingNearRun = basis.runLength - nLow * stair.treadDepth - landingRunSize;
+  // Upper flight runs parallel to the lower flight on the opposite cross half,
+  // right-justified so its far edge meets the lower flight's far edge (run = nLow*td).
+  // The TOPMOST tread (j = nUp-1) is widened to cover [0, 2*td] in 2D-run, extending
+  // all the way to the bottomEdge of the bbox. That way a walker stepping in from the
+  // upper floor (which is solid slab outside the bbox) lands on a tread instead of
+  // free-falling through the open well.
   for (let j = 0; j < nUp; j += 1) {
-    const runCenter = landingNearRun - (j + 0.5) * stair.treadDepth;
-    const cy = lowerStoreyTopY + (nLow + 1 + j + 0.5) * cfg.riserHeight;
+    const isTop = j === nUp - 1;
+    const runCenter = isTop
+      ? basis.runFrom2D(stair.treadDepth) // center of [0, 2*td]
+      : basis.runCenterAt(nLow - 1 - j, stair.treadDepth);
+    const runSize = isTop ? 2 * stair.treadDepth : stair.treadDepth;
+    const cy =
+      lowerStoreyTopY + (nLow + 1 + j + 0.5) * cfg.riserHeight - (isTop ? Z_FIGHT_OFFSET : 0);
     treads.push(
       makeBoxAtCross({
         stair, basis,
-        runCenter, runSize: stair.treadDepth,
+        runCenter, runSize,
         crossCenter: upperCrossCenter, crossSize: flightWidth,
         cy, sy: cfg.riserHeight,
       }),
@@ -230,16 +301,17 @@ export function buildStairGeometry(
   lowerStoreyTopY: number,
 ): StairGeometry {
   const climb = storey.elevation - lowerStoreyTopY;
+  const t = storey.slabThickness;
   let geom: StairGeometry;
   switch (stair.shape) {
     case "straight":
-      geom = buildStraight(stair, lowerStoreyTopY, climb);
+      geom = buildStraight(stair, lowerStoreyTopY, climb, t);
       break;
     case "l":
-      geom = buildL(stair, lowerStoreyTopY, climb);
+      geom = buildL(stair, lowerStoreyTopY, climb, t);
       break;
     case "u":
-      geom = buildU(stair, lowerStoreyTopY, climb);
+      geom = buildU(stair, lowerStoreyTopY, climb, t);
       break;
   }
 
@@ -258,4 +330,56 @@ export function buildStairGeometry(
   }
 
   return geom;
+}
+
+// Map a stair-local (run, cross) point to world plan (x, y) using the bottomEdge.
+function localToWorld(stair: Stair, run: number, cross: number): Point2 {
+  switch (stair.bottomEdge) {
+    case "+y": return { x: stair.x + cross, y: stair.y + stair.depth - run };
+    case "-y": return { x: stair.x + cross, y: stair.y + run };
+    case "+x": return { x: stair.x + stair.width - run, y: stair.y + cross };
+    case "-x": return { x: stair.x + run, y: stair.y + cross };
+  }
+}
+
+/**
+ * Plan-space polygon (CCW in world plan) of the slab hole carved by this stair.
+ * The whole stair well is open — slab hole = stair bbox. The stair's TOPMOST tread
+ * is widened to cover the bbox edge on the exit side (see buildStraight/buildU)
+ * so a walker stepping from the upper floor into the bbox lands on a tread, not
+ * empty space.
+ */
+export function stairFootprintPolygon(stair: Stair, _climb: number): Point2[] {
+  const runLength =
+    stair.bottomEdge === "+y" || stair.bottomEdge === "-y" ? stair.depth : stair.width;
+  const crossLength =
+    stair.bottomEdge === "+y" || stair.bottomEdge === "-y" ? stair.width : stair.depth;
+
+  const local: Array<{ run: number; cross: number }> = [
+    { run: 0, cross: 0 },
+    { run: runLength, cross: 0 },
+    { run: runLength, cross: crossLength },
+    { run: 0, cross: crossLength },
+  ];
+
+  const world = local.map((p) => localToWorld(stair, p.run, p.cross));
+  const angle = stair.rotation ?? 0;
+  const rotated =
+    angle === 0
+      ? world
+      : (() => {
+          const center = { x: stair.x + stair.width / 2, y: stair.y + stair.depth / 2 };
+          return world.map((p) => rotatePoint(p, center, angle));
+        })();
+  // For "-y" and "+x" bottomEdges the local→world mapping flips orientation, so the
+  // polygon ends up CW in world plan even though it was constructed CCW in stair-local.
+  // Match the existing bbox-hole CCW convention by reversing when needed.
+  let area = 0;
+  for (let i = 0; i < rotated.length; i += 1) {
+    const a = rotated[i];
+    const b = rotated[(i + 1) % rotated.length];
+    area += a.x * b.y - b.x * a.y;
+  }
+  if (area < 0) rotated.reverse();
+  return rotated;
 }

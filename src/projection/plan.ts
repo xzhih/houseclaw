@@ -1,12 +1,6 @@
 import { computeStairConfig } from "../domain/stairs";
-import type { HouseProject, Stair } from "../domain/types";
+import type { HouseProject } from "../domain/types";
 import type { PlanProjection, PlanStairSymbol } from "./types";
-
-const STAIR_FALLBACK_COLOR = "#b58a64";
-
-function colorForStair(project: HouseProject, stair: Stair): string {
-  return project.materials.find((m) => m.id === stair.materialId)?.color ?? STAIR_FALLBACK_COLOR;
-}
 
 export function projectPlanView(project: HouseProject, storeyId: string): PlanProjection {
   const walls = project.walls.filter((wall) => wall.storeyId === storeyId);
@@ -20,7 +14,11 @@ export function projectPlanView(project: HouseProject, storeyId: string): PlanPr
   const stairs: PlanStairSymbol[] = [];
 
   if (currentStorey?.stair) {
-    const cfg = computeStairConfig(currentStorey.height, currentStorey.stair.treadDepth);
+    const cfg = computeStairConfig(
+      currentStorey.height,
+      currentStorey.slabThickness,
+      currentStorey.stair.treadDepth,
+    );
     stairs.push({
       storeyId: currentStorey.id,
       half: "upper",
@@ -35,7 +33,6 @@ export function projectPlanView(project: HouseProject, storeyId: string): PlanPr
       treadDepth: currentStorey.stair.treadDepth,
       treadCount: cfg.treadCount,
       turn: currentStorey.stair.turn,
-      color: colorForStair(project, currentStorey.stair),
       rotation: currentStorey.stair.rotation ?? 0,
       center: {
         x: currentStorey.stair.x + currentStorey.stair.width / 2,
@@ -45,7 +42,11 @@ export function projectPlanView(project: HouseProject, storeyId: string): PlanPr
   }
 
   if (upperStorey?.stair) {
-    const cfg = computeStairConfig(upperStorey.height, upperStorey.stair.treadDepth);
+    const cfg = computeStairConfig(
+      upperStorey.height,
+      upperStorey.slabThickness,
+      upperStorey.stair.treadDepth,
+    );
     stairs.push({
       storeyId: upperStorey.id,
       half: "lower",
@@ -60,7 +61,6 @@ export function projectPlanView(project: HouseProject, storeyId: string): PlanPr
       treadDepth: upperStorey.stair.treadDepth,
       treadCount: cfg.treadCount,
       turn: upperStorey.stair.turn,
-      color: colorForStair(project, upperStorey.stair),
       rotation: upperStorey.stair.rotation ?? 0,
       center: {
         x: upperStorey.stair.x + upperStorey.stair.width / 2,
