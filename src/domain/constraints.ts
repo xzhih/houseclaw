@@ -1,3 +1,4 @@
+import { rotatePoint, stairCenter } from "./stairs";
 import { wallLength } from "./measurements";
 import type { HouseProject } from "./types";
 
@@ -176,12 +177,15 @@ export function validateProject(project: HouseProject): string[] {
     const minY = Math.min(...ys);
     const maxY = Math.max(...ys);
 
-    const corners = [
+    const rawCorners = [
       { x: opening.x, y: opening.y },
       { x: opening.x + opening.width, y: opening.y },
       { x: opening.x + opening.width, y: opening.y + opening.depth },
       { x: opening.x, y: opening.y + opening.depth },
     ];
+    const angle = opening.rotation ?? 0;
+    const center = stairCenter(opening);
+    const corners = angle === 0 ? rawCorners : rawCorners.map((p) => rotatePoint(p, center, angle));
     const allInside = corners.every(
       (c) => c.x >= minX && c.x <= maxX && c.y >= minY && c.y <= maxY,
     );

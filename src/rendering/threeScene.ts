@@ -450,6 +450,9 @@ function createStairMeshes(project: HouseProject, geometry: HouseGeometry) {
         getMaterial(stair.materialId),
       );
       mesh.position.set(box.cx, box.cy, box.cz);
+      // Negate rotation: plan uses CCW-positive (standard math), but three.js Y-axis rotation
+      // with the default right-hand rule rotates CW when viewed from above, so we negate.
+      mesh.rotation.y = -(box.rotationY ?? 0);
       mesh.castShadow = true;
       mesh.receiveShadow = true;
       meshes.push(mesh);

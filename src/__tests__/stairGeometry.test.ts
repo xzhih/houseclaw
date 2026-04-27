@@ -169,6 +169,43 @@ describe("buildStairGeometry — L", () => {
   });
 });
 
+describe("buildStairGeometry — rotation", () => {
+  it("rotation=0 leaves box centers unchanged (regression guard)", () => {
+    const stair: Stair = { ...BASE_STAIR, rotation: 0 };
+    const geom = buildStairGeometry(stair, STOREY, 0);
+    const first = geom.treads[0];
+    expect(first.cx).toBeCloseTo(BASE_STAIR.width / 2, 4);
+    expect(first.cz).toBeCloseTo(BASE_STAIR.depth - 0.27 / 2, 4);
+    expect(first.rotationY).toBeUndefined(); // 0-rotation path doesn't set rotationY
+  });
+
+  it("rotation=π/2 (90° CCW) swings box centers 90° around the rect center", () => {
+    // Stair at x=0, y=0, width=1.2, depth=5.0 — center at (0.6, 2.5).
+    // First tread (rotation=0) at cx=0.6, cz=4.865 (depth - 0.27/2).
+    // With rotation=π/2: rotatePoint({x:0.6, y:4.865}, {x:0.6, y:2.5}, π/2)
+    //   dx=0, dy=2.365; rotated: cx=0.6+0*0-2.365*1=−1.765, cz=2.5+0*1+2.365*0=2.5
+    // So cx ≈ 0.6 - 2.365, cz ≈ 2.5.
+    const stair: Stair = { ...BASE_STAIR, rotation: Math.PI / 2 };
+    const geom = buildStairGeometry(stair, STOREY, 0);
+    const first = geom.treads[0];
+    const center = { x: BASE_STAIR.width / 2, y: BASE_STAIR.depth / 2 };
+    const dz = (BASE_STAIR.depth - 0.27 / 2) - center.y; // original cz minus center.y
+
+    // After 90° CCW rotation: new_cx = center.x - dz, new_cz = center.y
+    expect(first.cx).toBeCloseTo(center.x - dz, 4);
+    expect(first.cz).toBeCloseTo(center.y, 4);
+    expect(first.rotationY).toBeCloseTo(Math.PI / 2, 4);
+  });
+
+  it("rotation=π/2 rotates all treads and sets rotationY on each box", () => {
+    const stair: Stair = { ...BASE_STAIR, rotation: Math.PI / 2 };
+    const geom = buildStairGeometry(stair, STOREY, 0);
+    for (const box of geom.treads) {
+      expect(box.rotationY).toBeCloseTo(Math.PI / 2, 4);
+    }
+  });
+});
+
 describe("buildStairGeometry — U", () => {
   const STAIR: Stair = {
     x: 0, y: 0, width: 2.5, depth: 5.0,

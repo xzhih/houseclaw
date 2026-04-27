@@ -1,10 +1,12 @@
-import { computeStairConfig } from "../domain/stairs";
+import { computeStairConfig, rotatePoint } from "../domain/stairs";
 import type { StairConfig } from "../domain/stairs";
 import type { Stair, Storey } from "../domain/types";
 
 export type StairBox = {
   cx: number; cy: number; cz: number;  // world-space center
   sx: number; sy: number; sz: number;  // dimensions
+  /** Rotation around world Y axis at the box's own center (radians). Matches stair.rotation. */
+  rotationY?: number;
 };
 
 export type StairGeometry = {
@@ -228,12 +230,32 @@ export function buildStairGeometry(
   lowerStoreyTopY: number,
 ): StairGeometry {
   const climb = storey.elevation - lowerStoreyTopY;
+  let geom: StairGeometry;
   switch (stair.shape) {
     case "straight":
-      return buildStraight(stair, lowerStoreyTopY, climb);
+      geom = buildStraight(stair, lowerStoreyTopY, climb);
+      break;
     case "l":
-      return buildL(stair, lowerStoreyTopY, climb);
+      geom = buildL(stair, lowerStoreyTopY, climb);
+      break;
     case "u":
-      return buildU(stair, lowerStoreyTopY, climb);
+      geom = buildU(stair, lowerStoreyTopY, climb);
+      break;
   }
+
+  const angle = stair.rotation ?? 0;
+  if (angle !== 0) {
+    // Plan-space center maps directly to world (cx, cz): plan-x → world-x, plan-y → world-z.
+    const worldCenter = { x: stair.x + stair.width / 2, y: stair.y + stair.depth / 2 };
+    const applyRotation = (box: StairBox): StairBox => {
+      const rotated = rotatePoint({ x: box.cx, y: box.cz }, worldCenter, angle);
+      return { ...box, cx: rotated.x, cz: rotated.y, rotationY: angle };
+    };
+    geom = {
+      treads: geom.treads.map(applyRotation),
+      landings: geom.landings.map(applyRotation),
+    };
+  }
+
+  return geom;
 }

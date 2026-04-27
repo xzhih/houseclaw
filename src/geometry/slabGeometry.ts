@@ -1,4 +1,5 @@
 import type { Point2, Storey, Wall } from "../domain/types";
+import { rotatePoint } from "../domain/stairs";
 import { buildExteriorRing } from "./footprintRing";
 import type { SlabGeometry } from "./types";
 import type { FootprintQuad } from "./wallNetwork";
@@ -10,13 +11,23 @@ const ROOF_PLACEHOLDER_THICKNESS = 0.2;
 // well above depth-buffer precision.
 const FACADE_INSET = 0.005;
 
-function holeFromOpening(opening: { x: number; y: number; width: number; depth: number }): Point2[] {
-  return [
+function holeFromOpening(opening: {
+  x: number;
+  y: number;
+  width: number;
+  depth: number;
+  rotation?: number;
+}): Point2[] {
+  const corners: Point2[] = [
     { x: opening.x, y: opening.y },
     { x: opening.x + opening.width, y: opening.y },
     { x: opening.x + opening.width, y: opening.y + opening.depth },
     { x: opening.x, y: opening.y + opening.depth },
   ];
+  const angle = opening.rotation ?? 0;
+  if (angle === 0) return corners;
+  const center = { x: opening.x + opening.width / 2, y: opening.y + opening.depth / 2 };
+  return corners.map((p) => rotatePoint(p, center, angle));
 }
 
 function insetRing(ring: Point2[], distance: number): Point2[] {

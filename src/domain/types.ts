@@ -43,6 +43,8 @@ export type Stair = {
   bottomEdge: StairEdge;
   turn?: StairTurn;
   materialId: string;
+  /** Rotation in radians around the rectangle's center. Positive = CCW in plan view (standard math). */
+  rotation?: number;
 };
 
 export type Storey = {

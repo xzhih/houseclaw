@@ -194,4 +194,53 @@ describe("stair validation", () => {
     const errors = validateProject(project);
     expect(errors).toEqual([]);
   });
+
+  it("accepts a well-placed rotated stair that fits inside even when rotated", () => {
+    // Place a 1.2×1.2 stair centered at (5, 4) — well inside the 10×8 footprint.
+    // Rotate 45°: corners move diagonally but stay inside.
+    const project = createSampleProject();
+    const twoF = project.storeys.find((s) => s.id === "2f")!;
+    twoF.stair = {
+      x: 5 - 0.6,  // center x=5
+      y: 4 - 0.6,  // center y=4
+      width: 1.2,
+      depth: 1.2,
+      shape: "straight",
+      treadDepth: 0.27,
+      bottomEdge: "+y",
+      materialId: "mat-dark-frame",
+      rotation: Math.PI / 4,  // 45° — rotated corners same distance from center as axis-aligned
+    };
+
+    const errors = validateProject(project);
+    expect(errors).toEqual([]);
+  });
+
+  it("rejects a rotated stair whose corners poke outside the footprint AABB", () => {
+    // Place a 1.2×2.0 stair near the top-right corner.
+    // Unrotated it fits inside. Rotated 45° the corner swings outside.
+    // Sample project footprint: x=[0,10], y=[0,8].
+    // Stair: x=8.5, y=6.5, width=1.2, depth=0.6 — these fit axis-aligned.
+    // Center at (9.1, 6.8). Rotating 45°: the far corner at (9.7, 6.5) rotated 45° around (9.1, 6.8)
+    // swings to about x=9.52, y=6.38 — still inside. Let's use a wider stair.
+    // Use x=8.0, y=5.0, width=2.5, depth=2.5, rotation=45°:
+    // center=(9.25, 6.25); half-diagonal = sqrt(2)*1.25 ≈ 1.77.
+    // corner at 9.25+1.77≈11.02 → outside x=10.
+    const project = createSampleProject();
+    const twoF = project.storeys.find((s) => s.id === "2f")!;
+    twoF.stair = {
+      x: 8.0,
+      y: 5.0,
+      width: 2.5,
+      depth: 2.5,
+      shape: "straight",
+      treadDepth: 0.27,
+      bottomEdge: "+y",
+      materialId: "mat-dark-frame",
+      rotation: Math.PI / 4,  // 45°
+    };
+
+    const errors = validateProject(project);
+    expect(errors).toContain("Storey 2f stair must be fully inside the exterior ring.");
+  });
 });
