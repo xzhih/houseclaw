@@ -329,3 +329,40 @@ export function pickRulerLength(pixelsPerMeter: number): number {
 - **覆盖层 z-order**：要确保 GridOverlay 在最底层（在 ghost、wall、stair 下），SmartGuides 在 selection handle 上，HTML 浮层永远在最上。
 - **simplifying 简化**：所有屏幕 px 计算用 `mapping.scale × viewport.zoom` 估算，不取真实 svgClientWidth。如果 SVG 容器尺寸严重偏离 SURFACE_WIDTH/HEIGHT，比例尺/网格隐藏阈值会有偏差；可后续再校正。
 - **性能**：网格线在大 zoom out 时仍可能 100+ 条，使用 `<line>` 元素够用（< 1000 个）；后续可改 `<path>` 合并。
+
+---
+
+## 完成记录
+
+实施时间：2026-04-27
+分支：`feat/2d-edit-panel-polish`
+
+### 实施情况
+
+A / B / C / D / F 五个特性按 spec 完成。共新增：
+- 5 个 React 覆盖层组件（GridOverlay / ScaleRuler / ZoomControls / StatusReadout / SmartGuides）
+- 3 个纯函数 + 19 个单元测试（gridLines / scaleRulerBucket / smartGuides）
+- DragReadout 联合类型 + applyDrag 13 个 case 写入
+
+`DrawingSurface2D` 主体未重构，仅加新 state + 接线 + smart guide 集成到 wall-endpoint / stair-resize 两个 case。
+
+### 与 spec 的关键偏差
+
+1. **Theme 修正**：spec 给覆盖层的 `rgba(255, 255, 255, 0.85)` 白色背景在 `#ffffff` canvas 上不可见，改用 `var(--panel)` 等主题 tokens（与已有 `.zoom-reset` 一致）。
+2. **scaleRulerBucket 删除未用导出**：`RULER_TARGET_PX_MIN/MAX` 两个 const 导出当前无消费者，按 YAGNI 删除。
+3. **D 节按钮简化**：Spec 之前提到的 5 按钮含适应内容 `⤢` 在 spec 内已说明取消，最终 4 按钮（+/−/⌂/⊞）。
+4. **`elev-storey-translate` readout 标签**：plan 写 `Δy:`，最终用 `Δ:`（值是 1D 沿立面轴的位移，不是世界 y delta）。
+
+### 视觉验证
+
+由用户在 dev server 完成（spec 视觉清单：平面所有覆盖层 / 立面无 smart guide / 屋顶无覆盖层 / 切换项目视图重置）。
+
+### 测试
+
+| 文件 | 用例数 |
+|------|--------|
+| gridLines.test.ts | 5 |
+| scaleRulerBucket.test.ts | 8 |
+| smartGuides.test.ts | 6 |
+| **新增合计** | **19** |
+| 全套通过 | 235 |
