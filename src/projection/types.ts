@@ -1,4 +1,4 @@
-import type { OpeningType, Point2 } from "../domain/types";
+import type { OpeningType, Point2, StairEdge, StairShape, StairTurn } from "../domain/types";
 
 export type PlanViewId = `plan-${string}`;
 
@@ -24,11 +24,23 @@ export type PlanBalconyGlyph = {
   depth: number;
 };
 
+export type PlanStairSymbol = {
+  storeyId: string;
+  half: "upper" | "lower";
+  rect: { x: number; y: number; width: number; depth: number };
+  shape: StairShape;
+  bottomEdge: StairEdge;
+  treadDepth: number;
+  treadCount: number;
+  turn?: StairTurn;
+};
+
 export type PlanProjection = {
   viewId: PlanViewId;
   wallSegments: PlanWallSegment[];
   openings: PlanOpeningGlyph[];
   balconies: PlanBalconyGlyph[];
+  stairs: PlanStairSymbol[];
 };
 
 export type ElevationSide = "front" | "back" | "left" | "right";

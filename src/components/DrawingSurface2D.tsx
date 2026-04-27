@@ -15,6 +15,7 @@ import type {
   PlanBalconyGlyph,
   PlanOpeningGlyph,
   PlanProjection,
+  PlanStairSymbol,
   PlanWallSegment,
 } from "../projection/types";
 
@@ -551,6 +552,78 @@ function renderPlan(
               },
               (event) => handlers?.onBalconyPointerDown(event, balcony.balconyId),
             )}
+          </g>
+        );
+      })}
+      {projection.stairs.map((stair) => {
+        const selected = isSelected(selection, "stair", stair.storeyId);
+        const label = stair.half === "lower" ? "UP" : "DN";
+
+        // Project the four rect corners.
+        const tl = projectPoint({ x: stair.rect.x, y: stair.rect.y + stair.rect.depth });
+        const tr = projectPoint({ x: stair.rect.x + stair.rect.width, y: stair.rect.y + stair.rect.depth });
+        const br = projectPoint({ x: stair.rect.x + stair.rect.width, y: stair.rect.y });
+        const bl = projectPoint({ x: stair.rect.x, y: stair.rect.y });
+
+        const rectPoints = `${tl.x},${tl.y} ${tr.x},${tr.y} ${br.x},${br.y} ${bl.x},${bl.y}`;
+
+        // Compute tread lines inside the full rect.
+        // For a straight stair with bottomEdge on +y/-y, treads are horizontal lines.
+        // For +x/-x, treads are vertical lines.
+        const treadLines: Array<{ x1: number; y1: number; x2: number; y2: number }> = [];
+        const isVerticalRun = stair.bottomEdge === "+y" || stair.bottomEdge === "-y";
+        const halfCount = Math.ceil(stair.treadCount / 2);
+        for (let i = 1; i <= halfCount; i++) {
+          // fraction along run
+          const frac = i / (stair.treadCount + 1);
+          if (isVerticalRun) {
+            // y increases bottom→top in world; SVG y is flipped
+            const wy = stair.rect.y + frac * stair.rect.depth;
+            const left = projectPoint({ x: stair.rect.x, y: wy });
+            const right = projectPoint({ x: stair.rect.x + stair.rect.width, y: wy });
+            treadLines.push({ x1: left.x, y1: left.y, x2: right.x, y2: right.y });
+          } else {
+            const wx = stair.rect.x + frac * stair.rect.width;
+            const top = projectPoint({ x: wx, y: stair.rect.y + stair.rect.depth });
+            const bot = projectPoint({ x: wx, y: stair.rect.y });
+            treadLines.push({ x1: top.x, y1: top.y, x2: bot.x, y2: bot.y });
+          }
+        }
+
+        // Text at center of the rect.
+        const cx = (tl.x + br.x) / 2;
+        const cy = (tl.y + br.y) / 2;
+
+        return (
+          <g
+            key={`${stair.storeyId}-${stair.half}`}
+            role="button"
+            tabIndex={0}
+            aria-label={`选择楼梯 ${stair.storeyId}`}
+            aria-pressed={selected}
+            className={selected ? "plan-stair is-selected" : "plan-stair"}
+            onClick={() => onSelect({ kind: "stair", id: stair.storeyId })}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                onSelect({ kind: "stair", id: stair.storeyId });
+              }
+            }}
+          >
+            <polygon className="plan-stair-outline" points={rectPoints} />
+            {treadLines.map((line, i) => (
+              <line
+                key={i}
+                className="plan-stair-tread"
+                x1={line.x1}
+                y1={line.y1}
+                x2={line.x2}
+                y2={line.y2}
+              />
+            ))}
+            <text x={cx} y={cy} textAnchor="middle" dominantBaseline="middle" className="plan-stair-label">
+              {label}
+            </text>
           </g>
         );
       })}

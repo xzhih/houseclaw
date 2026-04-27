@@ -180,6 +180,26 @@ describe("2D projections", () => {
     expect(opening!.width).toBeCloseTo(1.2);
   });
 
+  it("emits stair symbols for current and upper storeys", () => {
+    // createSampleProject: 1F has no stair, 2F and 3F each have a stair.
+    const project = createSampleProject();
+
+    const planFor1F = projectPlanView(project, "1f");
+    expect(planFor1F.stairs).toHaveLength(1); // 2F's stair appears as lower half
+    expect(planFor1F.stairs[0].storeyId).toBe("2f");
+    expect(planFor1F.stairs[0].half).toBe("lower");
+
+    const planFor2F = projectPlanView(project, "2f");
+    expect(planFor2F.stairs).toHaveLength(2); // 2F upper half + 3F lower half
+    expect(planFor2F.stairs.find((s) => s.storeyId === "2f")?.half).toBe("upper");
+    expect(planFor2F.stairs.find((s) => s.storeyId === "3f")?.half).toBe("lower");
+
+    const planFor3F = projectPlanView(project, "3f");
+    expect(planFor3F.stairs).toHaveLength(1); // 3F upper half only
+    expect(planFor3F.stairs[0].storeyId).toBe("3f");
+    expect(planFor3F.stairs[0].half).toBe("upper");
+  });
+
   it("flips the back elevation horizontally relative to the front", () => {
     // Front and back of the same symmetric box; place identical-shape openings on both walls
     // at offsets that place them at the same *world* x. From outside, the back view should
