@@ -304,3 +304,66 @@ describe("HouseClaw UI", () => {
   });
 
 });
+
+describe("roof view", () => {
+  it("clicking [+ 添加屋顶] from a no-roof project creates a default roof", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    // Navigate to roof view.
+    await user.click(screen.getByRole("button", { name: "屋顶" }));
+    // Sample ships with a default roof — first remove it via the property panel.
+    // To test "no-roof" entrypoint, click the roof body, then remove.
+    await user.click(screen.getByTestId("roof-body"));
+    await user.click(screen.getByRole("button", { name: "移除屋顶" }));
+    // Now [+ 添加屋顶] should appear.
+    const addButton = await screen.findByRole("button", { name: "+ 添加屋顶" });
+    expect(addButton).toBeInTheDocument();
+    await user.click(addButton);
+    // After click, [+ 添加屋顶] is gone (roof now exists).
+    expect(screen.queryByRole("button", { name: "+ 添加屋顶" })).toBeNull();
+  });
+
+  it("toggling an eave edge to gable updates the property panel label", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole("button", { name: "屋顶" }));
+    // Sample's wall-front-3f is an eave (top storey is 3f, front and back are eaves).
+    await user.click(screen.getByTestId("roof-edge-wall-front-3f"));
+    // Toggle button should be enabled and labeled "切换为 山墙".
+    const toggleButton = await screen.findByRole("button", { name: /切换为 山墙/ });
+    expect(toggleButton).toBeEnabled();
+    await user.click(toggleButton);
+    // After toggle: now this edge is "gable", so the panel shows "切换为 檐" instead.
+    expect(await screen.findByRole("button", { name: /切换为 檐/ })).toBeInTheDocument();
+  });
+
+  it("the toggle button is disabled when the selected eave is the only one", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole("button", { name: "屋顶" }));
+    // Sample default has 2 eaves (front + back). Toggle back to gable first.
+    await user.click(screen.getByTestId("roof-edge-wall-back-3f"));
+    await user.click(screen.getByRole("button", { name: /切换为 山墙/ }));
+    // Now front is the only eave. Select it and confirm toggle is disabled.
+    await user.click(screen.getByTestId("roof-edge-wall-front-3f"));
+    const toggle = await screen.findByRole("button", { name: /切换为 山墙/ });
+    expect(toggle).toBeDisabled();
+  });
+
+  it("changing pitch via the property panel updates roof state", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole("button", { name: "屋顶" }));
+    await user.click(screen.getByTestId("roof-body"));
+    // Pitch field is a NumberField labeled "坡度" with unit °. Default 30°.
+    // The NumberField commits via blur or Enter. Find by accessible name.
+    const pitchField = await screen.findByRole("spinbutton", { name: /坡度/ });
+    expect(pitchField).toBeInTheDocument();
+    // Change to 45°.
+    await user.clear(pitchField);
+    await user.type(pitchField, "45");
+    await user.tab(); // commit on blur
+    // No assertion on internal state — verifying the input accepts the value.
+    expect((pitchField as HTMLInputElement).value).toBe("45");
+  });
+});

@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { wallLength } from "../domain/measurements";
 import type { HouseProject, Wall } from "../domain/types";
 import { buildHouseGeometry } from "../geometry/houseGeometry";
+import type { RoofGeometry } from "../geometry/roofGeometry";
 import type { BalconyGeometry, HouseGeometry, SlabGeometry, WallGeometry, WallPanel } from "../geometry/types";
 import { slicePanelFootprint } from "../geometry/wallNetwork";
 import { attachWalkControls, type WalkCallbacks, type WalkSpawn } from "./walkControls";
@@ -583,6 +584,92 @@ function createSlabMeshes(project: HouseProject, geometry: HouseGeometry) {
   return { meshes, materials: [...materials.values()] };
 }
 
+const ROOF_FALLBACK_COLOR = "#8a4f3a";
+
+function createRoofPanelMaterial(project: HouseProject, materialId: string) {
+  const material = project.materials.find((m) => m.id === materialId);
+  return new THREE.MeshStandardMaterial({
+    color: material?.color ?? ROOF_FALLBACK_COLOR,
+    side: THREE.DoubleSide,
+  });
+}
+
+function buildRoofPanelMesh(panel: RoofGeometry["panels"][number], material: THREE.Material): THREE.Mesh {
+  const positions: number[] = [];
+  // Fan-triangulate from vertex 0 (panels are convex).
+  for (let i = 1; i < panel.vertices.length - 1; i += 1) {
+    const a = panel.vertices[0];
+    const b = panel.vertices[i];
+    const c = panel.vertices[i + 1];
+    positions.push(a.x, a.z, planYToSceneZ(a.y));
+    positions.push(b.x, b.z, planYToSceneZ(b.y));
+    positions.push(c.x, c.z, planYToSceneZ(c.y));
+  }
+  const geom = new THREE.BufferGeometry();
+  geom.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+  geom.computeVertexNormals();
+  return new THREE.Mesh(geom, material);
+}
+
+function createRoofGableMaterial(project: HouseProject, materialId: string) {
+  const material = project.materials.find((m) => m.id === materialId);
+  return new THREE.MeshStandardMaterial({
+    color: material?.color ?? "#dedbd2",
+    roughness: 0.85,
+    metalness: 0.02,
+    flatShading: true,
+    side: THREE.DoubleSide,
+  });
+}
+
+function buildRoofGableMesh(
+  project: HouseProject,
+  gable: RoofGeometry["gables"][number],
+  walls: HouseProject["walls"],
+  cache: Map<string, THREE.Material>,
+): { mesh: THREE.Mesh; material: THREE.Material } {
+  const wall = walls.find((w) => w.id === gable.wallId);
+  const materialId = wall?.materialId ?? "";
+  let material = cache.get(materialId);
+  if (!material) {
+    material = createRoofGableMaterial(project, materialId);
+    cache.set(materialId, material);
+  }
+  const positions: number[] = [];
+  for (let i = 1; i < gable.vertices.length - 1; i += 1) {
+    const a = gable.vertices[0];
+    const b = gable.vertices[i];
+    const c = gable.vertices[i + 1];
+    positions.push(a.x, a.z, planYToSceneZ(a.y));
+    positions.push(b.x, b.z, planYToSceneZ(b.y));
+    positions.push(c.x, c.z, planYToSceneZ(c.y));
+  }
+  const geom = new THREE.BufferGeometry();
+  geom.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+  geom.computeVertexNormals();
+  return { mesh: new THREE.Mesh(geom, material), material };
+}
+
+function createRoofMeshes(project: HouseProject, geometry: HouseGeometry) {
+  const meshes: THREE.Mesh[] = [];
+  const materials: THREE.Material[] = [];
+  if (!geometry.roof) return { meshes, materials };
+
+  const panelMaterial = createRoofPanelMaterial(project, project.roof?.materialId ?? "");
+  materials.push(panelMaterial);
+  for (const panel of geometry.roof.panels) {
+    meshes.push(buildRoofPanelMesh(panel, panelMaterial));
+  }
+
+  const gableMaterials = new Map<string, THREE.Material>();
+  for (const gable of geometry.roof.gables) {
+    const { mesh, material } = buildRoofGableMesh(project, gable, project.walls, gableMaterials);
+    meshes.push(mesh);
+    if (!materials.includes(material)) materials.push(material);
+  }
+  return { meshes, materials };
+}
+
 function createGround(bounds: SceneBounds) {
   const width = bounds.maxX - bounds.minX;
   const depth = bounds.maxZ - bounds.minZ;
@@ -626,6 +713,7 @@ export function mountHouseScene(
   const { meshes: balconyMeshes, materials: balconyMaterials } = createBalconyMeshes(project, houseGeometry);
   const { meshes: slabMeshes, materials: slabMaterials } = createSlabMeshes(project, houseGeometry);
   const { meshes: stairMeshes, materials: stairMaterials } = createStairMeshes(project, houseGeometry);
+  const { meshes: roofMeshes, materials: roofMaterials } = createRoofMeshes(project, houseGeometry);
   const { ground, grid, geometry: groundGeometry, material: groundMaterial } = createGround(bounds);
 
   const buildingCenter = new THREE.Vector3(
@@ -667,8 +755,8 @@ export function mountHouseScene(
 
   renderer.toneMappingExposure = initialLighting.exposure;
 
-  const meshes = [...wallMeshes, ...balconyMeshes, ...slabMeshes, ...stairMeshes];
-  const materials = [...wallMaterials, ...balconyMaterials, ...slabMaterials, ...stairMaterials];
+  const meshes = [...wallMeshes, ...balconyMeshes, ...slabMeshes, ...stairMeshes, ...roofMeshes];
+  const materials = [...wallMaterials, ...balconyMaterials, ...slabMaterials, ...stairMaterials, ...roofMaterials];
 
   for (const mesh of meshes) {
     mesh.castShadow = true;
@@ -689,7 +777,7 @@ export function mountHouseScene(
   container.replaceChildren(renderer.domElement);
   renderer.render(scene, camera);
 
-  const collidables: THREE.Object3D[] = [...wallMeshes, ...slabMeshes, ...balconyMeshes, ...stairMeshes, ground];
+  const collidables: THREE.Object3D[] = [...wallMeshes, ...slabMeshes, ...balconyMeshes, ...stairMeshes, ...roofMeshes, ground];
 
   const callbacks: WalkCallbacks = {
     onWalkExit: () => options?.onWalkExit?.(),

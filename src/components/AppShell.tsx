@@ -140,7 +140,8 @@ function pickTargetWall(
   elevationSide?: ElevationSide,
 ): Wall | undefined {
   if (project.selection?.kind === "wall") {
-    const sel = project.walls.find((wall) => wall.id === project.selection!.id);
+    const wallSel = project.selection;
+    const sel = project.walls.find((wall) => wall.id === wallSel.id);
     if (sel && sel.storeyId === storeyId) return sel;
   }
   if (elevationSide) {
@@ -427,9 +428,11 @@ export function AppShell() {
   const handlePrimaryChange = (primary: PrimaryView) => {
     if (primary === "plan") {
       setView(`plan-${lastPlanStorey}` as ViewId);
-    } else {
+    } else if (primary === "elevation") {
       if (project.selection?.kind === "storey") select(undefined);
       setView(`elevation-${lastElevationSide}` as ViewId);
+    } else {
+      setView("roof");
     }
   };
 
@@ -662,9 +665,9 @@ export function AppShell() {
                 onSelectStorey={handleStoreyClick}
                 onAddStorey={handleAddStorey}
               />
-            ) : (
+            ) : primaryFromView(project.activeView) === "elevation" ? (
               <ElevationSideTabs activeView={project.activeView} onSideChange={handleSideChange} />
-            )}
+            ) : null}
           </div>
 
           <PropertyPanel

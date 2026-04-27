@@ -18,6 +18,12 @@ export const materialCatalog: readonly Material[] = [
     repeat: { x: 1.5, y: 1.5 },
   },
   {
+    id: "mat-clay-tile",
+    name: "陶瓦",
+    kind: "roof",
+    color: "#8a4f3a",
+  },
+  {
     id: "mat-dark-frame",
     name: "深灰窗框",
     kind: "frame",

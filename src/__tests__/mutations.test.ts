@@ -2,8 +2,13 @@ import { describe, expect, it } from "vitest";
 import {
   addStorey,
   duplicateStorey,
+  removeStorey,
   resizeStoreyExtent,
   translateStorey,
+  addRoof,
+  removeRoof,
+  updateRoof,
+  toggleRoofEdge,
 } from "../domain/mutations";
 import { createSampleProject } from "../domain/sampleProject";
 
@@ -216,5 +221,115 @@ describe("duplicateStorey", () => {
   it("throws when the source storey does not exist", () => {
     const project = createSampleProject();
     expect(() => duplicateStorey(project, "missing")).toThrow();
+  });
+});
+
+describe("addRoof", () => {
+  it("creates a default roof with the two longest walls as eaves", () => {
+    const project = createSampleProject();
+    const stripped = { ...project, roof: undefined };
+    const next = addRoof(stripped);
+    expect(next.roof).toBeDefined();
+    const top = next.storeys[next.storeys.length - 1];
+    const topWalls = next.walls.filter((w) => w.storeyId === top.id && w.exterior);
+    const eaves = topWalls.filter((w) => next.roof!.edges[w.id] === "eave");
+    expect(eaves).toHaveLength(2);
+    // Sample top is 10x8 → front + back are eaves (length 10).
+    expect(eaves.map((w) => w.id).sort()).toEqual([`wall-back-${top.id}`, `wall-front-${top.id}`]);
+    expect(next.roof!.pitch).toBeCloseTo(Math.PI / 6);
+    expect(next.roof!.overhang).toBeCloseTo(0.6);
+  });
+
+  it("throws when a roof already exists", () => {
+    const project = addRoof({ ...createSampleProject(), roof: undefined });
+    expect(() => addRoof(project)).toThrow();
+  });
+
+  it("throws when canBuildRoof is false", () => {
+    const project = createSampleProject();
+    const top = project.storeys[project.storeys.length - 1];
+    const walls = project.walls.filter(
+      (w) => !(w.storeyId === top.id && w.id === `wall-front-${top.id}`),
+    );
+    expect(() => addRoof({ ...project, walls, roof: undefined })).toThrow();
+  });
+});
+
+describe("removeRoof", () => {
+  it("clears project.roof", () => {
+    const project = createSampleProject();
+    const next = removeRoof(project);
+    expect(next.roof).toBeUndefined();
+  });
+  it("is a no-op when no roof exists", () => {
+    const project = { ...createSampleProject(), roof: undefined };
+    expect(removeRoof(project)).toBe(project);
+  });
+});
+
+describe("updateRoof", () => {
+  it("clamps pitch into [π/36, π/3]", () => {
+    const project = createSampleProject();
+    const upper = updateRoof(project, { pitch: Math.PI }); // 180° → clamp
+    expect(upper.roof!.pitch).toBeCloseTo(Math.PI / 3);
+    const lower = updateRoof(project, { pitch: 0 });
+    expect(lower.roof!.pitch).toBeCloseTo(Math.PI / 36);
+  });
+  it("clamps overhang into [0, 2]", () => {
+    const project = createSampleProject();
+    expect(updateRoof(project, { overhang: -1 }).roof!.overhang).toBe(0);
+    expect(updateRoof(project, { overhang: 5 }).roof!.overhang).toBe(2);
+  });
+});
+
+describe("toggleRoofEdge", () => {
+  it("flips eave ↔ gable", () => {
+    const project = createSampleProject();
+    const top = project.storeys[project.storeys.length - 1];
+    const wallId = `wall-front-${top.id}`;
+    const before = project.roof!.edges[wallId];
+    const next = toggleRoofEdge(project, wallId);
+    expect(next.roof!.edges[wallId]).not.toBe(before);
+  });
+
+  it("throws when flipping the last eave to gable", () => {
+    const project = createSampleProject();
+    const top = project.storeys[project.storeys.length - 1];
+    // Force only one eave on front:
+    const front = `wall-front-${top.id}`;
+    const project1 = {
+      ...project,
+      roof: {
+        ...project.roof!,
+        edges: {
+          [front]: "eave" as const,
+          [`wall-back-${top.id}`]: "gable" as const,
+          [`wall-left-${top.id}`]: "gable" as const,
+          [`wall-right-${top.id}`]: "gable" as const,
+        },
+      },
+    };
+    expect(() => toggleRoofEdge(project1, front)).toThrow();
+  });
+});
+
+describe("storey mutations clear roof", () => {
+  it("addStorey clears project.roof", () => {
+    const project = createSampleProject();
+    expect(project.roof).toBeDefined();
+    const next = addStorey(project);
+    expect(next.roof).toBeUndefined();
+  });
+  it("duplicateStorey clears project.roof", () => {
+    const project = createSampleProject();
+    const next = duplicateStorey(project, "2f");
+    expect(next.roof).toBeUndefined();
+  });
+  it("removeStorey clears project.roof", () => {
+    const project = createSampleProject();
+    // Top storey is 3f; remove a different storey to ensure project still has a roof-eligible top.
+    // Sample has 1f, 2f, 3f — remove 2f.
+    const next = removeStorey(project, "2f");
+    expect(next.roof).toBeUndefined();
   });
 });

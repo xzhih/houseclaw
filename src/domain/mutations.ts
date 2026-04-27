@@ -1,6 +1,7 @@
 import { storeyTop } from "./measurements";
 import { assertValidProject } from "./constraints";
-import type { Balcony, HouseProject, Opening, Point2, Stair, Storey, Wall } from "./types";
+import { canBuildRoof } from "./views";
+import type { Balcony, HouseProject, Opening, Point2, Roof, RoofEdgeKind, Stair, Storey, Wall } from "./types";
 
 export type OpeningPatch = Partial<Omit<Opening, "id" | "wallId">>;
 export type WallPatch = Partial<Omit<Wall, "id" | "storeyId" | "start" | "end">>;
@@ -294,6 +295,7 @@ export function addStorey(project: HouseProject): HouseProject {
   return assertValidProject({
     ...project,
     storeys: [...project.storeys, storey],
+    roof: undefined,
   });
 }
 
@@ -371,6 +373,7 @@ export function duplicateStorey(project: HouseProject, sourceStoreyId: string): 
     walls: [...project.walls, ...newWalls],
     openings: [...project.openings, ...newOpenings],
     balconies: [...project.balconies, ...newBalconies],
+    roof: undefined,
   });
 }
 
@@ -407,6 +410,7 @@ export function removeStorey(project: HouseProject, storeyId: string): HouseProj
     walls: remainingWalls,
     openings: remainingOpenings,
     balconies: remainingBalconies,
+    roof: undefined,
   });
 }
 
@@ -439,4 +443,76 @@ export function removeStair(project: HouseProject, storeyId: string): HouseProje
       return rest as Storey;
     }),
   });
+}
+
+const PITCH_MIN = Math.PI / 36;
+const PITCH_MAX = Math.PI / 3;
+const OVERHANG_MIN = 0;
+const OVERHANG_MAX = 2;
+const DEFAULT_PITCH = Math.PI / 6; // 30°
+const DEFAULT_OVERHANG = 0.6;
+
+function clamp(v: number, lo: number, hi: number) {
+  return Math.max(lo, Math.min(hi, v));
+}
+
+function topStoreyOf(project: HouseProject) {
+  return [...project.storeys].sort((a, b) => b.elevation - a.elevation)[0];
+}
+
+export function addRoof(project: HouseProject): HouseProject {
+  if (project.roof) throw new Error("Roof already exists.");
+  if (!canBuildRoof(project)) throw new Error("Top storey is not a 4-wall axis-aligned rectangle.");
+  const top = topStoreyOf(project);
+  const topWalls = project.walls.filter((w) => w.storeyId === top.id && w.exterior);
+  const lengths = topWalls.map((w) => ({
+    wall: w,
+    length: Math.hypot(w.end.x - w.start.x, w.end.y - w.start.y),
+  }));
+  // Sort longest first; tie-break by id for determinism.
+  lengths.sort((a, b) => b.length - a.length || a.wall.id.localeCompare(b.wall.id));
+  const eaveIds = new Set([lengths[0].wall.id, lengths[1].wall.id]);
+  const edges: Record<string, RoofEdgeKind> = {};
+  for (const w of topWalls) edges[w.id] = eaveIds.has(w.id) ? "eave" : "gable";
+
+  const roofMaterial =
+    project.materials.find((m) => m.kind === "roof") ?? project.materials[0];
+  const roof: Roof = {
+    edges,
+    pitch: DEFAULT_PITCH,
+    overhang: DEFAULT_OVERHANG,
+    materialId: roofMaterial.id,
+  };
+  return assertValidProject({ ...project, roof });
+}
+
+export function removeRoof(project: HouseProject): HouseProject {
+  if (!project.roof) return project;
+  return assertValidProject({ ...project, roof: undefined });
+}
+
+export function updateRoof(
+  project: HouseProject,
+  patch: Partial<Pick<Roof, "pitch" | "overhang" | "materialId">>,
+): HouseProject {
+  if (!project.roof) throw new Error("No roof to update.");
+  const next: Roof = {
+    ...project.roof,
+    ...(patch.pitch !== undefined ? { pitch: clamp(patch.pitch, PITCH_MIN, PITCH_MAX) } : {}),
+    ...(patch.overhang !== undefined ? { overhang: clamp(patch.overhang, OVERHANG_MIN, OVERHANG_MAX) } : {}),
+    ...(patch.materialId !== undefined ? { materialId: patch.materialId } : {}),
+  };
+  return assertValidProject({ ...project, roof: next });
+}
+
+export function toggleRoofEdge(project: HouseProject, wallId: string): HouseProject {
+  if (!project.roof) throw new Error("No roof to toggle.");
+  const flipped: RoofEdgeKind = project.roof.edges[wallId] === "eave" ? "gable" : "eave";
+  const top = topStoreyOf(project);
+  const topWalls = project.walls.filter((w) => w.storeyId === top.id && w.exterior);
+  const nextEdges = { ...project.roof.edges, [wallId]: flipped };
+  // Recount effective eaves (apply edge-resolution rule).
+  const effectiveEaves = topWalls.filter((w) => nextEdges[w.id] === "eave").length;
+  if (effectiveEaves === 0) throw new Error("Roof must keep at least one eave.");
+  return assertValidProject({ ...project, roof: { ...project.roof, edges: nextEdges } });
 }

@@ -157,3 +157,22 @@ describe("project persistence", () => {
     expect(loadProjectFromLocalStorage("missing.project")).toBeUndefined();
   });
 });
+
+describe("roof persistence", () => {
+  it("round-trips the roof field through JSON", () => {
+    const project = createSampleProject();
+    const reloaded = importProjectJson(exportProjectJson(project));
+    expect(reloaded.roof).toEqual(project.roof);
+  });
+
+  it("drops the roof when pitch is out of range, but keeps loading the project", () => {
+    const project = createSampleProject();
+    const json = exportProjectJson({
+      ...project,
+      roof: { ...project.roof!, pitch: Math.PI }, // 180° — invalid
+    });
+    const reloaded = importProjectJson(json);
+    expect(reloaded.roof).toBeUndefined();
+    expect(reloaded.id).toBe(project.id);
+  });
+});

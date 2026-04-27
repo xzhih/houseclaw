@@ -1572,3 +1572,34 @@ select {
   stroke-dasharray: 3 3;
   pointer-events: none;
 }
+
+.property-danger {
+  background-color: #b85050;
+  color: #fff;
+  border-color: #b85050;
+}
+
+.property-danger:hover:not([disabled]) {
+  background-color: #a04040;
+  border-color: #a04040;
+}
+
+.roof-edge {
+  cursor: pointer;
+  pointer-events: stroke;
+}
+
+.roof-edge--eave {
+  stroke: #2d6f8a;
+  stroke-width: 3px;
+}
+
+.roof-edge--gable {
+  stroke: #2d6f8a;
+  stroke-dasharray: 6 4;
+  stroke-width: 2px;
+}
+
+.roof-edge.is-selected {
+  stroke: #f0a020;
+}
