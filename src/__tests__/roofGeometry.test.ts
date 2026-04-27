@@ -90,3 +90,25 @@ describe("buildRoofGeometry — shed (1 eave + 3 gables)", () => {
     }
   });
 });
+
+describe("buildRoofGeometry — gable (2 opposite eaves)", () => {
+  const roof: Roof = {
+    edges: { "w-front": "eave", "w-back": "eave", "w-left": "gable", "w-right": "gable" },
+    pitch: PITCH,
+    overhang: OVERHANG,
+    materialId: "mat-roof",
+  };
+
+  it("emits 2 panels and 2 gables", () => {
+    const geom = buildRoofGeometry(TOP, RECT_RING, rectWalls(), roof)!;
+    expect(geom.panels).toHaveLength(2);
+    expect(geom.gables).toHaveLength(2);
+  });
+
+  it("ridge sits at half-depth height = ((D + 2*overhang) / 2) * tan(pitch)", () => {
+    const geom = buildRoofGeometry(TOP, RECT_RING, rectWalls(), roof)!;
+    const ridgeZ = Math.max(...geom.panels.flatMap((p) => p.vertices.map((v) => v.z)));
+    const expected = WALL_TOP + ((8 + 2 * OVERHANG) / 2) * Math.tan(PITCH);
+    expect(ridgeZ).toBeCloseTo(expected);
+  });
+});

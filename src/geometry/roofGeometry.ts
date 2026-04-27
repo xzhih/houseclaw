@@ -46,6 +46,14 @@ export function buildRoofGeometry(
   switch (eaveCount) {
     case 1:
       return buildShed(resolved, outer, wallTopZ, slope, roof.materialId);
+    case 2: {
+      const eaves = resolved.filter((e) => e.kind === "eave");
+      if (eaves[0].side === oppositeSide(eaves[1].side)) {
+        return buildGable2Opp(resolved, outer, wallTopZ, slope, roof.materialId);
+      }
+      // 2-adjacent handled in a later task.
+      return undefined;
+    }
     default:
       // Other cases added in later tasks.
       return undefined;
@@ -245,5 +253,60 @@ function sideV(side: ResolvedEdge["side"], outer: Rect): number {
     case "back":  return outer.yMax;
     case "left":  return outer.xMin;
     case "right": return outer.xMax;
+  }
+}
+
+function buildGable2Opp(
+  edges: ResolvedEdge[],
+  outer: Rect,
+  wallTopZ: number,
+  slope: number,
+  materialId: string,
+): RoofGeometry {
+  const eaves = edges.filter((e) => e.kind === "eave");
+  const eaveA = eaves[0];
+  const eaveB = eaves[1];
+  const gables = edges.filter((e) => e.kind === "gable");
+
+  // Compute axes from eaveA's perspective — depth (eave→eave) and ridge along
+  // the gable side direction. Use the bbox to derive width W and depth D.
+  // For the 2-opp case both eaves are parallel so geometry is symmetric.
+  const fullDepth =
+    eaveA.side === "front" || eaveA.side === "back"
+      ? outer.yMax - outer.yMin
+      : outer.xMax - outer.xMin;
+  const halfDepth = fullDepth / 2;
+  const ridgeZ = wallTopZ + halfDepth * slope;
+
+  const panels: RoofPanel[] = [];
+  for (const eave of [eaveA, eaveB]) {
+    const { u0, u1 } = eaveAxes(eave.side, outer);
+    const eaveV = sideV(eave.side, outer);
+    const ridgeV = midV(eave.side, outer);
+    const lo0 = liftToWorld(eave.side, outer, u0, eaveV, wallTopZ);
+    const lo1 = liftToWorld(eave.side, outer, u1, eaveV, wallTopZ);
+    const hi1 = liftToWorld(eave.side, outer, u1, ridgeV, ridgeZ);
+    const hi0 = liftToWorld(eave.side, outer, u0, ridgeV, ridgeZ);
+    panels.push({ vertices: [lo0, lo1, hi1, hi0], materialId });
+  }
+
+  const result: RoofGable[] = [];
+  for (const g of gables) {
+    result.push({
+      wallId: g.wallId,
+      vertices: triangleAlong(g.side, outer, wallTopZ, ridgeZ - wallTopZ, "full"),
+    });
+  }
+  return { panels, gables: result };
+}
+
+function midV(side: ResolvedEdge["side"], outer: Rect): number {
+  switch (side) {
+    case "front":
+    case "back":
+      return (outer.yMin + outer.yMax) / 2;
+    case "left":
+    case "right":
+      return (outer.xMin + outer.xMax) / 2;
   }
 }
