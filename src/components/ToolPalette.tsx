@@ -10,6 +10,7 @@ const ADD_OPTIONS: AddOption[] = [
   { id: "opening", label: "开孔" },
   { id: "balcony", label: "阳台" },
   { id: "stair", label: "楼梯" },
+  { id: "skirt", label: "披檐" },
 ];
 
 const SELECT_ICON: ReactNode = (
