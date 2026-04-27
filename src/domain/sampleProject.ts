@@ -174,6 +174,20 @@ export function createSampleProject(): HouseProject {
     },
   ];
 
+  const topStorey = storeys[storeys.length - 1];
+  const roofMaterial = materials.find((m) => m.kind === "roof") ?? materials[0];
+  const roof = {
+    edges: {
+      [`wall-front-${topStorey.id}`]: "eave" as const,
+      [`wall-back-${topStorey.id}`]: "eave" as const,
+      [`wall-left-${topStorey.id}`]: "gable" as const,
+      [`wall-right-${topStorey.id}`]: "gable" as const,
+    },
+    pitch: Math.PI / 6,
+    overhang: 0.6,
+    materialId: roofMaterial.id,
+  };
+
   return {
     id: "sample-house",
     name: "三层别墅草案",
@@ -189,5 +203,6 @@ export function createSampleProject(): HouseProject {
     walls,
     openings,
     balconies,
+    roof,
   };
 }
