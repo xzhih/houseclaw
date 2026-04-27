@@ -30,9 +30,12 @@ function MmField({ label, value, step = 10, min, max, onCommit }: MmFieldProps) 
 }
 import {
   moveWall,
+  removeRoof,
   resizeStoreyExtent,
+  toggleRoofEdge,
   updateBalcony,
   updateOpening,
+  updateRoof,
   updateStair,
   updateStorey,
   updateWall,
@@ -130,6 +133,12 @@ export function PropertyPanel({
       ) : null}
       {selection?.kind === "stair" ? (
         <StairEditor project={project} id={selection.id} onProjectChange={onProjectChange} />
+      ) : null}
+      {selection?.kind === "roof" ? (
+        <RoofEditor project={project} onProjectChange={onProjectChange} />
+      ) : null}
+      {selection?.kind === "roof-edge" ? (
+        <RoofEdgeEditor project={project} wallId={selection.wallId} onProjectChange={onProjectChange} />
       ) : null}
 
       {selection?.kind === "storey" && onDuplicateStorey ? (
@@ -280,6 +289,90 @@ function StoreyEditor({ project, id, onProjectChange }: EditorProps) {
       {depthExtent > 0 ? (
         <MmField label="进深" value={depthExtent} min={0.5} onCommit={(depth) => applyExtent("y", depth)} />
       ) : null}
+    </section>
+  );
+}
+
+function RoofEditor({ project, onProjectChange }: { project: HouseProject; onProjectChange: (project: HouseProject) => void }) {
+  const roof = project.roof;
+  if (!roof) return null;
+
+  const roofMaterials = project.materials.filter((m) => m.kind === "roof");
+  const pitchDeg = Math.round((roof.pitch * 180) / Math.PI);
+
+  const apply = <K extends "pitch" | "overhang" | "materialId">(
+    key: K,
+    value: K extends "materialId" ? string : number,
+  ): string | undefined =>
+    commit(onProjectChange, { [key]: value }, (patch) =>
+      updateRoof(project, patch as Partial<Pick<typeof roof, "pitch" | "overhang" | "materialId">>),
+    );
+
+  return (
+    <section className="property-section" aria-labelledby="roof-heading">
+      <h3 id="roof-heading">屋顶</h3>
+      <NumberField
+        label="坡度"
+        value={pitchDeg}
+        step={1}
+        min={5}
+        max={60}
+        unit="°"
+        onCommit={(deg) => apply("pitch", (deg * Math.PI) / 180)}
+      />
+      <MmField
+        label="出檐"
+        value={roof.overhang}
+        step={50}
+        min={0}
+        max={2}
+        onCommit={(meters) => apply("overhang", meters)}
+      />
+      <label className="property-field">
+        <span>材质</span>
+        <select
+          value={roof.materialId}
+          onChange={(e) => apply("materialId", e.target.value)}
+        >
+          {roofMaterials.map((m) => (
+            <option key={m.id} value={m.id}>{m.name}</option>
+          ))}
+        </select>
+      </label>
+      <button
+        type="button"
+        className="property-secondary property-danger"
+        onClick={() => onProjectChange(removeRoof(project))}
+      >
+        移除屋顶
+      </button>
+    </section>
+  );
+}
+
+function RoofEdgeEditor({ project, wallId, onProjectChange }: { project: HouseProject; wallId: string; onProjectChange: (project: HouseProject) => void }) {
+  const roof = project.roof;
+  if (!roof) return null;
+
+  const top = [...project.storeys].sort((a, b) => b.elevation - a.elevation)[0];
+  const topWalls = project.walls.filter((w) => w.storeyId === top.id && w.exterior);
+  const current = roof.edges[wallId] === "eave" ? "eave" : "gable";
+  const eaveCount = topWalls.filter((w) => roof.edges[w.id] === "eave").length;
+  const isOnlyEave = current === "eave" && eaveCount === 1;
+  const targetLabel = current === "eave" ? "山墙" : "檐";
+
+  return (
+    <section className="property-section" aria-labelledby="roof-edge-heading">
+      <h3 id="roof-edge-heading">屋顶边缘</h3>
+      <p>当前：<strong>{current === "eave" ? "檐 (eave)" : "山墙 (gable)"}</strong></p>
+      <button
+        type="button"
+        disabled={isOnlyEave}
+        title={isOnlyEave ? "至少需要一条檐边" : undefined}
+        onClick={() => commit(onProjectChange, wallId, (id) => toggleRoofEdge(project, id))}
+      >
+        切换为 {targetLabel}
+      </button>
     </section>
   );
 }
