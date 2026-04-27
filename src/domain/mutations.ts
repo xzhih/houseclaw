@@ -364,7 +364,9 @@ export function duplicateStorey(project: HouseProject, sourceStoreyId: string): 
     elevation,
     height: source.height,
     slabThickness: source.slabThickness,
-    stair: source.stair ? { ...source.stair } : undefined,
+    // Drop the stair on the duplicate: it becomes the new top storey, which
+    // cannot own a stair under the lower-storey ownership rule.
+    stair: undefined,
   };
 
   return assertValidProject({
@@ -404,9 +406,16 @@ export function removeStorey(project: HouseProject, storeyId: string): HouseProj
       return next;
     });
 
+  // Strip the stair on the new top storey: it cannot own a stair under the
+  // lower-storey ownership rule once the storey above it is gone.
+  const newTopId = remainingStoreys[remainingStoreys.length - 1]?.id;
+  const cleanedStoreys = remainingStoreys.map((storey) =>
+    storey.id === newTopId && storey.stair ? { ...storey, stair: undefined } : storey,
+  );
+
   return assertValidProject({
     ...project,
-    storeys: remainingStoreys,
+    storeys: cleanedStoreys,
     walls: remainingWalls,
     openings: remainingOpenings,
     balconies: remainingBalconies,

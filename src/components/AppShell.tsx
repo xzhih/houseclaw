@@ -354,21 +354,16 @@ export function AppShell() {
       }
 
       if (toolId === "stair") {
-        // 数据模型里楼梯挂在"通往的那一层"（上层）。但用户在 plan-N 视图上
-        // 点"添加楼梯"通常意味着"在这层建一段上去 N+1 的楼梯"——所以这里
-        // 把 plan-view 来的 storeyId 翻译成 N+1。非 plan-view（如立面/3D）
-        // 走 storey 选择子菜单，那时用户显式选了 owning storey，原样使用。
-        const fromPlanStoreyId = planStoreyIdFromView(project.activeView, project.storeys);
+        // 数据模型里楼梯挂在"出发的那一层"（下层），通往 N+1。用户在 plan-N
+        // 视图上点"添加楼梯"=在 N 这层建一段上去 N+1——owner 就是 N，
+        // 顶层没有 N+1，禁止添加。
         const sortedStoreys = [...project.storeys].sort((a, b) => a.elevation - b.elevation);
-        let targetStoreyId = storeyId;
-        if (fromPlanStoreyId === storeyId) {
-          const idx = sortedStoreys.findIndex((s) => s.id === storeyId);
-          const above = sortedStoreys[idx + 1];
-          if (!above) {
-            setAddError("当前已是最顶层,没有可向上的楼梯。");
-            return;
-          }
-          targetStoreyId = above.id;
+        const targetStoreyId = storeyId;
+        const idx = sortedStoreys.findIndex((s) => s.id === targetStoreyId);
+        const above = idx >= 0 ? sortedStoreys[idx + 1] : undefined;
+        if (!above) {
+          setAddError("当前已是最顶层,没有可向上的楼梯。");
+          return;
         }
         const draftStair: Stair = {
           x: 1.0,

@@ -67,6 +67,16 @@ export function createSampleProject(): HouseProject {
       elevation: 0,
       height: DEFAULT_STOREY_HEIGHT,
       slabThickness: DEFAULT_SLAB_THICKNESS,
+      stair: {
+        x: 0.6,
+        y: 5.0,
+        width: 1.2,
+        depth: 2.5,
+        shape: "straight",
+        treadDepth: 0.27,
+        bottomEdge: "+y",
+        materialId: STAIR_MATERIAL_ID,
+      },
     },
     {
       id: "2f",
@@ -91,16 +101,6 @@ export function createSampleProject(): HouseProject {
       elevation: 6.4,
       height: DEFAULT_STOREY_HEIGHT,
       slabThickness: DEFAULT_SLAB_THICKNESS,
-      stair: {
-        x: 0.6,
-        y: 5.0,
-        width: 1.2,
-        depth: 2.5,
-        shape: "straight",
-        treadDepth: 0.27,
-        bottomEdge: "+y",
-        materialId: STAIR_MATERIAL_ID,
-      },
     },
   ];
 

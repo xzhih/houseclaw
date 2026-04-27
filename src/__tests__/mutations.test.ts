@@ -191,14 +191,12 @@ describe("duplicateStorey", () => {
     expect(cloneBalconies).toHaveLength(sourceBalconies.length);
   });
 
-  it("copies stair opening when the source has one", () => {
+  it("drops the stair on the duplicate (it becomes the new top storey)", () => {
     const project = createSampleProject();
     const next = duplicateStorey(project, "2f");
     const clone = next.storeys[next.storeys.length - 1];
 
-    expect(clone.stair).toBeDefined();
-    expect(clone.stair?.x).toBeCloseTo(0.6);
-    expect(clone.stair?.depth).toBeCloseTo(2.5);
+    expect(clone.stair).toBeUndefined();
   });
 
   it("preserves wall geometry (start/end points) from the source", () => {
@@ -331,5 +329,14 @@ describe("storey mutations clear roof", () => {
     // Sample has 1f, 2f, 3f — remove 2f.
     const next = removeStorey(project, "2f");
     expect(next.roof).toBeUndefined();
+  });
+  it("removeStorey strips stair on the new top storey", () => {
+    const project = createSampleProject();
+    // sample tops: 1F has stair, 2F has stair, 3F has no stair (top).
+    // Removing 3F makes 2F the new top → its stair must be stripped.
+    const next = removeStorey(project, "3f");
+    const newTop = next.storeys[next.storeys.length - 1];
+    expect(newTop.id).toBe("2f");
+    expect(newTop.stair).toBeUndefined();
   });
 });

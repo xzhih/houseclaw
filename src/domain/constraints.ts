@@ -147,14 +147,14 @@ export function validateProject(project: HouseProject): string[] {
   }
 
   const sortedStoreys = [...project.storeys].sort((a, b) => a.elevation - b.elevation);
-  const lowestStoreyId = sortedStoreys[0]?.id;
+  const topStoreyId = sortedStoreys[sortedStoreys.length - 1]?.id;
 
   for (const storey of project.storeys) {
     const opening = storey.stair;
     if (!opening) continue;
 
-    if (storey.id === lowestStoreyId) {
-      errors.push(`Storey ${storey.id} cannot have a stair (no storey below).`);
+    if (storey.id === topStoreyId) {
+      errors.push(`Storey ${storey.id} cannot have a stair (no storey above).`);
       continue;
     }
 

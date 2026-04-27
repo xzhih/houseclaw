@@ -244,9 +244,9 @@ describe("buildHouseGeometry — stairs", () => {
   it("emits a stairs entry per storey with a stair", () => {
     const project = createSampleProject();
     const house = buildHouseGeometry(project);
-    // sample 在 2f / 3f 上有 stair
+    // sample now owns stairs on 1f / 2f (3f is top, no stair)
     const storeyIds = house.stairs.map((s) => s.storeyId).sort();
-    expect(storeyIds).toEqual(["2f", "3f"]);
+    expect(storeyIds).toEqual(["1f", "2f"]);
   });
 
   it("each stair entry has tread and landing arrays + materialId", () => {

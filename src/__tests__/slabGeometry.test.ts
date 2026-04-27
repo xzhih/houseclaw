@@ -52,7 +52,11 @@ describe("buildSlabGeometry", () => {
     expect(slab!.materialId).toBe(DEFAULT_SLAB_MATERIAL);
   });
 
-  it("includes the stair as a rectangular hole when present", () => {
+  it("includes the explicit customHole as a rectangular hole when supplied", () => {
+    // Under the new ownership rule, a storey's slab hole is determined by the
+    // stair on the storey BELOW (the stair climbing up through this slab).
+    // buildHouseGeometry computes that and passes it in as `customHole`; the
+    // unit itself just trusts the explicit hole.
     const walls = makeRectangleWalls("2f");
     const storey: Storey = {
       id: "2f",
@@ -60,30 +64,26 @@ describe("buildSlabGeometry", () => {
       elevation: 3.2,
       height: 3.2,
       slabThickness: 0.18,
-      stair: {
-        x: 0.6,
-        y: 5.0,
-        width: 1.2,
-        depth: 2.5,
-        shape: "straight",
-        treadDepth: 0.27,
-        bottomEdge: "+y",
-        materialId: "mat-dark-frame",
-      },
     };
-
-    const slab = buildSlabGeometry(storey, walls, indexFootprints(walls), DEFAULT_SLAB_MATERIAL);
-
-    expect(slab).toBeDefined();
-    expect(slab!.hole).toBeDefined();
-    expect(slab!.hole).toHaveLength(4);
-    const expected = [
+    const customHole = [
       { x: 0.6, y: 5.0 },
       { x: 1.8, y: 5.0 },
       { x: 1.8, y: 7.5 },
       { x: 0.6, y: 7.5 },
     ];
-    expected.forEach((point, i) => {
+
+    const slab = buildSlabGeometry(
+      storey,
+      walls,
+      indexFootprints(walls),
+      DEFAULT_SLAB_MATERIAL,
+      customHole,
+    );
+
+    expect(slab).toBeDefined();
+    expect(slab!.hole).toBeDefined();
+    expect(slab!.hole).toHaveLength(4);
+    customHole.forEach((point, i) => {
       expect(slab!.hole![i].x).toBeCloseTo(point.x, 4);
       expect(slab!.hole![i].y).toBeCloseTo(point.y, 4);
     });

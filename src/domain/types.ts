@@ -59,6 +59,8 @@ export type Storey = {
   elevation: number;
   height: number;
   slabThickness: number;
+  /** Stair going up from this storey to the next one above. The top storey
+   *  must always have stair === undefined. */
   stair?: Stair;
 };
 

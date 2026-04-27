@@ -472,6 +472,7 @@ type StairSymbolGeometry = {
   flights: Point2D[][];
   landings: Point2D[][];
   treadLines: Array<{ from: Point2D; to: Point2D }>;
+  cutLine: Point2D[]; // zig-zag polyline; empty array = no cut drawn
   labelPos: Point2D;
 };
 
@@ -574,12 +575,29 @@ function buildStairSymbolGeometry(
   }
 
   // Label centered on the half being shown:
-  // - lower half = run [0, runLength/2] (near bottomEdge)
-  // - upper half = run [runLength/2, runLength]
+  // - lower half = run [0, runLength/2] (near bottomEdge, UP arrow on lower flight for U)
+  // - upper half = run [runLength/2, runLength]            (DN arrow on upper flight for U)
   const labelRunCenter = stair.half === "lower" ? runLength * 0.25 : runLength * 0.75;
-  const labelPos = proj(labelRunCenter, crossLength / 2);
+  let labelCross = crossLength / 2;
+  if (shape === "u") {
+    const GAP = 0.05;
+    const flightWidth = (crossLength - GAP) / 2;
+    labelCross = stair.half === "lower" ? flightWidth / 2 : crossLength - flightWidth / 2;
+  }
+  const labelPos = proj(labelRunCenter, labelCross);
 
-  return { outline, flights, landings, treadLines, labelPos };
+  // CAD cut line: zig-zag across the run at midpoint, marking where the upper
+  // floor's slab severs the staircase. Drawn on both halves at the same run
+  // position (run = runLength / 2).
+  const cutRun = runLength / 2;
+  const cutOffset = Math.min(0.12, runLength * 0.08); // stagger half-depth
+  const cutLine: Point2D[] = [
+    proj(cutRun - cutOffset, 0),
+    proj(cutRun + cutOffset, crossLength * 0.5),
+    proj(cutRun - cutOffset, crossLength),
+  ];
+
+  return { outline, flights, landings, treadLines, cutLine, labelPos };
 }
 
 function renderSelectableBalcony(
@@ -804,6 +822,13 @@ function renderPlan(
                 y2={line.to.y}
               />
             ))}
+            {symbol.cutLine.length > 0 ? (
+              <polyline
+                className="plan-stair-cut"
+                points={polyPoints(symbol.cutLine)}
+                fill="none"
+              />
+            ) : null}
             <text
               x={symbol.labelPos.x}
               y={symbol.labelPos.y}
