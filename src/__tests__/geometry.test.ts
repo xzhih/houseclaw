@@ -211,14 +211,13 @@ describe("house geometry descriptors", () => {
     expect(front2f!.footprint).toEqual(front1f!.footprint);
   });
 
-  it("emits a floor slab per storey plus one placeholder roof", () => {
+  it("emits a floor slab per storey and no roof slab", () => {
     const geometry = buildHouseGeometry(createSampleProject());
 
     const floors = geometry.slabs.filter((slab) => slab.kind === "floor");
-    const roofs = geometry.slabs.filter((slab) => slab.kind === "roof");
 
     expect(floors).toHaveLength(3);
-    expect(roofs).toHaveLength(1);
+    expect(geometry.slabs).toHaveLength(3); // no roof slabs
 
     const twoF = floors.find((slab) => slab.storeyId === "2f")!;
     expect(twoF.hole).toBeDefined();
@@ -227,8 +226,6 @@ describe("house geometry descriptors", () => {
     const oneF = floors.find((slab) => slab.storeyId === "1f")!;
     expect(oneF.hole).toBeUndefined();
     expect(oneF.topY).toBeCloseTo(0, 4);
-
-    expect(roofs[0].topY).toBeCloseTo(6.4 + 3.2 + 0.2, 4);
   });
 
   it("clones geometry points away from the source project", () => {

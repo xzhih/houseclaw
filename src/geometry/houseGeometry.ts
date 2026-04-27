@@ -1,5 +1,7 @@
 import type { HouseProject, Point2, Wall } from "../domain/types";
-import { buildRoofPlaceholder, buildSlabGeometry } from "./slabGeometry";
+import { buildSlabGeometry } from "./slabGeometry";
+import { buildRoofGeometry } from "./roofGeometry";
+import { buildExteriorRing } from "./footprintRing";
 import type { HouseGeometry, SlabGeometry, StairRenderGeometry } from "./types";
 import { buildWallNetwork, type FootprintQuad } from "./wallNetwork";
 import { buildWallPanels } from "./wallPanels";
@@ -64,10 +66,16 @@ export function buildHouseGeometry(project: HouseProject): HouseGeometry {
     const slab = buildSlabGeometry(storey, project.walls, footprints, SLAB_MATERIAL_ID);
     if (slab) slabs.push(slab);
   }
+  let roof: HouseGeometry["roof"];
   const topStorey = pickTopStorey(project);
-  if (topStorey) {
-    const roof = buildRoofPlaceholder(topStorey, project.walls, footprints, SLAB_MATERIAL_ID);
-    if (roof) slabs.push(roof);
+  if (topStorey && project.roof) {
+    const topWalls = project.walls.filter(
+      (wall) => wall.storeyId === topStorey.id && wall.exterior,
+    );
+    const ring = buildExteriorRing(topWalls, footprints);
+    if (ring) {
+      roof = buildRoofGeometry(topStorey, ring, topWalls, project.roof);
+    }
   }
 
   const stairs: StairRenderGeometry[] = [];
@@ -115,5 +123,6 @@ export function buildHouseGeometry(project: HouseProject): HouseGeometry {
     })),
     slabs,
     stairs,
+    roof,
   };
 }

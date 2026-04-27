@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Storey, Wall } from "../domain/types";
-import { buildRoofPlaceholder, buildSlabGeometry } from "../geometry/slabGeometry";
+import { buildSlabGeometry } from "../geometry/slabGeometry";
 import { buildWallNetwork, type FootprintQuad } from "../geometry/wallNetwork";
 
 function makeRectangleWalls(storeyId: string): Wall[] {
@@ -116,24 +116,3 @@ describe("buildSlabGeometry", () => {
   });
 });
 
-describe("buildRoofPlaceholder", () => {
-  it("sits on top of the topmost storey at storey-elevation + height", () => {
-    const walls = makeRectangleWalls("3f");
-    const topStorey: Storey = {
-      id: "3f",
-      label: "3F",
-      elevation: 6.4,
-      height: 3.2,
-      slabThickness: 0.18,
-    };
-
-    const roof = buildRoofPlaceholder(topStorey, walls, indexFootprints(walls), DEFAULT_SLAB_MATERIAL);
-
-    expect(roof).toBeDefined();
-    expect(roof!.kind).toBe("roof");
-    expect(roof!.hole).toBeUndefined();
-    expect(roof!.thickness).toBeCloseTo(0.2, 4);
-    expect(roof!.topY).toBeCloseTo(6.4 + 3.2 + 0.2, 4);
-    expect(roof!.outline).toHaveLength(4);
-  });
-});

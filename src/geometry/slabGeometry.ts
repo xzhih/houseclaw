@@ -4,7 +4,6 @@ import { buildExteriorRing } from "./footprintRing";
 import type { SlabGeometry } from "./types";
 import type { FootprintQuad } from "./wallNetwork";
 
-const ROOF_PLACEHOLDER_THICKNESS = 0.2;
 // Pull the slab perimeter inside the wall facade so the slab's vertical edge
 // stops being coplanar with the exterior wall face (which causes z-fighting
 // in the 3D preview). 5 mm is invisible against typical 200+ mm walls and
@@ -102,22 +101,3 @@ export function buildSlabGeometry(
   };
 }
 
-export function buildRoofPlaceholder(
-  topStorey: Storey,
-  walls: Wall[],
-  footprintIndex: Map<string, FootprintQuad>,
-  materialId: string,
-): SlabGeometry | undefined {
-  const storeyWalls = walls.filter((wall) => wall.storeyId === topStorey.id);
-  const outline = buildExteriorRing(storeyWalls, footprintIndex);
-  if (!outline) return undefined;
-
-  return {
-    storeyId: topStorey.id,
-    kind: "roof",
-    outline: insetRing(outline, FACADE_INSET),
-    topY: topStorey.elevation + topStorey.height + ROOF_PLACEHOLDER_THICKNESS,
-    thickness: ROOF_PLACEHOLDER_THICKNESS,
-    materialId,
-  };
-}
