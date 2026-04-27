@@ -9,6 +9,7 @@ const VALID_TOOL_IDS = [
   "opening",
   "balcony",
   "stair",
+  "skirt",
   "material",
 ] as const satisfies readonly ToolId[];
 const VALID_VIEW_IDS = [
@@ -45,6 +46,10 @@ function withImportedDefaults(value: unknown): unknown {
 
   if (project.balconies === undefined) {
     project.balconies = [];
+  }
+
+  if (project.skirts === undefined) {
+    project.skirts = [];
   }
 
   if (project.roof !== undefined) {
@@ -234,6 +239,7 @@ function assertImportedProjectShape(value: unknown): asserts value is HouseProje
   const walls = assertArrayField(value, "walls");
   const openings = assertArrayField(value, "openings");
   const balconies = assertArrayField(value, "balconies");
+  const skirts = assertArrayField(value, "skirts");
 
   for (const field of ["id", "name", "unitSystem", "mode", "activeView", "activeTool"]) {
     assertStringField(value, field);
@@ -277,6 +283,7 @@ function assertImportedProjectShape(value: unknown): asserts value is HouseProje
   walls.forEach(assertWallShape);
   openings.forEach(assertOpeningShape);
   balconies.forEach(assertBalconyShape);
+  void skirts; // validated as array; full shape assertion comes in a later task
 }
 
 export function exportProjectJson(project: HouseProject): string {
