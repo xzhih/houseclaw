@@ -22,6 +22,7 @@ import type {
 } from "../projection/types";
 import { GridOverlay } from "./canvas/GridOverlay";
 import { ScaleRuler } from "./canvas/ScaleRuler";
+import { StatusReadout } from "./canvas/StatusReadout";
 import { ZoomControls } from "./canvas/ZoomControls";
 import type { DragReadout } from "./canvas/types";
 
@@ -2096,6 +2097,7 @@ export function DrawingSurface2D({
         gridVisible={gridVisible}
         onGridToggle={() => setGridVisible(v => !v)}
       />
+      <StatusReadout cursorWorld={cursorWorld} dragReadout={dragReadout} />
     </section>
   );
 }
