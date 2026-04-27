@@ -309,44 +309,56 @@ function RoofEditor({ project, onProjectChange }: { project: HouseProject; onPro
     );
 
   return (
-    <section className="property-section" aria-labelledby="roof-heading">
-      <h3 id="roof-heading">屋顶</h3>
-      <NumberField
-        label="坡度"
-        value={pitchDeg}
-        step={1}
-        min={5}
-        max={60}
-        unit="°"
-        onCommit={(deg) => apply("pitch", (deg * Math.PI) / 180)}
-      />
-      <MmField
-        label="出檐"
-        value={roof.overhang}
-        step={50}
-        min={0}
-        max={2}
-        onCommit={(meters) => apply("overhang", meters)}
-      />
-      <label className="property-field">
-        <span>材质</span>
-        <select
-          value={roof.materialId}
-          onChange={(e) => apply("materialId", e.target.value)}
+    <>
+      <section className="property-section" aria-labelledby="roof-heading">
+        <h3 id="roof-heading">屋顶</h3>
+        <NumberField
+          label="坡度"
+          value={pitchDeg}
+          step={1}
+          min={5}
+          max={60}
+          unit="°"
+          onCommit={(deg) => apply("pitch", (deg * Math.PI) / 180)}
+        />
+        <MmField
+          label="出檐"
+          value={roof.overhang}
+          step={50}
+          min={0}
+          max={2}
+          onCommit={(meters) => apply("overhang", meters)}
+        />
+        <button
+          type="button"
+          className="property-secondary property-danger"
+          onClick={() => onProjectChange(removeRoof(project))}
         >
-          {roofMaterials.map((m) => (
-            <option key={m.id} value={m.id}>{m.name}</option>
+          移除屋顶
+        </button>
+      </section>
+      <section className="material-catalog" aria-labelledby="roof-material-heading">
+        <h3 id="roof-material-heading">材质</h3>
+        <div className="material-list">
+          {roofMaterials.map((material) => (
+            <button
+              aria-pressed={roof.materialId === material.id}
+              className="material-swatch"
+              key={material.id}
+              onClick={() => apply("materialId", material.id)}
+              type="button"
+            >
+              <span
+                aria-hidden="true"
+                className="material-swatch-color"
+                style={{ backgroundColor: material.color }}
+              />
+              <span>{material.name}</span>
+            </button>
           ))}
-        </select>
-      </label>
-      <button
-        type="button"
-        className="property-secondary property-danger"
-        onClick={() => onProjectChange(removeRoof(project))}
-      >
-        移除屋顶
-      </button>
-    </section>
+        </div>
+      </section>
+    </>
   );
 }
 

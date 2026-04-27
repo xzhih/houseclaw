@@ -1,5 +1,7 @@
-import type { HouseProject, Point2, Wall } from "../domain/types";
-import type { ElevationProjection, ElevationSide } from "./types";
+import type { HouseProject, Point2, Point3, Wall } from "../domain/types";
+import { buildProjectRoof } from "../geometry/houseGeometry";
+import type { RoofGeometry } from "../geometry/roofGeometry";
+import type { ElevationProjection, ElevationRoofPolygon, ElevationSide } from "./types";
 
 type StoreyBounds = {
   minX: number;
@@ -56,6 +58,21 @@ function projectAxis(point: Point2, side: ElevationSide): number {
   return point.y;
 }
 
+function projectRoofToElevation(
+  geom: RoofGeometry,
+  side: ElevationSide,
+): ElevationRoofPolygon[] {
+  const project = (v: Point3): Point2 => ({ x: projectAxis(v, side), y: v.z });
+  const polygons: ElevationRoofPolygon[] = [];
+  for (const panel of geom.panels) {
+    polygons.push({ kind: "panel", vertices: panel.vertices.map(project) });
+  }
+  for (const gable of geom.gables) {
+    polygons.push({ kind: "gable", vertices: gable.vertices.map(project) });
+  }
+  return polygons;
+}
+
 /**
  * Sign that maps a unit of `offset` along the wall (start → end) to a unit on the
  * elevation view's x-axis. +1 when the wall is drawn in the canonical direction for
@@ -103,9 +120,13 @@ export function projectElevationView(
   const wallsById = new Map(walls.map((wall) => [wall.id, wall]));
   const storeysById = new Map(project.storeys.map((storey) => [storey.id, storey]));
 
+  const roofGeom = buildProjectRoof(project);
+  const roof = roofGeom ? projectRoofToElevation(roofGeom, side) : undefined;
+
   return {
     viewId: `elevation-${side}`,
     side,
+    roof,
     wallBands: walls.map((wall) => {
       const storey = storeysById.get(wall.storeyId);
       const extent = wallExtent(wall, side);

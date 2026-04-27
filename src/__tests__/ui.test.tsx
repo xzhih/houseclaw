@@ -366,4 +366,17 @@ describe("roof view", () => {
     // No assertion on internal state — verifying the input accepts the value.
     expect((pitchField as HTMLInputElement).value).toBe("45");
   });
+
+  it("roof material picker uses the same swatch UI as wall/stair (aria-pressed buttons)", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole("button", { name: "屋顶" }));
+    await user.click(screen.getByTestId("roof-body"));
+    // Sample default roof material is 陶瓦 — must surface as a pressed swatch
+    // button, mirroring the wall/stair material-catalog pattern.
+    const tile = await screen.findByRole("button", { name: "陶瓦" });
+    expect(tile).toHaveAttribute("aria-pressed", "true");
+    // No native select dropdown allowed — keeps roof consistent with siblings.
+    expect(screen.queryByRole("combobox")).toBeNull();
+  });
 });

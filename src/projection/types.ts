@@ -79,10 +79,17 @@ export type ElevationBalconyRect = {
   height: number;
 };
 
+export type ElevationRoofPolygon = {
+  /** Roof piece projected onto the elevation plane (x = side-axis, y = world Z). */
+  vertices: Point2[];
+  kind: "panel" | "gable";
+};
+
 export type ElevationProjection = {
   viewId: ElevationViewId;
   side: ElevationSide;
   wallBands: ElevationWallBand[];
   openings: ElevationOpeningRect[];
   balconies: ElevationBalconyRect[];
+  roof?: ElevationRoofPolygon[];
 };

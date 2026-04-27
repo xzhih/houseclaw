@@ -180,6 +180,27 @@ describe("2D projections", () => {
     expect(opening!.width).toBeCloseTo(1.2);
   });
 
+  it("includes roof silhouette polygons in elevation projection", () => {
+    const project = createSampleProject();
+    const front = projectElevationView(project, "front");
+    const left = projectElevationView(project, "left");
+
+    expect(front.roof).toBeDefined();
+    expect(front.roof!.length).toBeGreaterThan(0);
+    expect(left.roof).toBeDefined();
+    expect(left.roof!.length).toBeGreaterThan(0);
+
+    // For sample (eaves front+back, gables left+right, pitch 30°, overhang 0.6m,
+    // top storey wallTop = 6.4 + 3.2 = 9.6). Outer footprint depth includes wall
+    // half-thickness on each side (8 + 2*0.12) plus overhang (2*0.6) = 9.44; the
+    // ridge sits halfDepth*tan above wallTop. Left view's gable-apex vertex is
+    // the highest projected point.
+    const halfDepth = (8 + 2 * 0.12 + 2 * 0.6) / 2;
+    const ridgeZ = 9.6 + halfDepth * Math.tan(Math.PI / 6);
+    const leftMaxY = Math.max(...left.roof!.flatMap((poly) => poly.vertices.map((v) => v.y)));
+    expect(leftMaxY).toBeCloseTo(ridgeZ, 2);
+  });
+
   it("emits stair symbols for current and upper storeys", () => {
     // createSampleProject: 1F has no stair, 2F and 3F each have a stair.
     const project = createSampleProject();

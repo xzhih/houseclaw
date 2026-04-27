@@ -1,6 +1,6 @@
 import type { HouseProject, Point2, Wall } from "../domain/types";
 import { buildSlabGeometry } from "./slabGeometry";
-import { buildRoofGeometry } from "./roofGeometry";
+import { buildRoofGeometry, type RoofGeometry } from "./roofGeometry";
 import { buildExteriorRing } from "./footprintRing";
 import type { HouseGeometry, SlabGeometry, StairRenderGeometry } from "./types";
 import { buildWallNetwork, type FootprintQuad } from "./wallNetwork";
@@ -58,6 +58,22 @@ function pickTopStorey(project: HouseProject) {
   return [...project.storeys].sort((a, b) => b.elevation - a.elevation)[0];
 }
 
+export function buildProjectRoof(project: HouseProject): RoofGeometry | undefined {
+  const top = pickTopStorey(project);
+  if (!top || !project.roof) return undefined;
+  const topWalls = project.walls.filter(
+    (wall) => wall.storeyId === top.id && wall.exterior,
+  );
+  const footprints = new Map<string, FootprintQuad>();
+  for (const fp of buildWallNetwork(topWalls)) {
+    const { wallId, ...quad } = fp;
+    footprints.set(wallId, quad);
+  }
+  const ring = buildExteriorRing(topWalls, footprints);
+  if (!ring) return undefined;
+  return buildRoofGeometry(top, ring, topWalls, project.roof);
+}
+
 export function buildHouseGeometry(project: HouseProject): HouseGeometry {
   const footprints = buildFootprintIndex(project.walls);
 
@@ -85,17 +101,7 @@ export function buildHouseGeometry(project: HouseProject): HouseGeometry {
     );
     if (slab) slabs.push(slab);
   }
-  let roof: HouseGeometry["roof"];
-  const topStorey = pickTopStorey(project);
-  if (topStorey && project.roof) {
-    const topWalls = project.walls.filter(
-      (wall) => wall.storeyId === topStorey.id && wall.exterior,
-    );
-    const ring = buildExteriorRing(topWalls, footprints);
-    if (ring) {
-      roof = buildRoofGeometry(topStorey, ring, topWalls, project.roof);
-    }
-  }
+  const roof = buildProjectRoof(project);
 
   const stairs: StairRenderGeometry[] = [];
   for (let i = 0; i < sortedStoreys.length; i += 1) {

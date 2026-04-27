@@ -838,6 +838,21 @@ select {
   outline: none;
 }
 
+.elevation-roof {
+  pointer-events: none;
+  stroke: #2f3a42;
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+
+.elevation-roof--panel {
+  fill: #b06a4f;
+}
+
+.elevation-roof--gable {
+  fill: #efeae0;
+}
+
 .is-selected {
   outline: none;
   stroke: #c75300;

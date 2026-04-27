@@ -392,6 +392,14 @@ function elevationBounds(projection: ElevationProjection): Bounds {
     xValues.push(balcony.x, balcony.x + balcony.width);
     yValues.push(balcony.y, balcony.y + balcony.height);
   }
+  if (projection.roof) {
+    for (const poly of projection.roof) {
+      for (const v of poly.vertices) {
+        xValues.push(v.x);
+        yValues.push(v.y);
+      }
+    }
+  }
 
   if (xValues.length === 0 || yValues.length === 0) {
     return { minX: 0, maxX: 1, minY: 0, maxY: 1 };
@@ -1024,6 +1032,21 @@ function renderElevation(
             height={bottomRight.y - topLeft.y}
             onPointerDown={(event) => handlers?.onStoreyPointerDown(event, band.storeyId)}
             onClick={() => onSelect({ kind: "storey", id: band.storeyId })}
+          />
+        );
+      })}
+      {projection.roof?.map((poly, index) => {
+        const points = poly.vertices
+          .map((v) => {
+            const p = projectPoint(v);
+            return `${p.x},${p.y}`;
+          })
+          .join(" ");
+        return (
+          <polygon
+            key={`roof-${poly.kind}-${index}`}
+            className={`elevation-roof elevation-roof--${poly.kind}`}
+            points={points}
           />
         );
       })}

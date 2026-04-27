@@ -314,3 +314,30 @@ describe("buildRoofGeometry — corner slope (2 adjacent eaves)", () => {
     expect(knee!.z).toBeCloseTo(peak);
   });
 });
+
+describe("buildRoofGeometry — accepts the offset exterior ring (production input)", () => {
+  // Production calls buildRoofGeometry with the OUTER footprint ring (wall
+  // centerline expanded by half-thickness on each side). For 0.24m walls the
+  // ring sits 0.12m outside the centerline. Side detection must not break.
+  const HALF_THK = 0.12;
+  const OFFSET_RECT_RING = [
+    { x: -HALF_THK, y: -HALF_THK },
+    { x: 10 + HALF_THK, y: -HALF_THK },
+    { x: 10 + HALF_THK, y: 8 + HALF_THK },
+    { x: -HALF_THK, y: 8 + HALF_THK },
+  ];
+
+  const roof: Roof = {
+    edges: { "w-front": "eave", "w-back": "eave", "w-left": "gable", "w-right": "gable" },
+    pitch: PITCH,
+    overhang: OVERHANG,
+    materialId: "mat-roof",
+  };
+
+  it("still builds 2 panels and 2 gables when the ring is offset by wall half-thickness", () => {
+    const geom = buildRoofGeometry(TOP, OFFSET_RECT_RING, rectWalls(), roof)!;
+    expect(geom).toBeDefined();
+    expect(geom.panels).toHaveLength(2);
+    expect(geom.gables).toHaveLength(2);
+  });
+});
