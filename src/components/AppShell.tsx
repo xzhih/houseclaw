@@ -23,12 +23,14 @@ import {
 import {
   addBalcony,
   addOpening,
+  addSkirt,
   addStair,
   addStorey,
   addWall,
   duplicateStorey,
   removeBalcony,
   removeOpening,
+  removeSkirt,
   removeStair,
   removeStorey,
   removeWall,
@@ -270,6 +272,9 @@ export function AppShell() {
         case "stair":
           next = removeStair(project, sel.id);
           break;
+        case "skirt":
+          next = removeSkirt(project, sel.id);
+          break;
         case "storey": {
           if (project.storeys.length <= 1) return;
           next = removeStorey(project, sel.id);
@@ -322,7 +327,7 @@ export function AppShell() {
       if (!sel) return;
       const isStorey = sel.kind === "storey" && project.storeys.length > 1;
       const isOther =
-        sel.kind === "wall" || sel.kind === "opening" || sel.kind === "balcony" || sel.kind === "stair";
+        sel.kind === "wall" || sel.kind === "opening" || sel.kind === "balcony" || sel.kind === "stair" || sel.kind === "skirt";
       if (!isStorey && !isOther) return;
       event.preventDefault();
       handleDeleteSelection();
@@ -378,6 +383,19 @@ export function AppShell() {
         const next = addStair(project, targetStoreyId, draftStair);
         dispatch({ type: "replace-project", project: next });
         dispatch({ type: "select", selection: { kind: "stair", id: targetStoreyId } });
+        return;
+      }
+
+      if (toolId === "skirt") {
+        const wall = pickTargetWall(project, storeyId, elevationSide);
+        if (!wall) {
+          setAddError("当前楼层没有可附着的外墙,先添加一面墙。");
+          return;
+        }
+        const next = addSkirt(project, wall.id);
+        const newSkirt = next.skirts[next.skirts.length - 1];
+        dispatch({ type: "replace-project", project: next });
+        dispatch({ type: "select", selection: { kind: "skirt", id: newSkirt.id } });
         return;
       }
 

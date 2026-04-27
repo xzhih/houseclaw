@@ -116,3 +116,33 @@ describe("buildSlabGeometry", () => {
   });
 });
 
+describe("buildSlabGeometry — terrace via outline override", () => {
+  it("uses overrideOutlineWalls when provided (storey N>0 sees N-1's footprint)", () => {
+    const lowerWalls: Wall[] = [
+      { id: "lw-1", storeyId: "1f", start: { x: 0, y: 0 }, end: { x: 10, y: 0 }, thickness: 0.24, height: 3, exterior: true, materialId: "m" },
+      { id: "lw-2", storeyId: "1f", start: { x: 10, y: 0 }, end: { x: 10, y: 8 }, thickness: 0.24, height: 3, exterior: true, materialId: "m" },
+      { id: "lw-3", storeyId: "1f", start: { x: 10, y: 8 }, end: { x: 0, y: 8 }, thickness: 0.24, height: 3, exterior: true, materialId: "m" },
+      { id: "lw-4", storeyId: "1f", start: { x: 0, y: 8 }, end: { x: 0, y: 0 }, thickness: 0.24, height: 3, exterior: true, materialId: "m" },
+    ];
+    const upperWalls: Wall[] = [
+      { id: "uw-1", storeyId: "2f", start: { x: 2, y: 2 }, end: { x: 8, y: 2 }, thickness: 0.24, height: 3, exterior: true, materialId: "m" },
+      { id: "uw-2", storeyId: "2f", start: { x: 8, y: 2 }, end: { x: 8, y: 6 }, thickness: 0.24, height: 3, exterior: true, materialId: "m" },
+      { id: "uw-3", storeyId: "2f", start: { x: 8, y: 6 }, end: { x: 2, y: 6 }, thickness: 0.24, height: 3, exterior: true, materialId: "m" },
+      { id: "uw-4", storeyId: "2f", start: { x: 2, y: 6 }, end: { x: 2, y: 2 }, thickness: 0.24, height: 3, exterior: true, materialId: "m" },
+    ];
+
+    const upperStorey: Storey = { id: "2f", label: "2F", elevation: 3, height: 3, slabThickness: 0.18 };
+
+    const allWalls = [...lowerWalls, ...upperWalls];
+    const footprints = new Map();
+    for (const fp of buildWallNetwork(lowerWalls)) footprints.set(fp.wallId, fp);
+    for (const fp of buildWallNetwork(upperWalls)) footprints.set(fp.wallId, fp);
+
+    const slab = buildSlabGeometry(upperStorey, allWalls, footprints, "mat-gray-stone", undefined, lowerWalls);
+    expect(slab).toBeDefined();
+    // Outline should be the lower (10x8) ring, not the upper (6x4) ring.
+    const xs = slab!.outline.map((p) => p.x);
+    expect(Math.max(...xs) - Math.min(...xs)).toBeGreaterThan(8);
+  });
+});
+

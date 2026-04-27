@@ -1,11 +1,12 @@
 import type { HouseProject, Point2, Wall } from "../domain/types";
 import { buildSlabGeometry } from "./slabGeometry";
-import { buildRoofGeometry } from "./roofGeometry";
+import { buildRoofGeometry, type RoofGeometry } from "./roofGeometry";
 import { buildExteriorRing } from "./footprintRing";
 import type { HouseGeometry, SlabGeometry, StairRenderGeometry } from "./types";
 import { buildWallNetwork, type FootprintQuad } from "./wallNetwork";
 import { buildWallPanels } from "./wallPanels";
 import { buildStairGeometry, stairFootprintPolygon } from "./stairGeometry";
+import { buildSkirtGeometry } from "./skirtGeometry";
 
 const SLAB_MATERIAL_ID = "mat-gray-stone";
 
@@ -58,6 +59,22 @@ function pickTopStorey(project: HouseProject) {
   return [...project.storeys].sort((a, b) => b.elevation - a.elevation)[0];
 }
 
+export function buildProjectRoof(project: HouseProject): RoofGeometry | undefined {
+  const top = pickTopStorey(project);
+  if (!top || !project.roof) return undefined;
+  const topWalls = project.walls.filter(
+    (wall) => wall.storeyId === top.id && wall.exterior,
+  );
+  const footprints = new Map<string, FootprintQuad>();
+  for (const fp of buildWallNetwork(topWalls)) {
+    const { wallId, ...quad } = fp;
+    footprints.set(wallId, quad);
+  }
+  const ring = buildExteriorRing(topWalls, footprints);
+  if (!ring) return undefined;
+  return buildRoofGeometry(top, ring, topWalls, project.roof);
+}
+
 export function buildHouseGeometry(project: HouseProject): HouseGeometry {
   const footprints = buildFootprintIndex(project.walls);
 
@@ -76,27 +93,29 @@ export function buildHouseGeometry(project: HouseProject): HouseGeometry {
   }
 
   const slabs: SlabGeometry[] = [];
-  for (const storey of project.storeys) {
+  for (let i = 0; i < sortedStoreys.length; i += 1) {
+    const storey = sortedStoreys[i];
+    const lowerStorey = i > 0 ? sortedStoreys[i - 1] : undefined;
+    const outlineWalls = lowerStorey
+      ? project.walls.filter((w) => w.storeyId === lowerStorey.id)
+      : undefined;
     const slab = buildSlabGeometry(
       storey,
       project.walls,
       footprints,
       SLAB_MATERIAL_ID,
       slabHoleByStorey.get(storey.id),
+      outlineWalls,
     );
     if (slab) slabs.push(slab);
   }
-  let roof: HouseGeometry["roof"];
-  const topStorey = pickTopStorey(project);
-  if (topStorey && project.roof) {
-    const topWalls = project.walls.filter(
-      (wall) => wall.storeyId === topStorey.id && wall.exterior,
-    );
-    const ring = buildExteriorRing(topWalls, footprints);
-    if (ring) {
-      roof = buildRoofGeometry(topStorey, ring, topWalls, project.roof);
-    }
-  }
+  const roof = buildProjectRoof(project);
+
+  const skirts = project.skirts.flatMap((skirt) => {
+    const wall = project.walls.find((w) => w.id === skirt.hostWallId);
+    if (!wall) return [];
+    return [buildSkirtGeometry(skirt, wall)];
+  });
 
   const stairs: StairRenderGeometry[] = [];
   for (let i = 0; i < sortedStoreys.length - 1; i += 1) {
@@ -144,5 +163,6 @@ export function buildHouseGeometry(project: HouseProject): HouseGeometry {
     slabs,
     stairs,
     roof,
+    skirts,
   };
 }

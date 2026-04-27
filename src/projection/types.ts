@@ -25,6 +25,13 @@ export type PlanBalconyGlyph = {
   depth: number;
 };
 
+export type PlanSkirtRect = {
+  skirtId: string;
+  hostWallId: string;
+  /** 4 vertices of the plan-view rectangle (CCW), already in plan space. */
+  vertices: Point2[];
+};
+
 export type PlanStairSymbol = {
   storeyId: string;
   half: "upper" | "lower";
@@ -46,6 +53,7 @@ export type PlanProjection = {
   openings: PlanOpeningGlyph[];
   balconies: PlanBalconyGlyph[];
   stairs: PlanStairSymbol[];
+  skirts: PlanSkirtRect[];
 };
 
 export type ElevationSide = "front" | "back" | "left" | "right";
@@ -79,10 +87,18 @@ export type ElevationBalconyRect = {
   height: number;
 };
 
+export type ElevationRoofPolygon = {
+  /** Roof piece projected onto the elevation plane (x = side-axis, y = world Z). */
+  vertices: Point2[];
+  kind: "panel" | "gable";
+};
+
 export type ElevationProjection = {
   viewId: ElevationViewId;
   side: ElevationSide;
   wallBands: ElevationWallBand[];
   openings: ElevationOpeningRect[];
   balconies: ElevationBalconyRect[];
+  roof?: ElevationRoofPolygon[];
+  skirts?: ElevationRoofPolygon[];
 };

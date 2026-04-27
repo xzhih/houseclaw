@@ -392,6 +392,22 @@ function elevationBounds(projection: ElevationProjection): Bounds {
     xValues.push(balcony.x, balcony.x + balcony.width);
     yValues.push(balcony.y, balcony.y + balcony.height);
   }
+  if (projection.roof) {
+    for (const poly of projection.roof) {
+      for (const v of poly.vertices) {
+        xValues.push(v.x);
+        yValues.push(v.y);
+      }
+    }
+  }
+  if (projection.skirts) {
+    for (const poly of projection.skirts) {
+      for (const v of poly.vertices) {
+        xValues.push(v.x);
+        yValues.push(v.y);
+      }
+    }
+  }
 
   if (xValues.length === 0 || yValues.length === 0) {
     return { minX: 0, maxX: 1, minY: 0, maxY: 1 };
@@ -783,6 +799,26 @@ function renderPlan(
           </g>
         );
       })}
+      {projection.skirts.map((rect) => {
+        const points = rect.vertices
+          .map((v) => {
+            const p = projectPoint(v);
+            return `${p.x},${p.y}`;
+          })
+          .join(" ");
+        const selected = isSelected(selection, "skirt", rect.skirtId);
+        return (
+          <polygon
+            key={rect.skirtId}
+            className={`plan-skirt${selected ? " is-selected" : ""}`}
+            points={points}
+            onClick={(e) => {
+              e.stopPropagation();
+              onSelect({ kind: "skirt", id: rect.skirtId });
+            }}
+          />
+        );
+      })}
       {projection.stairs.map((stair) => {
         const selected = isSelected(selection, "stair", stair.storeyId);
         const symbol = buildStairSymbolGeometry(stair, projectPoint);
@@ -1049,6 +1085,36 @@ function renderElevation(
             height={bottomRight.y - topLeft.y}
             onPointerDown={(event) => handlers?.onStoreyPointerDown(event, band.storeyId)}
             onClick={() => onSelect({ kind: "storey", id: band.storeyId })}
+          />
+        );
+      })}
+      {projection.roof?.map((poly, index) => {
+        const points = poly.vertices
+          .map((v) => {
+            const p = projectPoint(v);
+            return `${p.x},${p.y}`;
+          })
+          .join(" ");
+        return (
+          <polygon
+            key={`roof-${poly.kind}-${index}`}
+            className={`elevation-roof elevation-roof--${poly.kind}`}
+            points={points}
+          />
+        );
+      })}
+      {projection.skirts?.map((poly, index) => {
+        const points = poly.vertices
+          .map((v) => {
+            const p = projectPoint(v);
+            return `${p.x},${p.y}`;
+          })
+          .join(" ");
+        return (
+          <polygon
+            key={`skirt-${poly.kind}-${index}`}
+            className={`elevation-roof elevation-roof--${poly.kind === "panel" ? "panel" : "gable"}`}
+            points={points}
           />
         );
       })}

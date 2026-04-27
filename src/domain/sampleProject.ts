@@ -204,5 +204,6 @@ export function createSampleProject(): HouseProject {
     openings,
     balconies,
     roof,
+    skirts: [],
   };
 }

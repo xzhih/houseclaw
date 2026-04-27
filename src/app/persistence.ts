@@ -1,5 +1,5 @@
 import { assertValidProject } from "../domain/constraints";
-import type { HouseProject, MaterialKind, OpeningType, ToolId, ViewId } from "../domain/types";
+import type { HouseProject, MaterialKind, OpeningType, SkirtRoof, ToolId, ViewId, Wall } from "../domain/types";
 
 const VALID_TOOL_IDS = [
   "select",
@@ -9,6 +9,7 @@ const VALID_TOOL_IDS = [
   "opening",
   "balcony",
   "stair",
+  "skirt",
   "material",
 ] as const satisfies readonly ToolId[];
 const VALID_VIEW_IDS = [
@@ -45,6 +46,10 @@ function withImportedDefaults(value: unknown): unknown {
 
   if (project.balconies === undefined) {
     project.balconies = [];
+  }
+
+  if (project.skirts === undefined) {
+    project.skirts = [];
   }
 
   if (project.roof !== undefined) {
@@ -226,6 +231,24 @@ function assertBalconyShape(value: unknown): void {
   assertPositiveNumberField(value, "railingHeight");
 }
 
+function validateSkirts(raw: unknown, walls: Wall[]): SkirtRoof[] {
+  if (!Array.isArray(raw)) return [];
+  const wallIds = new Set(walls.map((w) => w.id));
+  return raw.filter((s): s is SkirtRoof => {
+    if (!s || typeof s !== "object") return false;
+    if (typeof s.id !== "string") return false;
+    if (typeof s.hostWallId !== "string" || !wallIds.has(s.hostWallId)) return false;
+    if (typeof s.offset !== "number" || s.offset < 0) return false;
+    if (typeof s.width !== "number" || s.width < 0.3) return false;
+    if (typeof s.depth !== "number" || s.depth < 0.3 || s.depth > 4) return false;
+    if (typeof s.pitch !== "number" || s.pitch < Math.PI / 36 || s.pitch > Math.PI / 3) return false;
+    if (typeof s.overhang !== "number" || s.overhang < 0.05 || s.overhang > 1.5) return false;
+    if (typeof s.elevation !== "number") return false;
+    if (typeof s.materialId !== "string") return false;
+    return true;
+  });
+}
+
 function assertImportedProjectShape(value: unknown): asserts value is HouseProject {
   assertProjectJsonObject(value);
 
@@ -287,6 +310,10 @@ export function exportProjectJson(project: HouseProject): string {
 export function importProjectJson(json: string): HouseProject {
   const parsed = withImportedDefaults(JSON.parse(json) as unknown);
   assertImportedProjectShape(parsed);
+
+  // Filter skirts to only those with valid shape and a known host wall.
+  // Done post-assertion so `parsed.walls` is already type-safe.
+  parsed.skirts = validateSkirts(parsed.skirts, parsed.walls);
 
   try {
     return assertValidProject(parsed);

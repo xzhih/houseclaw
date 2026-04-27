@@ -1,5 +1,5 @@
 import { wallLength } from "./measurements";
-import type { Balcony, HouseProject, Opening, OpeningType, Wall } from "./types";
+import type { Balcony, HouseProject, Opening, OpeningType, SkirtRoof, Wall } from "./types";
 
 const ID_SLOT = /^[1-9]\d*$/;
 
@@ -137,5 +137,40 @@ export function createBalconyDraft(project: HouseProject, wall: Wall, centerOffs
     railingHeight: BALCONY_DEFAULTS.railingHeight,
     materialId: pickWallMaterialId(project),
     railingMaterialId: pickFrameMaterialId(project),
+  };
+}
+
+const SKIRT_DEFAULTS = {
+  depth: 1.0,
+  pitch: Math.PI / 6,
+  overhang: 0.3,
+};
+
+function nextSkirtId(project: HouseProject, hostWallId: string): string {
+  let n = 1;
+  while (project.skirts.some((s) => s.id === `skirt-${hostWallId}-${n}`)) n += 1;
+  return `skirt-${hostWallId}-${n}`;
+}
+
+function pickRoofMaterialId(project: HouseProject): string {
+  const gray = project.materials.find((m) => m.id === "mat-gray-tile");
+  if (gray) return gray.id;
+  const anyRoof = project.materials.find((m) => m.kind === "roof");
+  return anyRoof?.id ?? project.materials[0].id;
+}
+
+export function createSkirtDraft(project: HouseProject, hostWall: Wall): SkirtRoof {
+  const storey = project.storeys.find((s) => s.id === hostWall.storeyId);
+  if (!storey) throw new Error(`Storey ${hostWall.storeyId} not found`);
+  return {
+    id: nextSkirtId(project, hostWall.id),
+    hostWallId: hostWall.id,
+    offset: 0,
+    width: wallLength(hostWall),
+    depth: SKIRT_DEFAULTS.depth,
+    elevation: storey.elevation + storey.height,
+    pitch: SKIRT_DEFAULTS.pitch,
+    overhang: SKIRT_DEFAULTS.overhang,
+    materialId: pickRoofMaterialId(project),
   };
 }

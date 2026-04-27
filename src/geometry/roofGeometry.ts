@@ -67,8 +67,11 @@ function resolveEdges(walls: Wall[], ring: Point2[], roof: Roof): ResolvedEdge[]
   if (walls.length !== 4) return undefined;
   if (!walls.every((w) => w.exterior)) return undefined;
 
-  // Identify which side of the rectangle each wall is on.
-  const rect = bbox(ring);
+  if (!bbox(ring)) return undefined;
+  // Side detection compares wall centerlines, so build the bbox from the
+  // centerlines themselves — the exterior ring sits half a wall-thickness
+  // outside, which would push every wall outside RECT_TOL.
+  const rect = wallCenterlineBbox(walls);
   if (!rect) return undefined;
 
   const sided = walls.map<ResolvedEdge | undefined>((w) => {
@@ -97,6 +100,17 @@ function bbox(ring: Point2[]): Rect | undefined {
     yMin: Math.min(...ys),
     yMax: Math.max(...ys),
   };
+}
+
+function wallCenterlineBbox(walls: Wall[]): Rect | undefined {
+  if (walls.length === 0) return undefined;
+  const xs: number[] = [];
+  const ys: number[] = [];
+  for (const w of walls) {
+    xs.push(w.start.x, w.end.x);
+    ys.push(w.start.y, w.end.y);
+  }
+  return { xMin: Math.min(...xs), xMax: Math.max(...xs), yMin: Math.min(...ys), yMax: Math.max(...ys) };
 }
 
 function expandRect(r: Rect, overhang: number): Rect {

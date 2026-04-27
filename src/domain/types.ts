@@ -22,6 +22,7 @@ export type ToolId =
   | "opening"
   | "balcony"
   | "stair"
+  | "skirt"
   | "material";
 
 export type Point2 = {
@@ -73,6 +74,25 @@ export type Roof = {
   /** Radians. Shared by all eaves. Valid range [π/36, π/3]. */
   pitch: number;
   /** Meters. Outward expansion of all 4 outline edges. Range [0, 2]. */
+  overhang: number;
+  materialId: string;
+};
+
+export type SkirtRoof = {
+  id: string;
+  /** Host exterior wall this skirt attaches to. */
+  hostWallId: string;
+  /** Distance along host wall from wall.start, meters. */
+  offset: number;
+  /** Width along the wall, meters. */
+  width: number;
+  /** Outward perpendicular distance to the eave line (excluding overhang). */
+  depth: number;
+  /** World-z of the high (wall-attached) edge, meters. */
+  elevation: number;
+  /** Slope in radians; valid range [π/36, π/3]. */
+  pitch: number;
+  /** Eave overhang on both ends along wall and outward beyond depth, meters. */
   overhang: number;
   materialId: string;
 };
@@ -141,4 +161,5 @@ export type HouseProject = {
   openings: Opening[];
   balconies: Balcony[];
   roof?: Roof;
+  skirts: SkirtRoof[];
 };

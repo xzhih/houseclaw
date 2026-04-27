@@ -5,6 +5,7 @@ import {
   loadProjectFromLocalStorage,
   saveProjectToLocalStorage,
 } from "../app/persistence";
+import { addSkirt } from "../domain/mutations";
 import { createSampleProject } from "../domain/sampleProject";
 
 function expectInvalidProjectJson(value: unknown): void {
@@ -155,6 +156,36 @@ describe("project persistence", () => {
 
   it("returns undefined when localStorage has no saved project", () => {
     expect(loadProjectFromLocalStorage("missing.project")).toBeUndefined();
+  });
+});
+
+describe("skirts persistence", () => {
+  it("round-trips skirts through export → import", () => {
+    let project = createSampleProject();
+    project = addSkirt(project, "wall-front-2f");
+    const json = exportProjectJson(project);
+    const restored = importProjectJson(json);
+    expect(restored.skirts).toHaveLength(1);
+    expect(restored.skirts[0].hostWallId).toBe("wall-front-2f");
+  });
+
+  it("defaults skirts to [] when missing in legacy projects", () => {
+    const project = createSampleProject();
+    const json = exportProjectJson(project);
+    const parsed = JSON.parse(json);
+    delete parsed.skirts;
+    const restored = importProjectJson(JSON.stringify(parsed));
+    expect(restored.skirts).toEqual([]);
+  });
+
+  it("drops skirts pointing at non-existent walls", () => {
+    let project = createSampleProject();
+    project = addSkirt(project, "wall-front-2f");
+    const json = exportProjectJson(project);
+    const parsed = JSON.parse(json);
+    parsed.skirts[0].hostWallId = "wall-bogus";
+    const restored = importProjectJson(JSON.stringify(parsed));
+    expect(restored.skirts).toEqual([]);
   });
 });
 

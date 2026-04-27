@@ -1,6 +1,18 @@
 import { computeStairConfig } from "../domain/stairs";
+import { buildSkirtGeometry } from "../geometry/skirtGeometry";
 import type { HouseProject } from "../domain/types";
-import type { PlanProjection, PlanStairSymbol } from "./types";
+import type { PlanProjection, PlanSkirtRect, PlanStairSymbol } from "./types";
+
+function planSkirtRectsForStorey(project: HouseProject, storeyId: string): PlanSkirtRect[] {
+  return project.skirts.flatMap((skirt) => {
+    const wall = project.walls.find((w) => w.id === skirt.hostWallId);
+    if (!wall || wall.storeyId !== storeyId) return [];
+    const geom = buildSkirtGeometry(skirt, wall);
+    // Drop z; use panel's 4 vertices in plan (x,y) space.
+    const verts = geom.panel.vertices.map((v) => ({ x: v.x, y: v.y }));
+    return [{ skirtId: skirt.id, hostWallId: skirt.hostWallId, vertices: verts }];
+  });
+}
 
 export function projectPlanView(project: HouseProject, storeyId: string): PlanProjection {
   const walls = project.walls.filter((wall) => wall.storeyId === storeyId);
@@ -96,5 +108,6 @@ export function projectPlanView(project: HouseProject, storeyId: string): PlanPr
         depth: balcony.depth,
       })),
     stairs,
+    skirts: planSkirtRectsForStorey(project, storeyId),
   };
 }

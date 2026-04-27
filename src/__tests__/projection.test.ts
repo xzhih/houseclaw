@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { HouseProject, Wall } from "../domain/types";
+import { addSkirt } from "../domain/mutations";
 import { projectElevationView } from "../projection/elevation";
 import { projectPlanView } from "../projection/plan";
 import { createSampleProject } from "../domain/sampleProject";
@@ -180,6 +181,27 @@ describe("2D projections", () => {
     expect(opening!.width).toBeCloseTo(1.2);
   });
 
+  it("includes roof silhouette polygons in elevation projection", () => {
+    const project = createSampleProject();
+    const front = projectElevationView(project, "front");
+    const left = projectElevationView(project, "left");
+
+    expect(front.roof).toBeDefined();
+    expect(front.roof!.length).toBeGreaterThan(0);
+    expect(left.roof).toBeDefined();
+    expect(left.roof!.length).toBeGreaterThan(0);
+
+    // For sample (eaves front+back, gables left+right, pitch 30°, overhang 0.6m,
+    // top storey wallTop = 6.4 + 3.2 = 9.6). Outer footprint depth includes wall
+    // half-thickness on each side (8 + 2*0.12) plus overhang (2*0.6) = 9.44; the
+    // ridge sits halfDepth*tan above wallTop. Left view's gable-apex vertex is
+    // the highest projected point.
+    const halfDepth = (8 + 2 * 0.12 + 2 * 0.6) / 2;
+    const ridgeZ = 9.6 + halfDepth * Math.tan(Math.PI / 6);
+    const leftMaxY = Math.max(...left.roof!.flatMap((poly) => poly.vertices.map((v) => v.y)));
+    expect(leftMaxY).toBeCloseTo(ridgeZ, 2);
+  });
+
   it("emits stair symbols using lower-storey ownership", () => {
     // after the ownership flip: 1F has a stair (1F→2F), 2F has a stair (2F→3F),
     // 3F has no stair (top floor).
@@ -231,6 +253,28 @@ describe("2D projections", () => {
     const planFor2F = projectPlanView(modifiedProject, "2f");
     const lowerHalf = planFor2F.stairs.find((s) => s.storeyId === "2f" && s.half === "lower");
     expect(lowerHalf!.rotation).toBeCloseTo(Math.PI / 6, 6);
+  });
+
+  describe("elevation — skirts", () => {
+    it("includes skirt polygons in front elevation when skirt is on a front wall", () => {
+      let project = createSampleProject();
+      project = addSkirt(project, "wall-front-2f");
+      const front = projectElevationView(project, "front");
+      expect(front.skirts).toBeDefined();
+      expect(front.skirts!.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe("plan view — skirts", () => {
+    it("includes skirts for the queried storey only", () => {
+      let project = createSampleProject();
+      project = addSkirt(project, "wall-front-2f");
+      const plan2f = projectPlanView(project, "2f");
+      expect(plan2f.skirts).toHaveLength(1);
+      expect(plan2f.skirts[0].hostWallId).toBe("wall-front-2f");
+      const plan1f = projectPlanView(project, "1f");
+      expect(plan1f.skirts).toHaveLength(0);
+    });
   });
 
   it("flips the back elevation horizontally relative to the front", () => {

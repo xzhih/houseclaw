@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { wallLength } from "../domain/measurements";
-import type { HouseProject, Wall } from "../domain/types";
+import type { HouseProject, Point3, Wall } from "../domain/types";
 import { buildHouseGeometry } from "../geometry/houseGeometry";
 import type { RoofGeometry } from "../geometry/roofGeometry";
 import type { BalconyGeometry, HouseGeometry, SlabGeometry, WallGeometry, WallPanel } from "../geometry/types";
@@ -675,6 +675,56 @@ function createRoofMeshes(project: HouseProject, geometry: HouseGeometry) {
   return { meshes, materials };
 }
 
+function buildSkirtPanelMesh(panel: { vertices: Point3[] }, material: THREE.Material): THREE.Mesh {
+  const positions: number[] = [];
+  for (let i = 1; i < panel.vertices.length - 1; i += 1) {
+    const a = panel.vertices[0];
+    const b = panel.vertices[i];
+    const c = panel.vertices[i + 1];
+    positions.push(a.x, a.z, planYToSceneZ(a.y));
+    positions.push(b.x, b.z, planYToSceneZ(b.y));
+    positions.push(c.x, c.z, planYToSceneZ(c.y));
+  }
+  const geom = new THREE.BufferGeometry();
+  geom.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+  geom.computeVertexNormals();
+  return new THREE.Mesh(geom, material);
+}
+
+function createSkirtMeshes(project: HouseProject, geometry: HouseGeometry) {
+  const meshes: THREE.Mesh[] = [];
+  const materials: THREE.Material[] = [];
+  if (geometry.skirts.length === 0) return { meshes, materials };
+
+  const panelCache = new Map<string, THREE.Material>();
+  const capCache = new Map<string, THREE.Material>();
+
+  for (const skirt of geometry.skirts) {
+    let panelMat = panelCache.get(skirt.materialId);
+    if (!panelMat) {
+      panelMat = createRoofPanelMaterial(project, skirt.materialId);
+      panelCache.set(skirt.materialId, panelMat);
+      materials.push(panelMat);
+    }
+    meshes.push(buildSkirtPanelMesh(skirt.panel, panelMat));
+
+    // End caps use the host wall's material for visual continuity (matches gable convention).
+    const skirtData = project.skirts.find((s) => s.id === skirt.skirtId);
+    const hostWall = skirtData ? project.walls.find((w) => w.id === skirtData.hostWallId) : undefined;
+    const capMatId = hostWall?.materialId ?? "";
+    let capMat = capCache.get(capMatId);
+    if (!capMat) {
+      capMat = createRoofGableMaterial(project, capMatId);
+      capCache.set(capMatId, capMat);
+      materials.push(capMat);
+    }
+    for (const cap of skirt.endCaps) {
+      meshes.push(buildSkirtPanelMesh(cap, capMat));
+    }
+  }
+  return { meshes, materials };
+}
+
 function createGround(bounds: SceneBounds) {
   const width = bounds.maxX - bounds.minX;
   const depth = bounds.maxZ - bounds.minZ;
@@ -719,6 +769,7 @@ export function mountHouseScene(
   const { meshes: slabMeshes, materials: slabMaterials } = createSlabMeshes(project, houseGeometry);
   const { meshes: stairMeshes, materials: stairMaterials } = createStairMeshes(project, houseGeometry);
   const { meshes: roofMeshes, materials: roofMaterials } = createRoofMeshes(project, houseGeometry);
+  const { meshes: skirtMeshes, materials: skirtMaterials } = createSkirtMeshes(project, houseGeometry);
   const { ground, grid, geometry: groundGeometry, material: groundMaterial } = createGround(bounds);
 
   const buildingCenter = new THREE.Vector3(
@@ -760,8 +811,8 @@ export function mountHouseScene(
 
   renderer.toneMappingExposure = initialLighting.exposure;
 
-  const meshes = [...wallMeshes, ...balconyMeshes, ...slabMeshes, ...stairMeshes, ...roofMeshes];
-  const materials = [...wallMaterials, ...balconyMaterials, ...slabMaterials, ...stairMaterials, ...roofMaterials];
+  const meshes = [...wallMeshes, ...balconyMeshes, ...slabMeshes, ...stairMeshes, ...roofMeshes, ...skirtMeshes];
+  const materials = [...wallMaterials, ...balconyMaterials, ...slabMaterials, ...stairMaterials, ...roofMaterials, ...skirtMaterials];
 
   for (const mesh of meshes) {
     mesh.castShadow = true;
@@ -782,7 +833,7 @@ export function mountHouseScene(
   container.replaceChildren(renderer.domElement);
   renderer.render(scene, camera);
 
-  const collidables: THREE.Object3D[] = [...wallMeshes, ...slabMeshes, ...balconyMeshes, ...stairMeshes, ...roofMeshes, ground];
+  const collidables: THREE.Object3D[] = [...wallMeshes, ...slabMeshes, ...balconyMeshes, ...stairMeshes, ...roofMeshes, ...skirtMeshes, ground];
 
   const callbacks: WalkCallbacks = {
     onWalkExit: () => options?.onWalkExit?.(),

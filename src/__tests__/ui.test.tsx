@@ -366,4 +366,55 @@ describe("roof view", () => {
     // No assertion on internal state — verifying the input accepts the value.
     expect((pitchField as HTMLInputElement).value).toBe("45");
   });
+
+  it("roof material picker uses the same swatch UI as wall/stair (aria-pressed buttons)", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole("button", { name: "屋顶" }));
+    await user.click(screen.getByTestId("roof-body"));
+    // Sample default roof material is 陶瓦 — must surface as a pressed swatch
+    // button, mirroring the wall/stair material-catalog pattern.
+    const tile = await screen.findByRole("button", { name: "陶瓦" });
+    expect(tile).toHaveAttribute("aria-pressed", "true");
+    // No native select dropdown allowed — keeps roof consistent with siblings.
+    expect(screen.queryByRole("combobox")).toBeNull();
+  });
+});
+
+describe("skirt roof", () => {
+  it("ToolPalette has 添加披檐 entry", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole("button", { name: "添加组件" }));
+    expect(screen.getByRole("menuitem", { name: "添加披檐" })).toBeInTheDocument();
+  });
+
+  it("adding a skirt selects it and surfaces SkirtEditor with material swatches", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole("button", { name: "添加组件" }));
+    await user.click(screen.getByRole("menuitem", { name: "添加披檐" }));
+    // If storey sub-menu appears, pick 1F.
+    const oneF = screen.queryByRole("menuitem", { name: "1F" });
+    if (oneF) await user.click(oneF);
+    // SkirtEditor heading visible.
+    expect(await screen.findByRole("heading", { name: /披檐/ })).toBeInTheDocument();
+    // Material swatches: 灰瓦 should be aria-pressed (default chosen).
+    const grayTile = screen.getByRole("button", { name: "灰瓦" });
+    expect(grayTile).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("changing pitch via SkirtEditor accepts the value", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole("button", { name: "添加组件" }));
+    await user.click(screen.getByRole("menuitem", { name: "添加披檐" }));
+    const oneF = screen.queryByRole("menuitem", { name: "1F" });
+    if (oneF) await user.click(oneF);
+    const pitchField = await screen.findByRole("spinbutton", { name: /坡度/ });
+    await user.clear(pitchField);
+    await user.type(pitchField, "20");
+    await user.tab();
+    expect((pitchField as HTMLInputElement).value).toBe("20");
+  });
 });

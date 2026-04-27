@@ -66,9 +66,10 @@ export function buildSlabGeometry(
   footprintIndex: Map<string, FootprintQuad>,
   materialId: string,
   customHole?: Point2[],
+  outlineWalls?: Wall[],  // when provided, use these walls' exterior ring as outline
 ): SlabGeometry | undefined {
-  const storeyWalls = walls.filter((wall) => wall.storeyId === storey.id);
-  const outline = buildExteriorRing(storeyWalls, footprintIndex);
+  const wallsForOutline = outlineWalls ?? walls.filter((wall) => wall.storeyId === storey.id);
+  const outline = buildExteriorRing(wallsForOutline, footprintIndex);
   if (!outline) return undefined;
 
   const hole = customHole;

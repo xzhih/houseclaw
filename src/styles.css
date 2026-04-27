@@ -844,6 +844,21 @@ select {
   outline: none;
 }
 
+.elevation-roof {
+  pointer-events: none;
+  stroke: #2f3a42;
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+
+.elevation-roof--panel {
+  fill: #b06a4f;
+}
+
+.elevation-roof--gable {
+  fill: #efeae0;
+}
+
 .is-selected {
   outline: none;
   stroke: #c75300;
@@ -1608,4 +1623,19 @@ select {
 
 .roof-edge.is-selected {
   stroke: #f0a020;
+}
+
+.plan-skirt {
+  fill: rgba(58, 63, 67, 0.25);    /* gray tile, semi-transparent */
+  stroke: #3a3f43;
+  stroke-width: 1.5;
+  stroke-dasharray: 4 3;
+  cursor: pointer;
+}
+
+.plan-skirt.is-selected {
+  stroke: #c75300;
+  stroke-width: 2.5;
+  stroke-dasharray: none;
+  filter: drop-shadow(0 0 3px rgba(199, 83, 0, 0.7));
 }

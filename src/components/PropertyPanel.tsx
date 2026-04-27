@@ -31,16 +31,19 @@ function MmField({ label, value, step = 10, min, max, onCommit }: MmFieldProps) 
 import {
   moveWall,
   removeRoof,
+  removeSkirt,
   resizeStoreyExtent,
   toggleRoofEdge,
   updateBalcony,
   updateOpening,
   updateRoof,
+  updateSkirt,
   updateStair,
   updateStorey,
   updateWall,
   type BalconyPatch,
   type OpeningPatch,
+  type SkirtPatch,
   type StairPatch,
   type StoreyPatch,
   type WallPatch,
@@ -105,6 +108,7 @@ export function PropertyPanel({
     selection?.kind === "opening" ||
     selection?.kind === "balcony" ||
     selection?.kind === "stair" ||
+    selection?.kind === "skirt" ||
     (selection?.kind === "storey" && project.storeys.length > 1);
 
   const deleteLabel = selection?.kind === "storey" ? "删除楼层" : "删除";
@@ -139,6 +143,9 @@ export function PropertyPanel({
       ) : null}
       {selection?.kind === "roof-edge" ? (
         <RoofEdgeEditor project={project} wallId={selection.wallId} onProjectChange={onProjectChange} />
+      ) : null}
+      {selection?.kind === "skirt" ? (
+        <SkirtEditor project={project} id={selection.id} onProjectChange={onProjectChange} />
       ) : null}
 
       {selection?.kind === "storey" && onDuplicateStorey ? (
@@ -309,44 +316,56 @@ function RoofEditor({ project, onProjectChange }: { project: HouseProject; onPro
     );
 
   return (
-    <section className="property-section" aria-labelledby="roof-heading">
-      <h3 id="roof-heading">屋顶</h3>
-      <NumberField
-        label="坡度"
-        value={pitchDeg}
-        step={1}
-        min={5}
-        max={60}
-        unit="°"
-        onCommit={(deg) => apply("pitch", (deg * Math.PI) / 180)}
-      />
-      <MmField
-        label="出檐"
-        value={roof.overhang}
-        step={50}
-        min={0}
-        max={2}
-        onCommit={(meters) => apply("overhang", meters)}
-      />
-      <label className="property-field">
-        <span>材质</span>
-        <select
-          value={roof.materialId}
-          onChange={(e) => apply("materialId", e.target.value)}
+    <>
+      <section className="property-section" aria-labelledby="roof-heading">
+        <h3 id="roof-heading">屋顶</h3>
+        <NumberField
+          label="坡度"
+          value={pitchDeg}
+          step={1}
+          min={5}
+          max={60}
+          unit="°"
+          onCommit={(deg) => apply("pitch", (deg * Math.PI) / 180)}
+        />
+        <MmField
+          label="出檐"
+          value={roof.overhang}
+          step={50}
+          min={0}
+          max={2}
+          onCommit={(meters) => apply("overhang", meters)}
+        />
+        <button
+          type="button"
+          className="property-secondary property-danger"
+          onClick={() => onProjectChange(removeRoof(project))}
         >
-          {roofMaterials.map((m) => (
-            <option key={m.id} value={m.id}>{m.name}</option>
+          移除屋顶
+        </button>
+      </section>
+      <section className="material-catalog" aria-labelledby="roof-material-heading">
+        <h3 id="roof-material-heading">材质</h3>
+        <div className="material-list">
+          {roofMaterials.map((material) => (
+            <button
+              aria-pressed={roof.materialId === material.id}
+              className="material-swatch"
+              key={material.id}
+              onClick={() => apply("materialId", material.id)}
+              type="button"
+            >
+              <span
+                aria-hidden="true"
+                className="material-swatch-color"
+                style={{ backgroundColor: material.color }}
+              />
+              <span>{material.name}</span>
+            </button>
           ))}
-        </select>
-      </label>
-      <button
-        type="button"
-        className="property-secondary property-danger"
-        onClick={() => onProjectChange(removeRoof(project))}
-      >
-        移除屋顶
-      </button>
-    </section>
+        </div>
+      </section>
+    </>
   );
 }
 
@@ -374,6 +393,55 @@ function RoofEdgeEditor({ project, wallId, onProjectChange }: { project: HousePr
         切换为 {targetLabel}
       </button>
     </section>
+  );
+}
+
+function SkirtEditor({ project, id, onProjectChange }: EditorProps) {
+  const skirt = project.skirts.find((s) => s.id === id);
+  if (!skirt) return null;
+  const roofMaterials = project.materials.filter((m) => m.kind === "roof");
+  const pitchDeg = Math.round((skirt.pitch * 180) / Math.PI);
+
+  const apply = (patch: SkirtPatch): string | undefined =>
+    commit(onProjectChange, patch, (final) => updateSkirt(project, id, final));
+
+  return (
+    <>
+      <section className="property-section" aria-labelledby="skirt-heading">
+        <h3 id="skirt-heading">披檐 · {skirt.id}</h3>
+        <MmField label="起点偏移" value={skirt.offset} min={0} onCommit={(offset) => apply({ offset })} />
+        <MmField label="宽度" value={skirt.width} min={0.3} onCommit={(width) => apply({ width })} />
+        <MmField label="外伸深度" value={skirt.depth} min={0.3} max={4} onCommit={(depth) => apply({ depth })} />
+        <MmField label="挂接高度" value={skirt.elevation} onCommit={(elevation) => apply({ elevation })} />
+        <NumberField
+          label="坡度"
+          value={pitchDeg}
+          step={1}
+          min={5}
+          max={60}
+          unit="°"
+          onCommit={(deg) => apply({ pitch: (deg * Math.PI) / 180 })}
+        />
+        <MmField label="出檐" value={skirt.overhang} step={50} min={0.05} max={1.5} onCommit={(overhang) => apply({ overhang })} />
+      </section>
+      <section className="material-catalog" aria-labelledby="skirt-material-heading">
+        <h3 id="skirt-material-heading">材质</h3>
+        <div className="material-list">
+          {roofMaterials.map((material) => (
+            <button
+              aria-pressed={skirt.materialId === material.id}
+              className="material-swatch"
+              key={material.id}
+              onClick={() => apply({ materialId: material.id })}
+              type="button"
+            >
+              <span aria-hidden="true" className="material-swatch-color" style={{ backgroundColor: material.color }} />
+              <span>{material.name}</span>
+            </button>
+          ))}
+        </div>
+      </section>
+    </>
   );
 }
 
