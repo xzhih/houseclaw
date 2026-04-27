@@ -1247,3 +1247,21 @@ select {
   border-color: var(--panel-border-hover);
   background: var(--accent-bg);
 }
+
+.stair-rotate-handle {
+  fill: var(--accent-bg-strong);
+  stroke: var(--text);
+  stroke-width: 1.5;
+  cursor: grab;
+}
+
+.stair-rotate-handle:active {
+  cursor: grabbing;
+}
+
+.stair-rotate-stem {
+  stroke: var(--text-muted);
+  stroke-width: 1.5;
+  stroke-dasharray: 3 3;
+  pointer-events: none;
+}

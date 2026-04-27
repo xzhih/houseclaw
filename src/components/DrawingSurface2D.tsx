@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } fr
 import type { ObjectSelection } from "../domain/selection";
 import { isSelected } from "../domain/selection";
 import { wallLength } from "../domain/measurements";
-import { moveWall, updateBalcony, updateOpening } from "../domain/mutations";
+import { moveWall, updateBalcony, updateOpening, updateStair } from "../domain/mutations";
 import { rotatePoint } from "../domain/stairs";
 import type { HouseProject, Point2, ToolId, ViewId } from "../domain/types";
 import { snapPlanPoint, snapToEndpoint } from "../geometry/snapping";
@@ -177,6 +177,28 @@ type DragState =
       origWidth: number;
       wallLen: number;
       projSign: 1 | -1;
+    }
+  | {
+      kind: "stair-resize";
+      pointerId: number;
+      startWorld: Point2D;
+      moved: boolean;
+      mapping: PointMapping;
+      storeyId: string;
+      corner: "bl" | "br" | "tr" | "tl";
+      worldAnchor: Point2D;
+      origRotation: number;
+    }
+  | {
+      kind: "stair-rotate";
+      pointerId: number;
+      startWorld: Point2D;
+      moved: boolean;
+      mapping: PointMapping;
+      storeyId: string;
+      center: Point2D;
+      initialMouseAngle: number;
+      origRotation: number;
     };
 
 type PlanDragHandlers = {
@@ -197,6 +219,15 @@ type PlanDragHandlers = {
     event: PointerEvent<SVGElement>,
     balconyId: string,
     edge: "l" | "r",
+  ) => void;
+  onStairCornerPointerDown: (
+    event: PointerEvent<SVGElement>,
+    storeyId: string,
+    corner: "bl" | "br" | "tr" | "tl",
+  ) => void;
+  onStairRotatePointerDown: (
+    event: PointerEvent<SVGElement>,
+    storeyId: string,
   ) => void;
 };
 
@@ -566,6 +597,10 @@ function renderPlan(
     selection?.kind === "balcony"
       ? projection.balconies.find((balcony) => balcony.balconyId === selection.id)
       : undefined;
+  const selectedStairSymbol =
+    selection?.kind === "stair"
+      ? projection.stairs.find((s) => s.storeyId === selection.id)
+      : undefined;
 
   return (
     <>
@@ -819,6 +854,63 @@ function renderPlan(
                     handlers.onBalconyEdgePointerDown(event, selectedBalcony.balconyId, "r")
                   }
                 />
+              </>
+            );
+          })()
+        : null}
+      {selectedStairSymbol && handlers
+        ? (() => {
+            const stair = selectedStairSymbol;
+            const rotation = stair.rotation;
+            const center = stair.center;
+            const { rect } = stair;
+            const cornersLocal: Array<{ name: "bl" | "br" | "tr" | "tl"; local: Point2D }> = [
+              { name: "bl", local: { x: rect.x, y: rect.y } },
+              { name: "br", local: { x: rect.x + rect.width, y: rect.y } },
+              { name: "tr", local: { x: rect.x + rect.width, y: rect.y + rect.depth } },
+              { name: "tl", local: { x: rect.x, y: rect.y + rect.depth } },
+            ];
+            const cornersWorld = cornersLocal.map((c) => ({
+              name: c.name,
+              pos: projectPoint(rotatePoint(c.local, center, rotation)),
+            }));
+            const HANDLE_OFFSET = 0.5;
+            const topMidLocal: Point2D = { x: center.x, y: rect.y + rect.depth };
+            const handleLocal: Point2D = { x: center.x, y: rect.y + rect.depth + HANDLE_OFFSET };
+            const topMidWorld = projectPoint(rotatePoint(topMidLocal, center, rotation));
+            const handleWorld = projectPoint(rotatePoint(handleLocal, center, rotation));
+            return (
+              <>
+                <line
+                  className="stair-rotate-stem"
+                  x1={topMidWorld.x}
+                  y1={topMidWorld.y}
+                  x2={handleWorld.x}
+                  y2={handleWorld.y}
+                />
+                <circle
+                  className="stair-rotate-handle"
+                  cx={handleWorld.x}
+                  cy={handleWorld.y}
+                  r={ENDPOINT_HANDLE_RADIUS}
+                  aria-label={`旋转楼梯 ${stair.storeyId}`}
+                  onPointerDown={(event) =>
+                    handlers.onStairRotatePointerDown(event, stair.storeyId)
+                  }
+                />
+                {cornersWorld.map((c) => (
+                  <circle
+                    key={c.name}
+                    className="resize-handle"
+                    cx={c.pos.x}
+                    cy={c.pos.y}
+                    r={ENDPOINT_HANDLE_RADIUS}
+                    aria-label={`楼梯 ${c.name} 角点`}
+                    onPointerDown={(event) =>
+                      handlers.onStairCornerPointerDown(event, stair.storeyId, c.name)
+                    }
+                  />
+                ))}
               </>
             );
           })()
@@ -1264,6 +1356,59 @@ export function DrawingSurface2D({
     }));
   };
 
+  const onStairCornerHandlePointerDown: PlanDragHandlers["onStairCornerPointerDown"] = (
+    event,
+    storeyId,
+    corner,
+  ) => {
+    const storey = project.storeys.find((s) => s.id === storeyId);
+    const stair = storey?.stair;
+    if (!stair) return;
+    const rotation = stair.rotation ?? 0;
+    const center: Point2D = { x: stair.x + stair.width / 2, y: stair.y + stair.depth / 2 };
+    const oppositeLocal: Point2D =
+      corner === "bl"
+        ? { x: stair.x + stair.width, y: stair.y + stair.depth }
+        : corner === "br"
+          ? { x: stair.x, y: stair.y + stair.depth }
+          : corner === "tr"
+            ? { x: stair.x, y: stair.y }
+            : /* "tl" */ { x: stair.x + stair.width, y: stair.y };
+    const worldAnchor = rotatePoint(oppositeLocal, center, rotation);
+    beginElementDrag(event, (pointerId, startWorld, mapping) => ({
+      kind: "stair-resize",
+      pointerId,
+      startWorld,
+      mapping,
+      moved: false,
+      storeyId,
+      corner,
+      worldAnchor,
+      origRotation: rotation,
+    }));
+  };
+
+  const onStairRotateHandlePointerDown: PlanDragHandlers["onStairRotatePointerDown"] = (
+    event,
+    storeyId,
+  ) => {
+    const storey = project.storeys.find((s) => s.id === storeyId);
+    const stair = storey?.stair;
+    if (!stair) return;
+    const center: Point2D = { x: stair.x + stair.width / 2, y: stair.y + stair.depth / 2 };
+    beginElementDrag(event, (pointerId, startWorld, mapping) => ({
+      kind: "stair-rotate",
+      pointerId,
+      startWorld,
+      mapping,
+      moved: false,
+      storeyId,
+      center,
+      initialMouseAngle: Math.atan2(startWorld.y - center.y, startWorld.x - center.x),
+      origRotation: stair.rotation ?? 0,
+    }));
+  };
+
   const planDragHandlers: PlanDragHandlers = {
     onWallPointerDown: onWallElementPointerDown,
     onOpeningPointerDown: onOpeningElementPointerDown,
@@ -1271,6 +1416,8 @@ export function DrawingSurface2D({
     onWallEndpointPointerDown: onWallEndpointHandlePointerDown,
     onOpeningEdgePointerDown: onPlanOpeningEdgePointerDown,
     onBalconyEdgePointerDown: onPlanBalconyEdgePointerDown,
+    onStairCornerPointerDown: onStairCornerHandlePointerDown,
+    onStairRotatePointerDown: onStairRotateHandlePointerDown,
   };
 
   const onElevationOpeningPointerDown: ElevationDragHandlers["onOpeningPointerDown"] = (event, openingId) => {
@@ -1627,6 +1774,61 @@ export function DrawingSurface2D({
               width: roundToMm(snapToGrid(newWidth)),
             }),
           );
+          break;
+        }
+        case "stair-resize": {
+          const minSize = 0.6;
+          const mouseWorld = currentWorld;
+          const newCenter: Point2D = {
+            x: (state.worldAnchor.x + mouseWorld.x) / 2,
+            y: (state.worldAnchor.y + mouseWorld.y) / 2,
+          };
+          const diagWorld: Point2D = {
+            x: mouseWorld.x - state.worldAnchor.x,
+            y: mouseWorld.y - state.worldAnchor.y,
+          };
+          const cosA = Math.cos(-state.origRotation);
+          const sinA = Math.sin(-state.origRotation);
+          const diagLocal: Point2D = {
+            x: diagWorld.x * cosA - diagWorld.y * sinA,
+            y: diagWorld.x * sinA + diagWorld.y * cosA,
+          };
+          let newWidth: number;
+          let newDepth: number;
+          switch (state.corner) {
+            case "tr":
+              newWidth = Math.max(minSize, diagLocal.x);
+              newDepth = Math.max(minSize, diagLocal.y);
+              break;
+            case "tl":
+              newWidth = Math.max(minSize, -diagLocal.x);
+              newDepth = Math.max(minSize, diagLocal.y);
+              break;
+            case "bl":
+              newWidth = Math.max(minSize, -diagLocal.x);
+              newDepth = Math.max(minSize, -diagLocal.y);
+              break;
+            case "br":
+              newWidth = Math.max(minSize, diagLocal.x);
+              newDepth = Math.max(minSize, -diagLocal.y);
+              break;
+          }
+          const newX = roundToMm(newCenter.x - newWidth / 2);
+          const newY = roundToMm(newCenter.y - newDepth / 2);
+          const w = roundToMm(newWidth);
+          const d = roundToMm(newDepth);
+          onProjectChange(updateStair(project, state.storeyId, { x: newX, y: newY, width: w, depth: d }));
+          break;
+        }
+        case "stair-rotate": {
+          const angle = Math.atan2(
+            currentWorld.y - state.center.y,
+            currentWorld.x - state.center.x,
+          );
+          let newRotation = state.origRotation + (angle - state.initialMouseAngle);
+          while (newRotation > Math.PI) newRotation -= 2 * Math.PI;
+          while (newRotation <= -Math.PI) newRotation += 2 * Math.PI;
+          onProjectChange(updateStair(project, state.storeyId, { rotation: newRotation }));
           break;
         }
       }
