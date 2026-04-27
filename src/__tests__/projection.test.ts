@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { HouseProject, Wall } from "../domain/types";
+import { addSkirt } from "../domain/mutations";
 import { projectElevationView } from "../projection/elevation";
 import { projectPlanView } from "../projection/plan";
 import { createSampleProject } from "../domain/sampleProject";
@@ -252,6 +253,18 @@ describe("2D projections", () => {
     const planFor2F = projectPlanView(modifiedProject, "2f");
     const upperHalf = planFor2F.stairs.find((s) => s.storeyId === "2f" && s.half === "upper");
     expect(upperHalf!.rotation).toBeCloseTo(Math.PI / 6, 6);
+  });
+
+  describe("plan view — skirts", () => {
+    it("includes skirts for the queried storey only", () => {
+      let project = createSampleProject();
+      project = addSkirt(project, "wall-front-2f");
+      const plan2f = projectPlanView(project, "2f");
+      expect(plan2f.skirts).toHaveLength(1);
+      expect(plan2f.skirts[0].hostWallId).toBe("wall-front-2f");
+      const plan1f = projectPlanView(project, "1f");
+      expect(plan1f.skirts).toHaveLength(0);
+    });
   });
 
   it("flips the back elevation horizontally relative to the front", () => {
