@@ -291,7 +291,7 @@ function StairEditor({ project, id, onProjectChange }: EditorProps) {
               onClick={() =>
                 apply({
                   shape: s.id,
-                  ...(s.id === "l" && !stair.turn ? { turn: "right" as const } : {}),
+                  turn: s.id === "l" ? (stair.turn ?? "right") : undefined,
                 })
               }
             >

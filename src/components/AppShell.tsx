@@ -240,7 +240,8 @@ export function AppShell() {
       const sel = project.selection;
       if (!sel) return;
       const isStorey = sel.kind === "storey" && project.storeys.length > 1;
-      const isOther = sel.kind === "wall" || sel.kind === "opening" || sel.kind === "balcony";
+      const isOther =
+        sel.kind === "wall" || sel.kind === "opening" || sel.kind === "balcony" || sel.kind === "stair";
       if (!isStorey && !isOther) return;
       event.preventDefault();
       handleDeleteSelection();
