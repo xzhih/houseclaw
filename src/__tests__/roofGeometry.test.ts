@@ -193,3 +193,65 @@ describe("buildRoofGeometry — half-hip (3 eaves + 1 gable)", () => {
     }
   });
 });
+
+describe("buildRoofGeometry — corner slope (2 adjacent eaves)", () => {
+  const roof: Roof = {
+    edges: { "w-front": "eave", "w-right": "eave", "w-back": "gable", "w-left": "gable" },
+    pitch: PITCH,
+    overhang: OVERHANG,
+    materialId: "mat-roof",
+  };
+
+  it("emits 2 panels and 2 gables", () => {
+    const geom = buildRoofGeometry(TOP, RECT_RING, rectWalls(), roof)!;
+    expect(geom.panels).toHaveLength(2);
+    expect(geom.gables).toHaveLength(2);
+  });
+
+  it("highest point sits at the corner of the two gables (apex)", () => {
+    const geom = buildRoofGeometry(TOP, RECT_RING, rectWalls(), roof)!;
+    const apexZ = Math.max(...geom.panels.flatMap((p) => p.vertices.map((v) => v.z)));
+    // Apex = the back-left outer corner; rises by min(W, D) of the slope coming
+    // from each adjacent eave. With pitches equal, it's whichever eave's plane
+    // wins at that corner. Outer rect 11.2 x 9.2; the SE-eaves push the BL
+    // corner up by (W) along front-eave and (D) along right-eave; min wins.
+    // For (front+right) eaves and BL corner = (xMin, yMax): front plane
+    // height = (yMax - yMin) * tan = 9.2 * tan; right plane = (xMax - xMin)
+    // * tan = 11.2 * tan; min = 9.2 * tan ≈ 5.31m.
+    const expected = WALL_TOP + 9.2 * Math.tan(PITCH);
+    expect(apexZ).toBeCloseTo(expected);
+  });
+
+  it("front eave is a trapezoid (4 verts) and right eave is a triangle (3 verts)", () => {
+    const geom = buildRoofGeometry(TOP, RECT_RING, rectWalls(), roof)!;
+    const front = geom.panels.find((p) =>
+      p.vertices.some((v) => v.y < -0.5) && p.vertices.some((v) => v.y > 8.5),
+    );
+    const right = geom.panels.find((p) =>
+      p.vertices.every((v) => v.x > 0 || Math.abs(v.x - 1.4) < 0.01),
+    );
+    // The wide-span panel (front) is the trapezoid; the short-span panel (right) is the triangle.
+    expect(front?.vertices.length).toBe(4);
+    expect(right?.vertices.length).toBe(3);
+  });
+
+  it("all panels have positive (CCW) signed area in plan", () => {
+    const geom = buildRoofGeometry(TOP, RECT_RING, rectWalls(), roof)!;
+    for (const panel of geom.panels) {
+      expect(signedAreaXY(panel.vertices)).toBeGreaterThan(0);
+    }
+  });
+
+  it("the back gable has the knee at hipExit (4 verts when W != D)", () => {
+    const geom = buildRoofGeometry(TOP, RECT_RING, rectWalls(), roof)!;
+    const backGable = geom.gables.find((g) => g.wallId === "w-back")!;
+    expect(backGable.vertices).toHaveLength(4);
+    // The knee should be at (1.4, 8.6, peak).
+    const peak = WALL_TOP + 9.2 * Math.tan(PITCH);
+    const knee = backGable.vertices.find((v) =>
+      Math.abs(v.x - 1.4) < 0.01 && Math.abs(v.y - 8.6) < 0.01,
+    );
+    expect(knee).toBeDefined();
+    expect(knee!.z).toBeCloseTo(peak);
+  });
+});

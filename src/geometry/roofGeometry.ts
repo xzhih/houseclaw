@@ -51,8 +51,7 @@ export function buildRoofGeometry(
       if (eaves[0].side === oppositeSide(eaves[1].side)) {
         return buildGable2Opp(resolved, outer, wallTopZ, slope, roof.materialId);
       }
-      // 2-adjacent handled in a later task.
-      return undefined;
+      return buildCornerSlope2Adj(resolved, outer, wallTopZ, slope, roof.materialId);
     }
     case 3:
       return buildHalfHip3(resolved, outer, wallTopZ, slope, roof.materialId);
@@ -424,6 +423,152 @@ function midV(side: ResolvedEdge["side"], outer: Rect): number {
     case "right":
       return (outer.xMin + outer.xMax) / 2;
   }
+}
+
+/**
+ * Corner slope (2 adjacent eaves): one hip line descends from the shared
+ * eave corner (low corner) diagonally to where it exits the opposite pair of
+ * gable walls. The high corner (where the two gables meet) sits at height
+ * min(W, D) * slope above wall top. When W ≠ D the hip exits the shorter
+ * dimension's gable wall first, then a horizontal ridge runs the remaining
+ * distance to the high corner.
+ *
+ * Panels:
+ *   - "wide" eave (dimension > min): trapezoid from its eave edge up to
+ *     hipExit + highCorner (two high vertices).
+ *   - "short" eave (dimension = min): triangle from its eave edge up to
+ *     hipExit (single high vertex shared with the wide panel).
+ *   When W == D both panels are triangles sharing the single apex.
+ *
+ * Gables: each gable wall gets a triangle with base along the wall and apex
+ * at the high corner (which lies on the gable wall at wallTopZ + min(W,D)*slope).
+ */
+function buildCornerSlope2Adj(
+  edges: ResolvedEdge[],
+  outer: Rect,
+  wallTopZ: number,
+  slope: number,
+  materialId: string,
+): RoofGeometry {
+  const eaves = edges.filter((e) => e.kind === "eave");
+  const gables = edges.filter((e) => e.kind === "gable");
+
+  const W = outer.xMax - outer.xMin; // x-dimension
+  const D = outer.yMax - outer.yMin; // y-dimension
+  const eaveSides = new Set(eaves.map((e) => e.side));
+
+  // Low corner: where the two eave walls meet (at wallTopZ).
+  const lowCorner: Point3 = {
+    x: eaveSides.has("right") ? outer.xMax : outer.xMin,
+    y: eaveSides.has("back")  ? outer.yMax : outer.yMin,
+    z: wallTopZ,
+  };
+
+  // High corner: where the two gable walls meet, at wallTopZ + min(W,D)*slope.
+  // It is the corner diagonally opposite the lowCorner.
+  const highCorner: Point3 = {
+    x: eaveSides.has("right") ? outer.xMin : outer.xMax,
+    y: eaveSides.has("front") ? outer.yMax : outer.yMin,
+    z: wallTopZ + Math.min(W, D) * slope,
+  };
+
+  // Hip exit: the point where the equal-pitch hip line first touches a gable
+  // wall. When W <= D the hip hits the gable wall parallel to the y-eave
+  // (left/right side) first; when D <= W it hits the gable wall parallel to
+  // the x-eave (front/back) first.
+  const hipExit: Point3 = (() => {
+    if (W <= D) {
+      // Hip exits the left/right gable wall (x = highCorner.x) after W units.
+      return {
+        x: highCorner.x,
+        y: lowCorner.y + (eaveSides.has("front") ? +W : -W),
+        z: wallTopZ + W * slope,
+      };
+    }
+    // Hip exits the front/back gable wall (y = highCorner.y) after D units.
+    return {
+      x: lowCorner.x + (eaveSides.has("right") ? -D : +D),
+      y: highCorner.y,
+      z: wallTopZ + D * slope,
+    };
+  })();
+
+  // Identify which eave is "long" (its perpendicular span == max(W,D)) and
+  // which is "short" (span == min(W,D)). The long eave gets a trapezoid
+  // (hipExit + highCorner as its two upper vertices); the short eave gets a
+  // triangle (hipExit as its single upper vertex).
+  //
+  // A horizontal eave (front/back) spans the y-depth D; a vertical eave
+  // (left/right) spans the x-width W. "Long" means its span >= the other.
+  const panels: RoofPanel[] = [];
+  for (const e of eaves) {
+    const span = (e.side === "front" || e.side === "back") ? D : W;
+    const otherSpan = (e.side === "front" || e.side === "back") ? W : D;
+    const { u0, u1 } = eaveAxes(e.side, outer);
+    const eaveV = sideV(e.side, outer);
+    const lo0 = liftToWorld(e.side, outer, u0, eaveV, wallTopZ);
+    const lo1 = liftToWorld(e.side, outer, u1, eaveV, wallTopZ);
+
+    if (span < otherSpan) {
+      // Short eave → trapezoid: base lo0..lo1, top two vertices
+      // are hipExit and highCorner (in CCW order relative to this face).
+      // We need to determine which end of the base is adjacent to the low
+      // corner to get the winding right.
+      // lo0 is at u0; lo1 is at u1 (eaveAxes convention).
+      // lowCorner aligns with the OTHER eave's wall (the short eave direction).
+      // For the short eave the low corner is at u1 (the end of the eave that
+      // meets the long eave). Check by comparing u1 to the low corner coord.
+      const lowU = (e.side === "front" || e.side === "back") ? lowCorner.x : lowCorner.y;
+      const lowIsAtU1 = Math.abs(u1 - lowU) < 0.01;
+      if (lowIsAtU1) {
+        // lo1 is the low corner end; going CCW: lo0 → lo1 → hipExit → highCorner
+        panels.push({ vertices: [lo0, lo1, hipExit, highCorner], materialId });
+      } else {
+        // lo0 is the low corner end; going CCW: highCorner → hipExit → lo0 → lo1
+        // (reversed so lo0..lo1 is still the base going CCW)
+        panels.push({ vertices: [highCorner, hipExit, lo0, lo1], materialId });
+      }
+    } else {
+      // Long (or equal) eave → triangle: base lo1..lo0, single apex at hipExit.
+      // The long eave's apex (hipExit) is inward. CCW winding requires swapping
+      // lo0/lo1 relative to the trapezoid branch.
+      const lowU = (e.side === "front" || e.side === "back") ? lowCorner.x : lowCorner.y;
+      const lowIsAtU1 = Math.abs(u1 - lowU) < 0.01;
+      if (lowIsAtU1) {
+        panels.push({ vertices: [lo1, lo0, hipExit], materialId });
+      } else {
+        panels.push({ vertices: [hipExit, lo1, lo0], materialId });
+      }
+    }
+  }
+
+  // Gables: each gable wall gets a triangle, except when hipExit lies on the
+  // gable wall and is distinct from highCorner (W != D case) — then a 4-vert
+  // quad is needed to capture the knee in the upper profile.
+  const TOL = 0.001;
+  const result: RoofGable[] = [];
+  for (const g of gables) {
+    const { u0, u1 } = eaveAxes(g.side, outer);
+    const gV = sideV(g.side, outer);
+    const baseStart = liftToWorld(g.side, outer, u0, gV, wallTopZ);
+    const baseEnd = liftToWorld(g.side, outer, u1, gV, wallTopZ);
+
+    const hipOnWall = (g.side === "front" || g.side === "back")
+      ? Math.abs(hipExit.y - gV) < TOL
+      : Math.abs(hipExit.x - gV) < TOL;
+    const hipDistinct =
+      Math.abs(hipExit.x - highCorner.x) > TOL ||
+      Math.abs(hipExit.y - highCorner.y) > TOL;
+
+    if (hipOnWall && hipDistinct) {
+      // Knee in the gable's upper profile: emit 4-vert quad.
+      result.push({ wallId: g.wallId, vertices: [baseStart, baseEnd, highCorner, hipExit] });
+    } else {
+      result.push({ wallId: g.wallId, vertices: [baseStart, baseEnd, highCorner] });
+    }
+  }
+
+  return { panels, gables: result };
 }
 
 function buildHip4(
