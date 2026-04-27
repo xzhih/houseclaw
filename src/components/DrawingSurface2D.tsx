@@ -472,6 +472,7 @@ type StairSymbolGeometry = {
   flights: Point2D[][];
   landings: Point2D[][];
   treadLines: Array<{ from: Point2D; to: Point2D }>;
+  cutLine: Point2D[]; // zig-zag polyline; empty array = no cut drawn
   labelPos: Point2D;
 };
 
@@ -585,7 +586,18 @@ function buildStairSymbolGeometry(
   }
   const labelPos = proj(labelRunCenter, labelCross);
 
-  return { outline, flights, landings, treadLines, labelPos };
+  // CAD cut line: zig-zag across the run at midpoint, marking where the upper
+  // floor's slab severs the staircase. Drawn on both halves at the same run
+  // position (run = runLength / 2).
+  const cutRun = runLength / 2;
+  const cutOffset = Math.min(0.12, runLength * 0.08); // stagger half-depth
+  const cutLine: Point2D[] = [
+    proj(cutRun - cutOffset, 0),
+    proj(cutRun + cutOffset, crossLength * 0.5),
+    proj(cutRun - cutOffset, crossLength),
+  ];
+
+  return { outline, flights, landings, treadLines, cutLine, labelPos };
 }
 
 function renderSelectableBalcony(
@@ -810,6 +822,13 @@ function renderPlan(
                 y2={line.to.y}
               />
             ))}
+            {symbol.cutLine.length > 0 ? (
+              <polyline
+                className="plan-stair-cut"
+                points={polyPoints(symbol.cutLine)}
+                fill="none"
+              />
+            ) : null}
             <text
               x={symbol.labelPos.x}
               y={symbol.labelPos.y}

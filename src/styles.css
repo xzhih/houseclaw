@@ -775,6 +775,12 @@ select {
   stroke-width: 1;
 }
 
+.plan-stair-cut {
+  stroke: #555;
+  stroke-width: 1.2;
+  fill: none;
+}
+
 .plan-stair-label {
   fill: #263238;
   font-size: 11px;

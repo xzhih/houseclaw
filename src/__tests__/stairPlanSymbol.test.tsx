@@ -56,4 +56,10 @@ describe("stair plan symbol", () => {
 
     expect(x).not.toBeCloseTo(xStraight, 1);
   });
+
+  it("renders a cut line on the stair plan symbol", () => {
+    const { container } = render(<App />);
+    const cut = container.querySelector(".plan-stair-cut");
+    expect(cut).not.toBeNull();
+  });
 });
