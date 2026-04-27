@@ -4,6 +4,7 @@ export type ObjectSelection =
   | { kind: "balcony"; id: string }
   | { kind: "storey"; id: string }
   | { kind: "stair"; id: string }  // id = storeyId
+  | { kind: "skirt"; id: string }
   | { kind: "roof" }
   | { kind: "roof-edge"; wallId: string };
 
