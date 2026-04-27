@@ -23,4 +23,11 @@ export const materialCatalog: readonly Material[] = [
     kind: "frame",
     color: "#263238",
   },
+  {
+    id: "mat-warm-wood",
+    name: "暖色木饰",
+    kind: "decor",
+    // 浅暖木色——楼梯/木装饰用，避开窗框深色
+    color: "#b58a64",
+  },
 ];

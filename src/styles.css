@@ -764,6 +764,34 @@ select {
   font-weight: 600;
 }
 
+.property-toggle-row {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+
+.property-toggle-row > label {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.property-toggle-pills {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-md);
+  padding: 4px;
+  align-self: flex-start;
+}
+
+.property-derived {
+  margin: 4px 0 0;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
 .material-catalog {
   border-top: 1px solid var(--panel-border);
   padding-top: 16px;

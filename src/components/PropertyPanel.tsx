@@ -272,94 +272,112 @@ function StairEditor({ project, id, onProjectChange }: EditorProps) {
     { id: "u", label: "U" },
   ];
   const edges: StairEdge[] = ["+x", "-x", "+y", "-y"];
+  // 楼梯候选材质：装饰类（木）、框类（深色）、墙类（混凝土）都可选
   const stairMaterials = project.materials.filter(
-    (m) => m.kind === "frame" || m.kind === "decor",
+    (m) => m.kind === "decor" || m.kind === "frame" || m.kind === "wall",
   );
 
   return (
-    <section className="property-section" aria-labelledby="stair-heading">
-      <h3 id="stair-heading">楼梯 · {storey.label}</h3>
+    <>
+      <section className="property-section" aria-labelledby="stair-heading">
+        <h3 id="stair-heading">楼梯 · {storey.label}</h3>
 
-      <div className="property-row">
-        <span className="property-label">形状</span>
-        <div className="property-button-group">
-          {shapes.map((s) => (
-            <button
-              key={s.id}
-              type="button"
-              aria-pressed={stair.shape === s.id}
-              onClick={() =>
-                apply({
-                  shape: s.id,
-                  turn: s.id === "l" ? (stair.turn ?? "right") : undefined,
-                })
-              }
-            >
-              {s.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <MmField
-        label="踏步深度"
-        value={stair.treadDepth}
-        min={0.2}
-        max={0.4}
-        onCommit={(treadDepth) => apply({ treadDepth })}
-      />
-
-      <div className="property-row">
-        <span className="property-label">入口边</span>
-        <div className="property-button-group">
-          {edges.map((edge) => (
-            <button
-              key={edge}
-              type="button"
-              aria-pressed={stair.bottomEdge === edge}
-              onClick={() => apply({ bottomEdge: edge })}
-            >
-              {edge}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {stair.shape === "l" ? (
-        <div className="property-row">
-          <span className="property-label">转向</span>
-          <div className="property-button-group">
-            {(["left", "right"] as StairTurn[]).map((t) => (
+        <div className="property-toggle-row">
+          <label>形状</label>
+          <div className="property-toggle-pills" role="group" aria-label="楼梯形状">
+            {shapes.map((s) => (
               <button
-                key={t}
+                key={s.id}
                 type="button"
-                aria-pressed={(stair.turn ?? "right") === t}
-                onClick={() => apply({ turn: t })}
+                className="tab-button"
+                aria-pressed={stair.shape === s.id}
+                onClick={() =>
+                  apply({
+                    shape: s.id,
+                    turn: s.id === "l" ? (stair.turn ?? "right") : undefined,
+                  })
+                }
               >
-                {t === "left" ? "左转" : "右转"}
+                {s.label}
               </button>
             ))}
           </div>
         </div>
-      ) : null}
 
-      <div className="property-row">
-        <span className="property-label">材质</span>
-        <select
-          value={stair.materialId}
-          onChange={(e) => apply({ materialId: e.target.value })}
-        >
-          {stairMaterials.map((m) => (
-            <option key={m.id} value={m.id}>
-              {m.name}
-            </option>
+        <div className="property-toggle-row">
+          <label>入口边</label>
+          <div className="property-toggle-pills" role="group" aria-label="楼梯入口边">
+            {edges.map((edge) => (
+              <button
+                key={edge}
+                type="button"
+                className="tab-button"
+                aria-pressed={stair.bottomEdge === edge}
+                onClick={() => apply({ bottomEdge: edge })}
+              >
+                {edge}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {stair.shape === "l" ? (
+          <div className="property-toggle-row">
+            <label>转向</label>
+            <div className="property-toggle-pills" role="group" aria-label="楼梯转向">
+              {(["left", "right"] as StairTurn[]).map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  className="tab-button"
+                  aria-pressed={(stair.turn ?? "right") === t}
+                  onClick={() => apply({ turn: t })}
+                >
+                  {t === "left" ? "左转" : "右转"}
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : null}
+
+        <MmField label="宽度" value={stair.width} min={0.6} onCommit={(width) => apply({ width })} />
+        <MmField label="进深" value={stair.depth} min={0.6} onCommit={(depth) => apply({ depth })} />
+        <MmField label="位置 X" value={stair.x} min={0} onCommit={(x) => apply({ x })} />
+        <MmField label="位置 Y" value={stair.y} min={0} onCommit={(y) => apply({ y })} />
+        <MmField
+          label="踏步深度"
+          value={stair.treadDepth}
+          min={0.2}
+          max={0.4}
+          onCommit={(treadDepth) => apply({ treadDepth })}
+        />
+
+        <p className="property-derived">
+          踢踏数 {cfg.riserCount} · 踢踏高度 {Math.round(cfg.riserHeight * 1000)}mm
+        </p>
+      </section>
+
+      <section className="material-catalog" aria-labelledby="stair-material-heading">
+        <h3 id="stair-material-heading">材质</h3>
+        <div className="material-list">
+          {stairMaterials.map((material) => (
+            <button
+              aria-pressed={stair.materialId === material.id}
+              className="material-swatch"
+              key={material.id}
+              onClick={() => apply({ materialId: material.id })}
+              type="button"
+            >
+              <span
+                aria-hidden="true"
+                className="material-swatch-color"
+                style={{ backgroundColor: material.color }}
+              />
+              <span>{material.name}</span>
+            </button>
           ))}
-        </select>
-      </div>
-
-      <p className="property-derived">
-        踢踏数 {cfg.riserCount} · 踢踏高度 {Math.round(cfg.riserHeight * 1000)}mm
-      </p>
-    </section>
+        </div>
+      </section>
+    </>
   );
 }

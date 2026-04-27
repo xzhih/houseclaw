@@ -7,6 +7,7 @@ const DEFAULT_SLAB_THICKNESS = 0.18;
 const WALL_MATERIAL_ID = "mat-white-render";
 const BALCONY_MATERIAL_ID = "mat-gray-stone";
 const FRAME_MATERIAL_ID = "mat-dark-frame";
+const STAIR_MATERIAL_ID = "mat-warm-wood";
 
 function createStoreyWalls(storeyId: string): Wall[] {
   return [
@@ -81,7 +82,7 @@ export function createSampleProject(): HouseProject {
         shape: "straight",
         treadDepth: 0.27,
         bottomEdge: "+y",
-        materialId: FRAME_MATERIAL_ID,
+        materialId: STAIR_MATERIAL_ID,
       },
     },
     {
@@ -98,7 +99,7 @@ export function createSampleProject(): HouseProject {
         shape: "straight",
         treadDepth: 0.27,
         bottomEdge: "+y",
-        materialId: FRAME_MATERIAL_ID,
+        materialId: STAIR_MATERIAL_ID,
       },
     },
   ];
