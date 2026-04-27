@@ -430,9 +430,11 @@ export function AppShell() {
   const handlePrimaryChange = (primary: PrimaryView) => {
     if (primary === "plan") {
       setView(`plan-${lastPlanStorey}` as ViewId);
-    } else {
+    } else if (primary === "elevation") {
       if (project.selection?.kind === "storey") select(undefined);
       setView(`elevation-${lastElevationSide}` as ViewId);
+    } else {
+      setView("roof");
     }
   };
 
@@ -665,9 +667,9 @@ export function AppShell() {
                 onSelectStorey={handleStoreyClick}
                 onAddStorey={handleAddStorey}
               />
-            ) : (
+            ) : primaryFromView(project.activeView) === "elevation" ? (
               <ElevationSideTabs activeView={project.activeView} onSideChange={handleSideChange} />
-            )}
+            ) : null}
           </div>
 
           <PropertyPanel
