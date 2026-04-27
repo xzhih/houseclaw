@@ -18,6 +18,7 @@ export function projectPlanView(project: HouseProject, storeyId: string): PlanPr
       .map((opening) => ({
         openingId: opening.id,
         wallId: opening.wallId,
+        type: opening.type,
         offset: opening.offset,
         width: opening.width,
       })),

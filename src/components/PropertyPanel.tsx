@@ -63,6 +63,7 @@ type PropertyPanelProps = {
   onApplyWallMaterial: (wallId: string, materialId: string) => void;
   onProjectChange: (project: HouseProject) => void;
   onDeleteSelection: () => void;
+  onDuplicateStorey?: (storeyId: string) => void;
 };
 
 function tryMutate(fn: () => HouseProject): HouseProject | string {
@@ -89,6 +90,7 @@ export function PropertyPanel({
   onApplyWallMaterial,
   onProjectChange,
   onDeleteSelection,
+  onDuplicateStorey,
 }: PropertyPanelProps) {
   const selection = project.selection;
 
@@ -121,6 +123,16 @@ export function PropertyPanel({
       ) : null}
       {selection?.kind === "storey" ? (
         <StoreyEditor project={project} id={selection.id} onProjectChange={onProjectChange} />
+      ) : null}
+
+      {selection?.kind === "storey" && onDuplicateStorey ? (
+        <button
+          type="button"
+          className="property-secondary"
+          onClick={() => onDuplicateStorey(selection.id)}
+        >
+          复制楼层
+        </button>
       ) : null}
 
       {isDeletable ? (

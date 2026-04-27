@@ -65,21 +65,48 @@ select {
   inset: 0;
 }
 
-/* --- Brand (top-left) --- */
-.brand-overlay {
+/* --- Left actions (brand menu + undo/redo) --- */
+.left-actions {
   position: absolute;
   top: 16px;
   left: 16px;
   display: inline-flex;
   align-items: center;
+  gap: 8px;
+  z-index: 20;
+}
+
+.brand-menu {
+  position: relative;
+}
+
+.brand-menu-trigger {
+  display: inline-flex;
+  align-items: center;
   gap: 10px;
-  padding: 8px 14px;
+  height: 34px;
+  padding: 0 14px;
   background: var(--panel);
   border: 1px solid var(--panel-border);
   border-radius: var(--pill);
+  color: var(--text);
+  font-size: 0.82rem;
+  cursor: pointer;
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
-  z-index: 10;
+  transition:
+    border-color 0.15s,
+    background 0.15s;
+}
+
+.brand-menu-trigger:hover,
+.brand-menu-trigger[aria-expanded="true"] {
+  border-color: var(--panel-border-hover);
+  background: var(--panel-strong);
+}
+
+.brand-menu-chevron {
+  color: var(--text-muted);
 }
 
 .brand-mark {
@@ -95,6 +122,141 @@ select {
   font-weight: 600;
   letter-spacing: -0.01em;
   color: var(--text);
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.brand-menu-panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  min-width: 240px;
+  padding: 6px;
+  background: var(--panel-strong);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-md);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.35);
+  z-index: 40;
+}
+
+.brand-menu-section-label {
+  margin: 4px 8px 4px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.brand-menu-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 4px;
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.brand-menu-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 8px;
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 0.83rem;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+
+.brand-menu-row:hover,
+.brand-menu-row:focus-visible {
+  background: var(--accent-bg);
+  outline: none;
+}
+
+.brand-menu-row.is-active {
+  background: var(--accent-bg-strong);
+}
+
+.brand-menu-row-check {
+  width: 12px;
+  text-align: center;
+  color: var(--text);
+}
+
+.brand-menu-row-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.brand-menu-row-delete {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.75rem;
+  transition:
+    color 0.12s,
+    background 0.12s;
+}
+
+.brand-menu-row-delete:hover,
+.brand-menu-row-delete:focus-visible {
+  color: #fca5a5;
+  background: rgba(239, 104, 104, 0.16);
+  outline: none;
+}
+
+.brand-menu-divider {
+  height: 1px;
+  margin: 4px 4px;
+  background: var(--panel-border);
+}
+
+.brand-menu-action {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 7px 12px;
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 0.83rem;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+
+.brand-menu-action:hover,
+.brand-menu-action:focus-within,
+.brand-menu-action:focus-visible {
+  background: var(--accent-bg);
+  outline: none;
+}
+
+.brand-menu-import input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
 }
 
 /* --- Mode tabs (top center) --- */
@@ -137,16 +299,6 @@ select {
   color: #0e0f13;
   font-weight: 600;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.18);
-}
-
-/* --- Top actions (top right) --- */
-.top-actions {
-  position: absolute;
-  top: 16px;
-  right: 16px;
-  display: inline-flex;
-  gap: 8px;
-  z-index: 10;
 }
 
 .action-button,
@@ -373,12 +525,11 @@ select {
   background: var(--panel);
 }
 
-/* --- Bottom overlay (view tabs centered, offset left by half the property panel width) --- */
+/* --- Bottom overlay (view tabs anchored to bottom-left) --- */
 .bottom-overlay {
   position: absolute;
   bottom: 16px;
-  left: calc(50% - 168px);
-  transform: translateX(-50%);
+  left: 16px;
   display: inline-flex;
   align-items: center;
   gap: 10px;
@@ -488,6 +639,19 @@ select {
   font-weight: 600;
 }
 
+.storey-pill.storey-add {
+  min-width: 32px;
+  padding: 6px 10px;
+  font-size: 1rem;
+  line-height: 1;
+  color: var(--text-muted);
+}
+
+.storey-pill.storey-add:hover {
+  color: var(--text);
+  background: var(--accent-bg);
+}
+
 /* --- 2D drawing surface (fullscreen minus property panel; overlays float on top) --- */
 .drawing-surface {
   position: absolute;
@@ -534,10 +698,22 @@ select {
 }
 
 .plan-opening {
-  stroke: #008577;
+  stroke: #315e66;
   stroke-linecap: butt;
   stroke-width: 6;
   cursor: pointer;
+}
+
+.plan-opening.plan-opening--window {
+  stroke: #315e66;
+}
+
+.plan-opening.plan-opening--door {
+  stroke: #8a5a2b;
+}
+
+.plan-opening.plan-opening--void {
+  stroke: #5f6c76;
 }
 
 .plan-balcony {
@@ -677,6 +853,31 @@ select {
 .wall-endpoint-handle:active,
 .resize-handle:active {
   cursor: grabbing;
+}
+
+.property-secondary {
+  margin-top: 18px;
+  width: 100%;
+  height: 34px;
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-sm);
+  background: var(--panel);
+  color: var(--text);
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    border-color 0.15s,
+    background 0.15s;
+}
+
+.property-secondary:hover {
+  border-color: var(--panel-border-hover);
+  background: var(--panel-strong);
+}
+
+.property-secondary + .property-delete {
+  margin-top: 8px;
 }
 
 .property-delete {
@@ -964,7 +1165,7 @@ select {
     overflow: visible;
   }
 
-  .top-actions {
+  .left-actions {
     top: 64px;
   }
 

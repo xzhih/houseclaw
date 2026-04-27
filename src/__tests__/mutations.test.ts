@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { resizeStoreyExtent, translateStorey } from "../domain/mutations";
+import {
+  addStorey,
+  duplicateStorey,
+  resizeStoreyExtent,
+  translateStorey,
+} from "../domain/mutations";
 import { createSampleProject } from "../domain/sampleProject";
 
 describe("translateStorey", () => {
@@ -120,5 +125,96 @@ describe("resizeStoreyExtent", () => {
     const project = createSampleProject();
     expect(() => resizeStoreyExtent(project, "1f", "x", 0)).toThrow();
     expect(() => resizeStoreyExtent(project, "1f", "x", -1)).toThrow();
+  });
+});
+
+describe("addStorey", () => {
+  it("appends an empty storey on top with auto-numbered id and label", () => {
+    const project = createSampleProject();
+    const before = project.storeys.length;
+
+    const next = addStorey(project);
+
+    expect(next.storeys.length).toBe(before + 1);
+    const added = next.storeys[next.storeys.length - 1];
+    expect(added.id).toBe("4f");
+    expect(added.label).toBe("4F");
+    expect(added.elevation).toBeCloseTo(9.6); // 0 + 3.2 + 3.2 + 3.2
+    expect(next.walls.filter((wall) => wall.storeyId === added.id)).toHaveLength(0);
+  });
+
+  it("inherits height and slabThickness from the previous topmost storey", () => {
+    const project = createSampleProject();
+    const top = project.storeys[project.storeys.length - 1];
+
+    const next = addStorey(project);
+    const added = next.storeys[next.storeys.length - 1];
+
+    expect(added.height).toBeCloseTo(top.height);
+    expect(added.slabThickness).toBeCloseTo(top.slabThickness);
+  });
+});
+
+describe("duplicateStorey", () => {
+  it("clones the source storey's walls, openings, and balconies under fresh ids", () => {
+    const project = createSampleProject();
+    const sourceWalls = project.walls.filter((wall) => wall.storeyId === "2f");
+    const sourceOpenings = project.openings.filter((opening) =>
+      sourceWalls.some((wall) => wall.id === opening.wallId),
+    );
+    const sourceBalconies = project.balconies.filter((balcony) => balcony.storeyId === "2f");
+
+    const next = duplicateStorey(project, "2f");
+    const clone = next.storeys[next.storeys.length - 1];
+
+    expect(clone.id).toBe("4f");
+    expect(clone.label).toBe("4F");
+
+    const cloneWalls = next.walls.filter((wall) => wall.storeyId === clone.id);
+    expect(cloneWalls).toHaveLength(sourceWalls.length);
+    // No id collisions with original walls.
+    for (const wall of cloneWalls) {
+      expect(sourceWalls.some((src) => src.id === wall.id)).toBe(false);
+    }
+
+    const cloneOpenings = next.openings.filter((opening) =>
+      cloneWalls.some((wall) => wall.id === opening.wallId),
+    );
+    expect(cloneOpenings).toHaveLength(sourceOpenings.length);
+
+    const cloneBalconies = next.balconies.filter((balcony) => balcony.storeyId === clone.id);
+    expect(cloneBalconies).toHaveLength(sourceBalconies.length);
+  });
+
+  it("copies stair opening when the source has one", () => {
+    const project = createSampleProject();
+    const next = duplicateStorey(project, "2f");
+    const clone = next.storeys[next.storeys.length - 1];
+
+    expect(clone.stairOpening).toBeDefined();
+    expect(clone.stairOpening?.x).toBeCloseTo(0.6);
+    expect(clone.stairOpening?.depth).toBeCloseTo(2.5);
+  });
+
+  it("preserves wall geometry (start/end points) from the source", () => {
+    const project = createSampleProject();
+    const sourceWall = project.walls.find(
+      (wall) => wall.storeyId === "2f" && wall.id === "wall-front-2f",
+    );
+    expect(sourceWall).toBeDefined();
+
+    const next = duplicateStorey(project, "2f");
+    const clone = next.storeys[next.storeys.length - 1];
+    const cloneFront = next.walls.find(
+      (wall) => wall.storeyId === clone.id && wall.id.includes("front"),
+    );
+    expect(cloneFront).toBeDefined();
+    expect(cloneFront!.start).toEqual(sourceWall!.start);
+    expect(cloneFront!.end).toEqual(sourceWall!.end);
+  });
+
+  it("throws when the source storey does not exist", () => {
+    const project = createSampleProject();
+    expect(() => duplicateStorey(project, "missing")).toThrow();
   });
 });

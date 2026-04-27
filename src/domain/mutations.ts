@@ -240,6 +240,141 @@ export function removeBalcony(project: HouseProject, balconyId: string): HousePr
   });
 }
 
+function nextStoreyNumber(project: HouseProject): number {
+  const used = new Set<number>();
+  for (const storey of project.storeys) {
+    const match = /^(\d+)f$/i.exec(storey.id);
+    if (match) used.add(Number(match[1]));
+  }
+  let n = project.storeys.length + 1;
+  while (used.has(n)) n += 1;
+  return n;
+}
+
+function freshStoreyIdAndLabel(
+  project: HouseProject,
+): { id: string; label: string } {
+  const taken = new Set(project.storeys.map((storey) => storey.id));
+  let n = nextStoreyNumber(project);
+  while (taken.has(`${n}f`)) n += 1;
+  return { id: `${n}f`, label: `${n}F` };
+}
+
+function dedupeId(base: string, taken: Set<string>): string {
+  if (!taken.has(base)) return base;
+  let i = 2;
+  while (taken.has(`${base}-${i}`)) i += 1;
+  return `${base}-${i}`;
+}
+
+function reindexId(
+  oldId: string,
+  oldStoreyId: string,
+  newStoreyId: string,
+  taken: Set<string>,
+): string {
+  const candidate = oldId.includes(oldStoreyId)
+    ? oldId.replace(oldStoreyId, newStoreyId)
+    : `${oldId}-${newStoreyId}`;
+  return dedupeId(candidate, taken);
+}
+
+export function addStorey(project: HouseProject): HouseProject {
+  const last = project.storeys[project.storeys.length - 1];
+  const { id, label } = freshStoreyIdAndLabel(project);
+  const elevation = last ? storeyTop(last.elevation, last.height) : 0;
+  const storey: Storey = {
+    id,
+    label,
+    elevation,
+    height: last?.height ?? project.defaultStoreyHeight,
+    slabThickness: last?.slabThickness ?? 0.18,
+  };
+  return assertValidProject({
+    ...project,
+    storeys: [...project.storeys, storey],
+  });
+}
+
+export function duplicateStorey(project: HouseProject, sourceStoreyId: string): HouseProject {
+  const source = project.storeys.find((storey) => storey.id === sourceStoreyId);
+  if (!source) {
+    throw new Error(`Storey ${sourceStoreyId} not found.`);
+  }
+
+  const { id: newStoreyId, label: newLabel } = freshStoreyIdAndLabel(project);
+  const last = project.storeys[project.storeys.length - 1];
+  const elevation = last ? storeyTop(last.elevation, last.height) : 0;
+
+  const wallIdsTaken = new Set(project.walls.map((wall) => wall.id));
+  const openingIdsTaken = new Set(project.openings.map((opening) => opening.id));
+  const balconyIdsTaken = new Set(project.balconies.map((balcony) => balcony.id));
+  const wallIdMap = new Map<string, string>();
+
+  const sourceWalls = project.walls.filter((wall) => wall.storeyId === sourceStoreyId);
+  const newWalls: Wall[] = sourceWalls.map((wall) => {
+    const newId = reindexId(wall.id, sourceStoreyId, newStoreyId, wallIdsTaken);
+    wallIdsTaken.add(newId);
+    wallIdMap.set(wall.id, newId);
+    return {
+      ...wall,
+      id: newId,
+      storeyId: newStoreyId,
+      start: { ...wall.start },
+      end: { ...wall.end },
+    };
+  });
+
+  const sourceWallIds = new Set(sourceWalls.map((wall) => wall.id));
+  const newOpenings: Opening[] = project.openings
+    .filter((opening) => sourceWallIds.has(opening.wallId))
+    .map((opening) => {
+      const newId = reindexId(opening.id, sourceStoreyId, newStoreyId, openingIdsTaken);
+      openingIdsTaken.add(newId);
+      const remappedWallId = wallIdMap.get(opening.wallId);
+      if (!remappedWallId) {
+        throw new Error(`Cannot duplicate opening ${opening.id}: source wall missing.`);
+      }
+      return { ...opening, id: newId, wallId: remappedWallId };
+    });
+
+  const newBalconies: Balcony[] = project.balconies
+    .filter((balcony) => balcony.storeyId === sourceStoreyId)
+    .map((balcony) => {
+      const newId = reindexId(balcony.id, sourceStoreyId, newStoreyId, balconyIdsTaken);
+      balconyIdsTaken.add(newId);
+      const remappedWallId = wallIdMap.get(balcony.attachedWallId);
+      if (!remappedWallId) {
+        throw new Error(`Cannot duplicate balcony ${balcony.id}: source wall missing.`);
+      }
+      return {
+        ...balcony,
+        id: newId,
+        storeyId: newStoreyId,
+        attachedWallId: remappedWallId,
+      };
+    });
+
+  const newStorey: Storey = {
+    id: newStoreyId,
+    label: newLabel,
+    elevation,
+    height: source.height,
+    slabThickness: source.slabThickness,
+    stairOpening: source.stairOpening
+      ? { ...source.stairOpening }
+      : undefined,
+  };
+
+  return assertValidProject({
+    ...project,
+    storeys: [...project.storeys, newStorey],
+    walls: [...project.walls, ...newWalls],
+    openings: [...project.openings, ...newOpenings],
+    balconies: [...project.balconies, ...newBalconies],
+  });
+}
+
 export function removeStorey(project: HouseProject, storeyId: string): HouseProject {
   if (project.storeys.length <= 1) {
     throw new Error("Cannot remove the last storey.");

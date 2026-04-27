@@ -226,7 +226,20 @@ function assertImportedProjectShape(value: unknown): asserts value is HouseProje
   }
 
   if (!VALID_VIEW_IDS.includes(value.activeView as ViewId)) {
-    invalidProjectJson("activeView is not supported.");
+    // Permit dynamic plan-<storeyId> ids that match a defined storey.
+    const planMatch = /^plan-(.+)$/.exec(value.activeView as string);
+    const matchedStorey =
+      planMatch
+        ? storeys.some(
+            (storey) =>
+              typeof storey === "object" &&
+              storey !== null &&
+              (storey as { id?: unknown }).id === planMatch[1],
+          )
+        : false;
+    if (!matchedStorey) {
+      invalidProjectJson("activeView is not supported.");
+    }
   }
 
   storeys.forEach(assertStoreyShape);

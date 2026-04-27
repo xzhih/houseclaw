@@ -4,6 +4,7 @@ import { isSelected } from "../domain/selection";
 import { wallLength } from "../domain/measurements";
 import { moveWall, translateStorey, updateBalcony, updateOpening } from "../domain/mutations";
 import type { HouseProject, Point2, ToolId, ViewId } from "../domain/types";
+import { planStoreyIdFromView } from "../domain/views";
 import { snapPlanPoint, snapToEndpoint } from "../geometry/snapping";
 import { buildWallNetwork, slicePanelFootprint, type WallFootprint } from "../geometry/wallNetwork";
 import { elevationOffsetSign, projectElevationView } from "../projection/elevation";
@@ -26,12 +27,6 @@ const PLAN_GRID_SIZE = 0.1;
 const PLAN_ENDPOINT_THRESHOLD = 0.2;
 const DRAG_MOVE_THRESHOLD_WORLD = 0.04;
 const ENDPOINT_HANDLE_RADIUS = 7;
-
-const PLAN_STOREY_BY_VIEW: Partial<Record<ViewId, string>> = {
-  "plan-1f": "1f",
-  "plan-2f": "2f",
-  "plan-3f": "3f",
-};
 
 const ELEVATION_SIDE_BY_VIEW: Partial<Record<ViewId, ElevationSide>> = {
   "elevation-front": "front",
@@ -559,6 +554,7 @@ function renderPlan(
         const start = projectPoint(line.start);
         const end = projectPoint(line.end);
         const selected = isSelected(selection, "opening", opening.openingId);
+        const typeClass = `plan-opening--${opening.type}`;
 
         return (
           <g key={opening.openingId} className="opening-glyph">
@@ -567,7 +563,7 @@ function renderPlan(
               tabIndex={0}
               aria-label={`选择开孔 ${opening.openingId}`}
               aria-pressed={selected}
-              className={selected ? "plan-opening is-selected" : "plan-opening"}
+              className={`plan-opening ${typeClass}${selected ? " is-selected" : ""}`}
               x1={start.x}
               y1={start.y}
               x2={end.x}
@@ -881,7 +877,7 @@ export function DrawingSurface2D({
   onSelect,
   onProjectChange,
 }: DrawingSurface2DProps) {
-  const storeyId = PLAN_STOREY_BY_VIEW[project.activeView];
+  const storeyId = planStoreyIdFromView(project.activeView, project.storeys);
   const elevationSide = ELEVATION_SIDE_BY_VIEW[project.activeView];
 
   const svgRef = useRef<SVGSVGElement | null>(null);

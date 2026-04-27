@@ -23,8 +23,11 @@ describe("HouseClaw UI", () => {
     expect(screen.getByLabelText("2D drawing surface")).toBeInTheDocument();
   });
 
-  it("shows project JSON export controls", () => {
+  it("shows project JSON export controls", async () => {
+    const user = userEvent.setup();
     render(<App />);
+
+    await user.click(screen.getByRole("button", { name: "HouseClaw" }));
 
     expect(screen.getByRole("button", { name: "导出 JSON" })).toBeInTheDocument();
     expect(screen.getByLabelText("导入 JSON")).toBeInTheDocument();
@@ -43,6 +46,7 @@ describe("HouseClaw UI", () => {
     try {
       render(<App />);
 
+      await user.click(screen.getByRole("button", { name: "HouseClaw" }));
       await user.click(screen.getByRole("button", { name: "导出 JSON" }));
 
       expect(createObjectURL).toHaveBeenCalledWith(expect.any(Blob));
@@ -68,6 +72,7 @@ describe("HouseClaw UI", () => {
 
     render(<App />);
 
+    await user.click(screen.getByRole("button", { name: "HouseClaw" }));
     await user.upload(screen.getByLabelText("导入 JSON"), file);
 
     expect(await screen.findByRole("button", { name: "导入1F" })).toBeInTheDocument();
@@ -80,6 +85,7 @@ describe("HouseClaw UI", () => {
 
     render(<App />);
 
+    await user.click(screen.getByRole("button", { name: "HouseClaw" }));
     await user.upload(screen.getByLabelText("导入 JSON"), file);
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Invalid project JSON");
@@ -103,11 +109,13 @@ describe("HouseClaw UI", () => {
 
     render(<App />);
 
+    await user.click(screen.getByRole("button", { name: "HouseClaw" }));
     const input = screen.getByLabelText("导入 JSON");
     await user.upload(input, invalidFile);
     expect(await screen.findByRole("alert")).toHaveTextContent("Invalid project JSON");
 
-    await user.upload(input, validFile);
+    await user.click(screen.getByRole("button", { name: "HouseClaw" }));
+    await user.upload(screen.getByLabelText("导入 JSON"), validFile);
     await waitFor(() => expect(screen.queryByRole("alert")).not.toBeInTheDocument());
 
     expect(await screen.findByRole("button", { name: "恢复1F" })).toBeInTheDocument();
@@ -245,6 +253,41 @@ describe("HouseClaw UI", () => {
     await user.click(screen.getByRole("button", { name: "3D" }));
 
     expect(screen.queryByRole("group", { name: "楼层" })).not.toBeInTheDocument();
+  });
+
+  it("renders the new storey's plan view (not the roof placeholder) after adding", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: "添加楼层" }));
+
+    // Storey rail now lists 4F as the active selection.
+    expect(screen.getByRole("button", { name: "4F" })).toHaveAttribute("aria-pressed", "true");
+    // Plan view, not the roof placeholder.
+    expect(screen.queryByText("屋顶视图待建模")).toBeNull();
+  });
+
+  it("can switch back to an earlier storey after adding a new one", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: "添加楼层" }));
+    await user.click(screen.getByRole("button", { name: "1F" }));
+
+    expect(screen.getByRole("button", { name: "1F" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.queryByText("屋顶视图待建模")).toBeNull();
+  });
+
+  it("duplicates a storey and renders the duplicate's plan view", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    // Select 2F so the duplicate button reaches its property panel.
+    await user.click(screen.getByRole("button", { name: "2F" }));
+    await user.click(screen.getByRole("button", { name: "复制楼层" }));
+
+    expect(screen.getByRole("button", { name: "4F" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.queryByText("屋顶视图待建模")).toBeNull();
   });
 
   it("draws ghost wall outlines of the storey below in plan view", async () => {
