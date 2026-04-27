@@ -9,6 +9,7 @@ import {
   removeRoof,
   updateRoof,
   toggleRoofEdge,
+  addSkirt,
 } from "../domain/mutations";
 import { createSampleProject } from "../domain/sampleProject";
 
@@ -331,5 +332,25 @@ describe("storey mutations clear roof", () => {
     // Sample has 1f, 2f, 3f — remove 2f.
     const next = removeStorey(project, "2f");
     expect(next.roof).toBeUndefined();
+  });
+});
+
+describe("addSkirt", () => {
+  it("adds a skirt to the given wall with default geometry", () => {
+    const project = createSampleProject();
+    const wall = project.walls.find((w) => w.id === "wall-front-2f")!;
+    const next = addSkirt(project, wall.id);
+    expect(next.skirts).toHaveLength(1);
+    const skirt = next.skirts[0];
+    expect(skirt.hostWallId).toBe(wall.id);
+    expect(skirt.materialId).toBe("mat-gray-tile");
+    expect(skirt.depth).toBeGreaterThan(0);
+    expect(skirt.pitch).toBeGreaterThan(0);
+    expect(skirt.elevation).toBeGreaterThan(0);
+  });
+
+  it("rejects when hostWallId does not exist", () => {
+    const project = createSampleProject();
+    expect(() => addSkirt(project, "wall-nonexistent")).toThrow();
   });
 });

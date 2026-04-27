@@ -1,6 +1,7 @@
 import { storeyTop } from "./measurements";
 import { assertValidProject } from "./constraints";
 import { canBuildRoof } from "./views";
+import { createSkirtDraft } from "./drafts";
 import type { Balcony, HouseProject, Opening, Point2, Roof, RoofEdgeKind, Stair, Storey, Wall } from "./types";
 
 export type OpeningPatch = Partial<Omit<Opening, "id" | "wallId">>;
@@ -33,6 +34,14 @@ export function addBalcony(project: HouseProject, balcony: Balcony): HouseProjec
     ...project,
     balconies: [...project.balconies, balcony],
   });
+}
+
+export function addSkirt(project: HouseProject, hostWallId: string): HouseProject {
+  const wall = project.walls.find((w) => w.id === hostWallId);
+  if (!wall) throw new Error(`Wall ${hostWallId} not found`);
+  if (!wall.exterior) throw new Error(`Skirt must attach to an exterior wall`);
+  const skirt = createSkirtDraft(project, wall);
+  return { ...project, skirts: [...project.skirts, skirt] };
 }
 
 export function updateOpening(project: HouseProject, openingId: string, patch: OpeningPatch): HouseProject {
