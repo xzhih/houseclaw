@@ -242,3 +242,25 @@ describe("house geometry descriptors", () => {
     expect(project.walls[0].end.x).toBe(10);
   });
 });
+
+describe("buildHouseGeometry — stairs", () => {
+  it("emits a stairs entry per storey with a stair", () => {
+    const project = createSampleProject();
+    const house = buildHouseGeometry(project);
+    // sample 在 2f / 3f 上有 stair
+    const storeyIds = house.stairs.map((s) => s.storeyId).sort();
+    expect(storeyIds).toEqual(["2f", "3f"]);
+  });
+
+  it("each stair entry has tread and landing arrays + materialId", () => {
+    const project = createSampleProject();
+    const house = buildHouseGeometry(project);
+    expect(house.stairs.length).toBe(2);
+    for (const stair of house.stairs) {
+      expect(Array.isArray(stair.treads)).toBe(true);
+      expect(Array.isArray(stair.landings)).toBe(true);
+      expect(stair.treads.length).toBeGreaterThan(0);
+      expect(typeof stair.materialId).toBe("string");
+    }
+  });
+});

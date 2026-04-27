@@ -1,8 +1,9 @@
 import type { HouseProject, Point2, Wall } from "../domain/types";
 import { buildRoofPlaceholder, buildSlabGeometry } from "./slabGeometry";
-import type { HouseGeometry, SlabGeometry } from "./types";
+import type { HouseGeometry, SlabGeometry, StairRenderGeometry } from "./types";
 import { buildWallNetwork, type FootprintQuad } from "./wallNetwork";
 import { buildWallPanels } from "./wallPanels";
+import { buildStairGeometry } from "./stairGeometry";
 
 const SLAB_MATERIAL_ID = "mat-gray-stone";
 
@@ -69,6 +70,22 @@ export function buildHouseGeometry(project: HouseProject): HouseGeometry {
     if (roof) slabs.push(roof);
   }
 
+  const stairs: StairRenderGeometry[] = [];
+  const sortedStoreys = [...project.storeys].sort((a, b) => a.elevation - b.elevation);
+  for (let i = 0; i < sortedStoreys.length; i += 1) {
+    const storey = sortedStoreys[i];
+    if (!storey.stair) continue;
+    if (i === 0) continue; // 最底层 storey 不应有 stair（防御）—— 由 constraints 阻止；这里加一道保险
+    const lowerStoreyTopY = sortedStoreys[i - 1].elevation;
+    const geom = buildStairGeometry(storey.stair, storey, lowerStoreyTopY);
+    stairs.push({
+      storeyId: storey.id,
+      materialId: storey.stair.materialId,
+      treads: geom.treads,
+      landings: geom.landings,
+    });
+  }
+
   return {
     walls: project.walls.map((wall) => ({
       wallId: wall.id,
@@ -97,5 +114,6 @@ export function buildHouseGeometry(project: HouseProject): HouseGeometry {
       railingMaterialId: balcony.railingMaterialId,
     })),
     slabs,
+    stairs,
   };
 }

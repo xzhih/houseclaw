@@ -1,5 +1,6 @@
 import type { Point2 } from "../domain/types";
 import type { FootprintQuad } from "./wallNetwork";
+import type { StairBox } from "./stairGeometry";
 
 export type WallPanelRole = "full" | "left" | "right" | "between" | "below" | "above";
 
@@ -48,8 +49,16 @@ export type SlabGeometry = {
   materialId: string;
 };
 
+export type StairRenderGeometry = {
+  storeyId: string;
+  materialId: string;
+  treads: StairBox[];
+  landings: StairBox[];
+};
+
 export type HouseGeometry = {
   walls: WallGeometry[];
   balconies: BalconyGeometry[];
   slabs: SlabGeometry[];
+  stairs: StairRenderGeometry[];
 };
