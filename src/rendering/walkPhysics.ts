@@ -17,6 +17,10 @@ export type WalkConfig = {
   snapThreshold: number;
   gravity: number;
   maxRayLength: number;
+  /** Max vertical speed (m/s) when snapping toward a new ground surface. Lerping
+   * to the snap target instead of teleporting smooths out per-riser step-ups so
+   * climbing stairs reads as continuous motion. */
+  stepRate: number;
 };
 
 export type VerticalState = {
@@ -77,7 +81,17 @@ export function resolveVerticalState(
 
   const drop = feetY - surfaceY;
   if (drop <= config.snapThreshold) {
-    return { cameraY: surfaceY + config.eyeHeight, vy: 0 };
+    // Lerp camera Y toward the snap target at a fixed rate (m/s) instead of
+    // teleporting. Each riser becomes a few-frame smooth ramp, eliminating the
+    // jarring per-step jumps when climbing stairs.
+    const targetCameraY = surfaceY + config.eyeHeight;
+    const maxDelta = config.stepRate * dt;
+    const delta = targetCameraY - state.cameraY;
+    const newCameraY =
+      Math.abs(delta) <= maxDelta
+        ? targetCameraY
+        : state.cameraY + Math.sign(delta) * maxDelta;
+    return { cameraY: newCameraY, vy: 0 };
   }
 
   // Free fall

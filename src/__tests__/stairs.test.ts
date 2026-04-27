@@ -2,31 +2,34 @@ import { describe, expect, it } from "vitest";
 import { computeStairConfig, TARGET_RISER } from "../domain/stairs";
 
 describe("computeStairConfig", () => {
-  it("rounds risers to nearest integer using TARGET_RISER", () => {
-    // 3.2 / 0.165 = 19.39 → round to 19
-    const cfg = computeStairConfig(3.2, 0.27);
-    expect(cfg.riserCount).toBe(19);
-    expect(cfg.riserHeight).toBeCloseTo(3.2 / 19, 6);
+  it("treadCount × riserHeight = storeyHeight - slabThickness", () => {
+    // climb to slab BOTTOM = 3.2 - 0.18 = 3.02; 3.02/0.165 = 18.30 → 18 treads
+    const cfg = computeStairConfig(3.2, 0.18, 0.27);
     expect(cfg.treadCount).toBe(18);
+    expect(cfg.riserHeight).toBeCloseTo(3.02 / 18, 6);
+    expect(cfg.riserCount).toBe(19); // 18 stair risers + 1 slab thickness
+    // top tread top sits exactly at slab bottom
+    expect(cfg.treadCount * cfg.riserHeight).toBeCloseTo(3.2 - 0.18, 6);
   });
 
-  it("uses minimum 2 risers even for very short storeys", () => {
-    const cfg = computeStairConfig(0.1, 0.27);
-    expect(cfg.riserCount).toBe(2);
-    expect(cfg.treadCount).toBe(1);
-    expect(cfg.riserHeight).toBeCloseTo(0.05, 6);
+  it("clamps to a minimum of 1 tread for very short stairs", () => {
+    const cfg = computeStairConfig(0.1, 0.05, 0.27);
+    expect(cfg.treadCount).toBeGreaterThanOrEqual(1);
+    expect(cfg.riserCount).toBe(cfg.treadCount + 1);
   });
 
   it("scales for taller storeys", () => {
-    // 4.0 / 0.165 = 24.24 → round 24
-    const cfg = computeStairConfig(4.0, 0.27);
-    expect(cfg.riserCount).toBe(24);
-    expect(cfg.riserHeight).toBeCloseTo(4.0 / 24, 6);
+    // 4.0 - 0.18 = 3.82; 3.82/0.165 = 23.15 → 23 treads
+    const cfg = computeStairConfig(4.0, 0.18, 0.27);
     expect(cfg.treadCount).toBe(23);
+    expect(cfg.riserHeight).toBeCloseTo(3.82 / 23, 6);
+    expect(cfg.treadCount * cfg.riserHeight).toBeCloseTo(4.0 - 0.18, 6);
   });
 
   it("ignores treadDepth (does not affect riser math)", () => {
-    expect(computeStairConfig(3.2, 0.20)).toEqual(computeStairConfig(3.2, 0.30));
+    expect(computeStairConfig(3.2, 0.18, 0.20)).toEqual(
+      computeStairConfig(3.2, 0.18, 0.30),
+    );
   });
 
   it("exports TARGET_RISER constant", () => {

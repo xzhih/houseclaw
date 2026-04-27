@@ -15,6 +15,7 @@ const RUN_SPEED = 2.8;
 const GRAVITY = -9.8;
 const SNAP_THRESHOLD = 0.2;
 const MAX_DOWN_RAY = 5;
+const STEP_RATE = 5; // m/s — vertical lerp speed when snapping onto a new surface
 const MOUSE_SENSITIVITY = 0.0025;
 const PITCH_LIMIT = THREE.MathUtils.degToRad(85);
 
@@ -158,6 +159,7 @@ export function attachWalkControls(
         snapThreshold: SNAP_THRESHOLD,
         gravity: GRAVITY,
         maxRayLength: MAX_DOWN_RAY,
+        stepRate: STEP_RATE,
       },
       verticalProbe,
     );

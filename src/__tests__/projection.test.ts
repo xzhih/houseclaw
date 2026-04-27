@@ -128,7 +128,7 @@ describe("2D projections", () => {
         x: 3.1,
         y: 3.2,
         width: 3.2,
-        height: 1.23,
+        height: 1.29,
       }),
     ]);
   });

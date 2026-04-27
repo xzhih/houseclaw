@@ -289,7 +289,7 @@ export function addStorey(project: HouseProject): HouseProject {
     label,
     elevation,
     height: last?.height ?? project.defaultStoreyHeight,
-    slabThickness: last?.slabThickness ?? 0.18,
+    slabThickness: last?.slabThickness ?? project.defaultWallThickness,
   };
   return assertValidProject({
     ...project,

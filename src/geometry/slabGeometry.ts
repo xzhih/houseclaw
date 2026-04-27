@@ -86,16 +86,19 @@ export function buildSlabGeometry(
   walls: Wall[],
   footprintIndex: Map<string, FootprintQuad>,
   materialId: string,
+  customHole?: Point2[],
 ): SlabGeometry | undefined {
   const storeyWalls = walls.filter((wall) => wall.storeyId === storey.id);
   const outline = buildExteriorRing(storeyWalls, footprintIndex);
   if (!outline) return undefined;
 
+  const hole = customHole ?? (storey.stair ? holeFromOpening(storey.stair) : undefined);
+
   return {
     storeyId: storey.id,
     kind: "floor",
     outline: insetRing(outline, FACADE_INSET),
-    hole: storey.stair ? holeFromOpening(storey.stair) : undefined,
+    hole,
     topY: storey.elevation,
     thickness: storey.slabThickness,
     materialId,

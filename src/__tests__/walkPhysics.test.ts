@@ -115,6 +115,7 @@ describe("resolveVerticalState", () => {
     snapThreshold: 0.2,
     gravity: -9.8,
     maxRayLength: 5,
+    stepRate: 1000, // huge for tests so single-frame snap behavior is preserved
   } as const;
 
   it("snaps the camera to the surface when the player is grounded", () => {
@@ -185,7 +186,8 @@ describe("walkPhysics — straight stair ascent", () => {
   it("camera y reaches upper floor when walking forward up steps", () => {
     const climb = 3.2;
     const treadDepth = 0.27;
-    const cfg = computeStairConfig(climb, treadDepth);
+    const slabThickness = 0.18;
+    const cfg = computeStairConfig(climb, slabThickness, treadDepth);
     const width = 1.2;
 
     // Stair geometry: treads stepping in -Z direction starting at z=5.0
@@ -245,6 +247,7 @@ describe("walkPhysics — straight stair ascent", () => {
       snapThreshold: SNAP_THRESHOLD,
       gravity: -9.8,
       maxRayLength: 5,
+      stepRate: 5, // m/s — same as runtime
     };
 
     // Start: standing on lower floor at z=6 (just before stair), facing -Z

@@ -3,11 +3,11 @@ import type { Balcony, HouseProject, Opening, Storey, Wall } from "./types";
 
 const DEFAULT_STOREY_HEIGHT = 3.2;
 const DEFAULT_WALL_THICKNESS = 0.24;
-const DEFAULT_SLAB_THICKNESS = 0.18;
+const DEFAULT_SLAB_THICKNESS = DEFAULT_WALL_THICKNESS; // 楼板厚度与墙体一致
 const WALL_MATERIAL_ID = "mat-white-render";
 const BALCONY_MATERIAL_ID = "mat-gray-stone";
 const FRAME_MATERIAL_ID = "mat-dark-frame";
-const STAIR_MATERIAL_ID = "mat-warm-wood";
+const STAIR_MATERIAL_ID = WALL_MATERIAL_ID;
 
 function createStoreyWalls(storeyId: string): Wall[] {
   return [

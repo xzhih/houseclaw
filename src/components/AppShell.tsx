@@ -155,11 +155,9 @@ function pickTargetWall(
 }
 
 function pickStairMaterialId(project: HouseProject): string {
-  // 楼梯优先用 decor 类（暖色木饰），回退到 frame 或第一个材质
-  const decor = project.materials.find((m) => m.kind === "decor");
-  if (decor) return decor.id;
-  const frame = project.materials.find((m) => m.kind === "frame");
-  return frame?.id ?? project.materials[0]?.id ?? "";
+  // 楼梯默认使用外墙涂料（与外墙一致），回退到第一个材质
+  const wall = project.materials.find((m) => m.kind === "wall");
+  return wall?.id ?? project.materials[0]?.id ?? "";
 }
 
 type BootState = { catalog: WorkspaceCatalog; project: HouseProject };
