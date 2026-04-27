@@ -679,6 +679,24 @@ select {
   fill: var(--canvas-bg);
 }
 
+.grid-overlay .grid-line-minor {
+  stroke: #ececec;
+  fill: none;
+  vector-effect: non-scaling-stroke;
+}
+
+.grid-overlay .grid-line-major {
+  stroke: #d0d0d0;
+  fill: none;
+  vector-effect: non-scaling-stroke;
+}
+
+.grid-overlay .grid-origin {
+  stroke: #a0a0a0;
+  fill: none;
+  vector-effect: non-scaling-stroke;
+}
+
 .plan-wall {
   cursor: pointer;
 }

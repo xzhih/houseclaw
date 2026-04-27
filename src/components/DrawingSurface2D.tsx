@@ -20,6 +20,7 @@ import type {
   PlanStairSymbol,
   PlanWallSegment,
 } from "../projection/types";
+import { GridOverlay } from "./canvas/GridOverlay";
 
 const SURFACE_WIDTH = 720;
 const SURFACE_HEIGHT = 520;
@@ -2047,6 +2048,11 @@ export function DrawingSurface2D({
           height={SURFACE_HEIGHT}
           onClick={ambientSelect}
         />
+        {(() => {
+          const activeMapping = planMapping ?? elevationMapping;
+          if (!activeMapping) return null;
+          return <GridOverlay mapping={activeMapping} viewport={viewport} visible={gridVisible} />;
+        })()}
         {storeyId && planProjection
           ? renderPlan(
               planProjection,
