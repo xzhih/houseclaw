@@ -135,3 +135,61 @@ describe("buildRoofGeometry — hip (4 eaves)", () => {
     expect(ridgeZ).toBeCloseTo(expected);
   });
 });
+
+/** Shoelace signed area in plan (x,y). Positive = CCW from above. */
+function signedAreaXY(pts: { x: number; y: number; z: number }[]): number {
+  let sum = 0;
+  for (let i = 0; i < pts.length; i++) {
+    const j = (i + 1) % pts.length;
+    sum += pts[i].x * pts[j].y - pts[j].x * pts[i].y;
+  }
+  return sum / 2;
+}
+
+describe("buildRoofGeometry — half-hip (3 eaves + 1 gable)", () => {
+  const roofGableLeft: Roof = {
+    edges: { "w-front": "eave", "w-right": "eave", "w-back": "eave", "w-left": "gable" },
+    pitch: PITCH,
+    overhang: OVERHANG,
+    materialId: "mat-roof",
+  };
+  const roofGableRight: Roof = {
+    edges: { "w-front": "eave", "w-left": "eave", "w-back": "eave", "w-right": "gable" },
+    pitch: PITCH,
+    overhang: OVERHANG,
+    materialId: "mat-roof",
+  };
+
+  it("emits 3 panels and 1 gable", () => {
+    const geom = buildRoofGeometry(TOP, RECT_RING, rectWalls(), roofGableLeft)!;
+    expect(geom.panels).toHaveLength(3);
+    expect(geom.gables).toHaveLength(1);
+  });
+
+  it("ridge sits at half-depth (along the eave-eave-axis) of the rectangle", () => {
+    const geom = buildRoofGeometry(TOP, RECT_RING, rectWalls(), roofGableLeft)!;
+    const ridgeZ = Math.max(...geom.panels.flatMap((p) => p.vertices.map((v) => v.z)));
+    // Outer y dimension = 8 + 2*0.6 = 9.2 → half = 4.6.
+    const expected = WALL_TOP + 4.6 * Math.tan(PITCH);
+    expect(ridgeZ).toBeCloseTo(expected);
+  });
+
+  it("all trapezoid panels have positive (CCW) signed area in plan — gable left", () => {
+    const geom = buildRoofGeometry(TOP, RECT_RING, rectWalls(), roofGableLeft)!;
+    // The two side-eave panels are 4-vertex (trapezoids); the hip panel is 3-vertex.
+    for (const panel of geom.panels) {
+      if (panel.vertices.length === 4) {
+        expect(signedAreaXY(panel.vertices)).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  it("all trapezoid panels have positive (CCW) signed area in plan — gable right", () => {
+    const geom = buildRoofGeometry(TOP, RECT_RING, rectWalls(), roofGableRight)!;
+    for (const panel of geom.panels) {
+      if (panel.vertices.length === 4) {
+        expect(signedAreaXY(panel.vertices)).toBeGreaterThan(0);
+      }
+    }
+  });
+});

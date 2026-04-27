@@ -54,6 +54,8 @@ export function buildRoofGeometry(
       // 2-adjacent handled in a later task.
       return undefined;
     }
+    case 3:
+      return buildHalfHip3(resolved, outer, wallTopZ, slope, roof.materialId);
     case 4:
       return buildHip4(resolved, outer, wallTopZ, slope, roof.materialId);
     default:
@@ -300,6 +302,117 @@ function buildGable2Opp(
     });
   }
   return { panels, gables: result };
+}
+
+/**
+ * Returns true when the gable end of a side-eave panel falls at the u0 end of
+ * eaveAxes(eaveSide). eaveAxes reverses direction for "back" and "right", so
+ * the gable/hip alignment must be checked per (eaveSide, gableSide) pair.
+ *
+ * CCW_GABLE_AT_U0 pairs: (front,left), (back,right), (left,front), (right,back).
+ */
+function isGableAtU0(eaveSide: ResolvedEdge["side"], gableSide: ResolvedEdge["side"]): boolean {
+  return (
+    (eaveSide === "front" && gableSide === "left") ||
+    (eaveSide === "back"  && gableSide === "right") ||
+    (eaveSide === "left"  && gableSide === "front") ||
+    (eaveSide === "right" && gableSide === "back")
+  );
+}
+
+function buildHalfHip3(
+  edges: ResolvedEdge[],
+  outer: Rect,
+  wallTopZ: number,
+  slope: number,
+  materialId: string,
+): RoofGeometry {
+  const gable = edges.find((e) => e.kind === "gable")!;
+  const eaves = edges.filter((e) => e.kind === "eave");
+  // The eave opposite the gable is the hipped end.
+  const oppToGable = eaves.find((e) => e.side === oppositeSide(gable.side))!;
+  const sideEaves = eaves.filter((e) => e !== oppToGable);
+
+  // Depth = perpendicular distance across the two side eaves.
+  const sideAxisHorizontal = sideEaves[0].side === "front" || sideEaves[0].side === "back";
+  const fullDepth = sideAxisHorizontal
+    ? outer.yMax - outer.yMin
+    : outer.xMax - outer.xMin;
+  const halfDepth = fullDepth / 2;
+  const ridgeZ = wallTopZ + halfDepth * slope;
+
+  // Ridge endpoints in plan: starts at gable wall midpoint, ends at the
+  // hip-meeting point (halfDepth in from the opposite-to-gable side).
+  const ridgeAtGable: Point3 = ridgePointAtSide(gable.side, outer, ridgeZ);
+  const ridgeHipApex: Point3 = ridgeHipApexPoint(oppToGable.side, outer, halfDepth, ridgeZ);
+
+  const panels: RoofPanel[] = [];
+  // Two side-eave panels (trapezoids): from outer eave edge up to the ridge.
+  for (const e of sideEaves) {
+    const { u0, u1 } = eaveAxes(e.side, outer);
+    const eaveV = sideV(e.side, outer);
+    const lo0 = liftToWorld(e.side, outer, u0, eaveV, wallTopZ);
+    const lo1 = liftToWorld(e.side, outer, u1, eaveV, wallTopZ);
+    // eaveAxes u0→u1 establishes the CCW sweep for each face. The top edge must
+    // close CCW as u1→u0, so ridge points follow: [lo0, lo1, ridge_u1, ridge_u0].
+    // Determine which ridge endpoint aligns with u0 vs u1 based on whether the
+    // gable end is at u0. (e.g. "front" has u0=xMin; if gable=left then u0 is the
+    // gable end; if gable=right then u0 is the hip end.)
+    const gableAtU0 = isGableAtU0(e.side, gable.side);
+    const ridgeU0 = gableAtU0 ? ridgeAtGable : ridgeHipApex;
+    const ridgeU1 = gableAtU0 ? ridgeHipApex : ridgeAtGable;
+    panels.push({
+      vertices: [lo0, lo1, ridgeU1, ridgeU0],
+      materialId,
+    });
+  }
+  // One opposite-to-gable triangle panel (the hipped end).
+  {
+    const e = oppToGable;
+    const { u0, u1 } = eaveAxes(e.side, outer);
+    const eaveV = sideV(e.side, outer);
+    const lo0 = liftToWorld(e.side, outer, u0, eaveV, wallTopZ);
+    const lo1 = liftToWorld(e.side, outer, u1, eaveV, wallTopZ);
+    panels.push({
+      vertices: [lo0, lo1, ridgeHipApex],
+      materialId,
+    });
+  }
+
+  return {
+    panels,
+    gables: [
+      { wallId: gable.wallId, vertices: triangleAlong(gable.side, outer, wallTopZ, ridgeZ - wallTopZ, "full") },
+    ],
+  };
+}
+
+function ridgePointAtSide(side: ResolvedEdge["side"], outer: Rect, z: number): Point3 {
+  const cx = (outer.xMin + outer.xMax) / 2;
+  const cy = (outer.yMin + outer.yMax) / 2;
+  switch (side) {
+    case "front": return { x: cx, y: outer.yMin, z };
+    case "back":  return { x: cx, y: outer.yMax, z };
+    case "left":  return { x: outer.xMin, y: cy, z };
+    case "right": return { x: outer.xMax, y: cy, z };
+  }
+}
+
+function ridgeHipApexPoint(
+  oppSide: ResolvedEdge["side"],
+  outer: Rect,
+  halfDepth: number,
+  z: number,
+): Point3 {
+  const cx = (outer.xMin + outer.xMax) / 2;
+  const cy = (outer.yMin + outer.yMax) / 2;
+  // Hip apex sits on the rect's central axis, halfDepth in from oppSide.
+  switch (oppSide) {
+    case "front": return { x: cx, y: outer.yMin + halfDepth, z };
+    case "back":  return { x: cx, y: outer.yMax - halfDepth, z };
+    case "left":  return { x: outer.xMin + halfDepth, y: cy, z };
+    case "right": return { x: outer.xMax - halfDepth, y: cy, z };
+  }
 }
 
 function midV(side: ResolvedEdge["side"], outer: Rect): number {
