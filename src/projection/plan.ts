@@ -9,19 +9,21 @@ export function projectPlanView(project: HouseProject, storeyId: string): PlanPr
   const sortedStoreys = [...project.storeys].sort((a, b) => a.elevation - b.elevation);
   const currentIdx = sortedStoreys.findIndex((s) => s.id === storeyId);
   const currentStorey = currentIdx >= 0 ? sortedStoreys[currentIdx] : undefined;
-  const upperStorey = currentIdx >= 0 ? sortedStoreys[currentIdx + 1] : undefined;
+  const lowerStorey = currentIdx > 0 ? sortedStoreys[currentIdx - 1] : undefined;
+  const upperStorey =
+    currentIdx >= 0 && currentIdx + 1 < sortedStoreys.length
+      ? sortedStoreys[currentIdx + 1]
+      : undefined;
 
   const stairs: PlanStairSymbol[] = [];
 
-  if (currentStorey?.stair) {
-    const cfg = computeStairConfig(
-      currentStorey.height,
-      currentStorey.slabThickness,
-      currentStorey.stair.treadDepth,
-    );
+  // Own stair: the going-up stair starting at this storey. Show as lower half (UP).
+  if (currentStorey?.stair && upperStorey) {
+    const climb = upperStorey.elevation - currentStorey.elevation;
+    const cfg = computeStairConfig(climb, upperStorey.slabThickness, currentStorey.stair.treadDepth);
     stairs.push({
       storeyId: currentStorey.id,
-      half: "upper",
+      half: "lower",
       rect: {
         x: currentStorey.stair.x,
         y: currentStorey.stair.y,
@@ -41,30 +43,28 @@ export function projectPlanView(project: HouseProject, storeyId: string): PlanPr
     });
   }
 
-  if (upperStorey?.stair) {
-    const cfg = computeStairConfig(
-      upperStorey.height,
-      upperStorey.slabThickness,
-      upperStorey.stair.treadDepth,
-    );
+  // Lower neighbor's stair: it climbs up to me. Show as upper half (DN).
+  if (lowerStorey?.stair && currentStorey) {
+    const climb = currentStorey.elevation - lowerStorey.elevation;
+    const cfg = computeStairConfig(climb, currentStorey.slabThickness, lowerStorey.stair.treadDepth);
     stairs.push({
-      storeyId: upperStorey.id,
-      half: "lower",
+      storeyId: lowerStorey.id,
+      half: "upper",
       rect: {
-        x: upperStorey.stair.x,
-        y: upperStorey.stair.y,
-        width: upperStorey.stair.width,
-        depth: upperStorey.stair.depth,
+        x: lowerStorey.stair.x,
+        y: lowerStorey.stair.y,
+        width: lowerStorey.stair.width,
+        depth: lowerStorey.stair.depth,
       },
-      shape: upperStorey.stair.shape,
-      bottomEdge: upperStorey.stair.bottomEdge,
-      treadDepth: upperStorey.stair.treadDepth,
+      shape: lowerStorey.stair.shape,
+      bottomEdge: lowerStorey.stair.bottomEdge,
+      treadDepth: lowerStorey.stair.treadDepth,
       treadCount: cfg.treadCount,
-      turn: upperStorey.stair.turn,
-      rotation: upperStorey.stair.rotation ?? 0,
+      turn: lowerStorey.stair.turn,
+      rotation: lowerStorey.stair.rotation ?? 0,
       center: {
-        x: upperStorey.stair.x + upperStorey.stair.width / 2,
-        y: upperStorey.stair.y + upperStorey.stair.depth / 2,
+        x: lowerStorey.stair.x + lowerStorey.stair.width / 2,
+        y: lowerStorey.stair.y + lowerStorey.stair.depth / 2,
       },
     });
   }
