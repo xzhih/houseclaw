@@ -273,6 +273,22 @@ export function AppShell() {
       }
 
       if (toolId === "stair") {
+        // 数据模型里楼梯挂在"通往的那一层"（上层）。但用户在 plan-N 视图上
+        // 点"添加楼梯"通常意味着"在这层建一段上去 N+1 的楼梯"——所以这里
+        // 把 plan-view 来的 storeyId 翻译成 N+1。非 plan-view（如立面/3D）
+        // 走 storey 选择子菜单，那时用户显式选了 owning storey，原样使用。
+        const fromPlanStoreyId = PLAN_STOREY_BY_VIEW[project.activeView];
+        const sortedStoreys = [...project.storeys].sort((a, b) => a.elevation - b.elevation);
+        let targetStoreyId = storeyId;
+        if (fromPlanStoreyId === storeyId) {
+          const idx = sortedStoreys.findIndex((s) => s.id === storeyId);
+          const above = sortedStoreys[idx + 1];
+          if (!above) {
+            setAddError("当前已是最顶层,没有可向上的楼梯。");
+            return;
+          }
+          targetStoreyId = above.id;
+        }
         const draftStair: Stair = {
           x: 1.0,
           y: 3.0,
@@ -283,12 +299,9 @@ export function AppShell() {
           bottomEdge: "+y",
           materialId: pickFrameMaterialId(project),
         };
-        const next = addStair(project, storeyId, draftStair);
+        const next = addStair(project, targetStoreyId, draftStair);
         dispatch({ type: "replace-project", project: next });
-        dispatch({ type: "select", selection: { kind: "stair", id: storeyId } });
-        if (PLAN_STOREY_BY_VIEW[project.activeView] !== storeyId) {
-          dispatch({ type: "set-view", viewId: `plan-${storeyId}` as ViewId });
-        }
+        dispatch({ type: "select", selection: { kind: "stair", id: targetStoreyId } });
         return;
       }
 
