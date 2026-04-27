@@ -1023,7 +1023,7 @@ select {
 .scale-ruler {
   position: absolute;
   bottom: 16px;
-  right: 96px;
+  right: 16px;
   display: inline-flex;
   align-items: center;
   gap: 6px;

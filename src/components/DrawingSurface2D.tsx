@@ -26,7 +26,7 @@ import { ScaleRuler } from "./canvas/ScaleRuler";
 import { SmartGuides } from "./canvas/SmartGuides";
 import { StatusReadout } from "./canvas/StatusReadout";
 import { ZoomControls } from "./canvas/ZoomControls";
-import type { DragReadout } from "./canvas/types";
+import type { Bounds, DragReadout, Point2D, PointMapping, Viewport } from "./canvas/types";
 
 const SURFACE_WIDTH = 720;
 const SURFACE_HEIGHT = 520;
@@ -257,21 +257,6 @@ type ElevationDragHandlers = {
     balconyId: string,
     edge: "l" | "r",
   ) => void;
-};
-
-type Bounds = {
-  minX: number;
-  maxX: number;
-  minY: number;
-  maxY: number;
-};
-
-type Point2D = { x: number; y: number };
-
-type PointMapping = {
-  project: (point: Point2D) => Point2D;
-  unproject: (point: Point2D) => Point2D;
-  scale: number;
 };
 
 function createPointMapping(bounds: Bounds): PointMapping {
@@ -1131,7 +1116,6 @@ function renderRoofPlaceholder() {
   );
 }
 
-type Viewport = { zoom: number; panX: number; panY: number };
 const DEFAULT_VIEWPORT: Viewport = { zoom: 1, panX: 0, panY: 0 };
 const ZOOM_MIN = 0.4;
 const ZOOM_MAX = 8;
