@@ -22,6 +22,7 @@ import type {
 } from "../projection/types";
 import { GridOverlay } from "./canvas/GridOverlay";
 import { ScaleRuler } from "./canvas/ScaleRuler";
+import { ZoomControls } from "./canvas/ZoomControls";
 
 const SURFACE_WIDTH = 720;
 const SURFACE_HEIGHT = 520;
@@ -2021,10 +2022,6 @@ export function DrawingSurface2D({
     ambientSelect();
   };
 
-  const resetViewport = () => setViewport(DEFAULT_VIEWPORT);
-  const isViewportTransformed =
-    viewport.zoom !== 1 || viewport.panX !== 0 || viewport.panY !== 0;
-
   return (
     <section className="drawing-surface" aria-label="2D drawing surface">
       <svg
@@ -2080,17 +2077,13 @@ export function DrawingSurface2D({
         if (!activeMapping) return null;
         return <ScaleRuler mapping={activeMapping} viewport={viewport} />;
       })()}
-      {isViewportTransformed ? (
-        <button
-          type="button"
-          className="zoom-reset"
-          onClick={resetViewport}
-          title="重置缩放"
-          aria-label="重置缩放"
-        >
-          {Math.round(viewport.zoom * 100)}%
-        </button>
-      ) : null}
+      <ZoomControls
+        viewport={viewport}
+        onViewportChange={setViewport}
+        defaultViewport={DEFAULT_VIEWPORT}
+        gridVisible={gridVisible}
+        onGridToggle={() => setGridVisible(v => !v)}
+      />
     </section>
   );
 }
