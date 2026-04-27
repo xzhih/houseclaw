@@ -47,6 +47,14 @@ function withImportedDefaults(value: unknown): unknown {
     project.balconies = [];
   }
 
+  if (project.roof !== undefined) {
+    try {
+      assertRoofShape(project.roof);
+    } catch {
+      delete project.roof;
+    }
+  }
+
   // Selection is transient; never honored on import.
   delete project.selection;
   delete project.selectedObjectId;
@@ -138,6 +146,27 @@ function assertIncludes<T extends string>(values: readonly T[], value: unknown, 
   if (typeof value !== "string" || !values.includes(value as T)) {
     invalidProjectJson(`${field} is not supported.`);
   }
+}
+
+function assertRoofShape(value: unknown): void {
+  assertObject(value, "roof");
+  const pitch = assertFiniteNumberField(value, "pitch");
+  if (pitch < Math.PI / 36 || pitch > Math.PI / 3) {
+    invalidProjectJson("roof.pitch out of range.");
+  }
+  const overhang = assertFiniteNumberField(value, "overhang");
+  if (overhang < 0 || overhang > 2) {
+    invalidProjectJson("roof.overhang out of range.");
+  }
+  assertStringField(value, "materialId");
+  const edges = (value as ProjectJsonObject).edges;
+  assertObject(edges, "roof.edges");
+  let hasEave = false;
+  for (const v of Object.values(edges as Record<string, unknown>)) {
+    if (v !== "eave" && v !== "gable") invalidProjectJson("roof.edges values must be 'eave' or 'gable'.");
+    if (v === "eave") hasEave = true;
+  }
+  if (!hasEave) invalidProjectJson("roof.edges must contain at least one 'eave'.");
 }
 
 function assertStoreyShape(value: unknown): void {
