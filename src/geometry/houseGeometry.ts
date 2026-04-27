@@ -92,13 +92,19 @@ export function buildHouseGeometry(project: HouseProject): HouseGeometry {
   }
 
   const slabs: SlabGeometry[] = [];
-  for (const storey of project.storeys) {
+  for (let i = 0; i < sortedStoreys.length; i += 1) {
+    const storey = sortedStoreys[i];
+    const lowerStorey = i > 0 ? sortedStoreys[i - 1] : undefined;
+    const outlineWalls = lowerStorey
+      ? project.walls.filter((w) => w.storeyId === lowerStorey.id)
+      : undefined;
     const slab = buildSlabGeometry(
       storey,
       project.walls,
       footprints,
       SLAB_MATERIAL_ID,
       slabHoleByStorey.get(storey.id),
+      outlineWalls,
     );
     if (slab) slabs.push(slab);
   }
