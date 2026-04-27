@@ -378,14 +378,18 @@ function RoofEdgeEditor({ project, wallId, onProjectChange }: { project: HousePr
 }
 
 function StairEditor({ project, id, onProjectChange }: EditorProps) {
-  const storey = project.storeys.find((s) => s.id === id);
+  const sortedStoreys = [...project.storeys].sort((a, b) => a.elevation - b.elevation);
+  const idx = sortedStoreys.findIndex((s) => s.id === id);
+  const storey = idx >= 0 ? sortedStoreys[idx] : undefined;
+  const upperStorey = idx >= 0 && idx + 1 < sortedStoreys.length ? sortedStoreys[idx + 1] : undefined;
   const stair = storey?.stair;
-  if (!storey || !stair) return null;
+  if (!storey || !stair || !upperStorey) return null;
 
   const apply = (patch: StairPatch) =>
     commit(onProjectChange, patch, (final) => updateStair(project, storey.id, final));
 
-  const cfg = computeStairConfig(storey.height, storey.slabThickness, stair.treadDepth);
+  const climb = upperStorey.elevation - storey.elevation;
+  const cfg = computeStairConfig(climb, upperStorey.slabThickness, stair.treadDepth);
 
   const shapes: { id: StairShape; label: string }[] = [
     { id: "straight", label: "一字" },
