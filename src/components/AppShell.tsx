@@ -140,7 +140,8 @@ function pickTargetWall(
   elevationSide?: ElevationSide,
 ): Wall | undefined {
   if (project.selection?.kind === "wall") {
-    const sel = project.walls.find((wall) => wall.id === project.selection!.id);
+    const wallSel = project.selection;
+    const sel = project.walls.find((wall) => wall.id === wallSel.id);
     if (sel && sel.storeyId === storeyId) return sel;
   }
   if (elevationSide) {

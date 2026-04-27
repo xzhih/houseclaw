@@ -29,6 +29,12 @@ export type Point2 = {
   y: number;
 };
 
+export type Point3 = {
+  x: number;
+  y: number;
+  z: number;
+};
+
 export type StairShape = "straight" | "l" | "u";
 export type StairEdge = "+x" | "-x" | "+y" | "-y";
 export type StairTurn = "left" | "right";
@@ -54,6 +60,19 @@ export type Storey = {
   height: number;
   slabThickness: number;
   stair?: Stair;
+};
+
+export type RoofEdgeKind = "eave" | "gable";
+
+export type Roof = {
+  /** wallId → role for that top-storey wall. Missing or stale keys default
+   *  to "gable" at render/validation time (see edge-resolution rule). */
+  edges: Record<string, RoofEdgeKind>;
+  /** Radians. Shared by all eaves. Valid range [π/36, π/3]. */
+  pitch: number;
+  /** Meters. Outward expansion of all 4 outline edges. Range [0, 2]. */
+  overhang: number;
+  materialId: string;
 };
 
 export type MaterialKind = "wall" | "roof" | "frame" | "railing" | "decor";
@@ -119,4 +138,5 @@ export type HouseProject = {
   walls: Wall[];
   openings: Opening[];
   balconies: Balcony[];
+  roof?: Roof;
 };
