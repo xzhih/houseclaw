@@ -13,7 +13,12 @@ export type LightingParams = {
   hemiIntensity: number;
   keyIntensity: number;
   fillIntensity: number;
-  /** 0 = north (+Z), 90 = east (+X), 180 = south (-Z), 270 = west (-X) */
+  /**
+   * Compass azimuth in degrees, anchored to the user's plan view (top of plan = north).
+   * 0 = north, 90 = east, 180 = south, 270 = west. The plan→scene mapping
+   * (see planYToSceneZ) decides how this lands in 3D, so the conversion lives in
+   * sunOffsetFrom — never read +Z/-Z directly from this value.
+   */
   sunAzimuthDeg: number;
   /** 0 = horizon, 90 = zenith */
   sunAltitudeDeg: number;
@@ -24,7 +29,7 @@ export const DEFAULT_LIGHTING: LightingParams = {
   hemiIntensity: 0.7,
   keyIntensity: 1.5,
   fillIntensity: 0.6,
-  sunAzimuthDeg: 200,
+  sunAzimuthDeg: 160,
   sunAltitudeDeg: 36,
 };
 
@@ -46,10 +51,14 @@ function sunOffsetFrom(azimuthDeg: number, altitudeDeg: number, distance: number
   const az = THREE.MathUtils.degToRad(azimuthDeg);
   const alt = THREE.MathUtils.degToRad(altitudeDeg);
   const horizontal = distance * Math.cos(alt);
+  // Compass → 3D conversion. The user's mental compass is anchored to the plan
+  // view (top of plan = north); the scene maps plan +y to -z via planYToSceneZ,
+  // so compass-north ends up at world -z. Hence the negation on the cos term —
+  // without it, lighting would track the building's mirror, not the user's compass.
   return new THREE.Vector3(
     Math.sin(az) * horizontal,
     distance * Math.sin(alt),
-    Math.cos(az) * horizontal,
+    -Math.cos(az) * horizontal,
   );
 }
 
@@ -91,14 +100,19 @@ function createRenderer(container: HTMLElement) {
   return { renderer, width, height };
 }
 
+// 3D scene maps the plan-view Y axis to -Z so the front facade (smallest plan Y)
+// ends up on the +Z side. With the standard "looking down -Z" camera, that puts
+// world +X on screen-right, matching the elevation projections (no left/right mirror).
+const planYToSceneZ = (y: number) => -y;
+
 function projectBounds(project: HouseProject): SceneBounds {
   const storeyElevations = new Map(project.storeys.map((storey) => [storey.id, storey.elevation]));
   const wallBounds = project.walls.reduce<SceneBounds>(
     (current, wall) => ({
       minX: Math.min(current.minX, wall.start.x, wall.end.x),
       maxX: Math.max(current.maxX, wall.start.x, wall.end.x),
-      minZ: Math.min(current.minZ, wall.start.y, wall.end.y),
-      maxZ: Math.max(current.maxZ, wall.start.y, wall.end.y),
+      minZ: Math.min(current.minZ, planYToSceneZ(wall.start.y), planYToSceneZ(wall.end.y)),
+      maxZ: Math.max(current.maxZ, planYToSceneZ(wall.start.y), planYToSceneZ(wall.end.y)),
       maxY: Math.max(current.maxY, (storeyElevations.get(wall.storeyId) ?? 0) + wall.height),
     }),
     {
@@ -122,13 +136,13 @@ function projectBounds(project: HouseProject): SceneBounds {
     if (length <= 0) return current;
 
     const directionX = (wall.end.x - wall.start.x) / length;
-    const directionZ = (wall.end.y - wall.start.y) / length;
-    const normalX = directionZ;
-    const normalZ = -directionX;
+    const directionZ = (planYToSceneZ(wall.end.y) - planYToSceneZ(wall.start.y)) / length;
+    const normalX = -directionZ;
+    const normalZ = directionX;
     const startX = wall.start.x + directionX * balcony.offset + normalX * balcony.depth;
-    const startZ = wall.start.y + directionZ * balcony.offset + normalZ * balcony.depth;
+    const startZ = planYToSceneZ(wall.start.y) + directionZ * balcony.offset + normalZ * balcony.depth;
     const endX = wall.start.x + directionX * (balcony.offset + balcony.width) + normalX * balcony.depth;
-    const endZ = wall.start.y + directionZ * (balcony.offset + balcony.width) + normalZ * balcony.depth;
+    const endZ = planYToSceneZ(wall.start.y) + directionZ * (balcony.offset + balcony.width) + normalZ * balcony.depth;
 
     return {
       minX: Math.min(current.minX, startX, endX),
@@ -155,7 +169,9 @@ function createCamera(bounds: SceneBounds, aspect: number) {
     (bounds.minZ + bounds.maxZ) / 2,
   );
   const camera = new THREE.PerspectiveCamera(42, aspect, 0.1, Math.max(span * 12, distance * 2));
-  const direction = new THREE.Vector3(0.85, 0.62, -1).normalize();
+  // +Z side of the (flipped) scene = the front facade. Standard "looking down -Z"
+  // camera then renders world +X on screen-right, matching elevation projections.
+  const direction = new THREE.Vector3(0.85, 0.62, 1).normalize();
 
   camera.position.copy(center).addScaledVector(direction, distance);
   camera.lookAt(center);
@@ -321,14 +337,14 @@ function createWallPanelMesh(
   const baseY = storeyElevation + panel.y;
   const topY = baseY + panel.height;
 
-  const brs: [number, number, number] = [slice.rightStart.x, baseY, slice.rightStart.y];
-  const bre: [number, number, number] = [slice.rightEnd.x, baseY, slice.rightEnd.y];
-  const ble: [number, number, number] = [slice.leftEnd.x, baseY, slice.leftEnd.y];
-  const bls: [number, number, number] = [slice.leftStart.x, baseY, slice.leftStart.y];
-  const trs: [number, number, number] = [slice.rightStart.x, topY, slice.rightStart.y];
-  const tre: [number, number, number] = [slice.rightEnd.x, topY, slice.rightEnd.y];
-  const tle: [number, number, number] = [slice.leftEnd.x, topY, slice.leftEnd.y];
-  const tls: [number, number, number] = [slice.leftStart.x, topY, slice.leftStart.y];
+  const brs: [number, number, number] = [slice.rightStart.x, baseY, planYToSceneZ(slice.rightStart.y)];
+  const bre: [number, number, number] = [slice.rightEnd.x, baseY, planYToSceneZ(slice.rightEnd.y)];
+  const ble: [number, number, number] = [slice.leftEnd.x, baseY, planYToSceneZ(slice.leftEnd.y)];
+  const bls: [number, number, number] = [slice.leftStart.x, baseY, planYToSceneZ(slice.leftStart.y)];
+  const trs: [number, number, number] = [slice.rightStart.x, topY, planYToSceneZ(slice.rightStart.y)];
+  const tre: [number, number, number] = [slice.rightEnd.x, topY, planYToSceneZ(slice.rightEnd.y)];
+  const tle: [number, number, number] = [slice.leftEnd.x, topY, planYToSceneZ(slice.leftEnd.y)];
+  const tls: [number, number, number] = [slice.leftStart.x, topY, planYToSceneZ(slice.leftStart.y)];
 
   const positions: number[] = [];
   const indices: number[] = [];
@@ -343,13 +359,14 @@ function createWallPanelMesh(
     indices.push(base, base + 1, base + 2, base, base + 2, base + 3);
   };
 
-  // CCW from each face's outward side:
-  addFace(brs, trs, tre, bre); // wall right side
-  addFace(bls, ble, tle, tls); // wall left side
-  addFace(trs, tls, tle, tre); // top
-  addFace(brs, bre, ble, bls); // bottom
-  addFace(brs, bls, tls, trs); // start cap
-  addFace(bre, tre, tle, ble); // end cap
+  // CCW from each face's outward side. Vertex order is reversed from the natural
+  // CCW order because the planY → sceneZ negation flips orientation in the XZ plane.
+  addFace(brs, bre, tre, trs); // wall right side
+  addFace(bls, tls, tle, ble); // wall left side
+  addFace(trs, tre, tle, tls); // top
+  addFace(brs, bls, ble, bre); // bottom
+  addFace(brs, trs, tls, bls); // start cap
+  addFace(bre, ble, tle, tre); // end cap
 
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
@@ -472,13 +489,13 @@ function createBalconyParts(
   if (length <= 0) return [];
 
   const directionX = (wall.end.x - wall.start.x) / length;
-  const directionZ = (wall.end.y - wall.start.y) / length;
-  const normalX = directionZ;
-  const normalZ = -directionX;
+  const directionZ = (planYToSceneZ(wall.end.y) - planYToSceneZ(wall.start.y)) / length;
+  const normalX = -directionZ;
+  const normalZ = directionX;
   const rotationY = -Math.atan2(directionZ, directionX);
   const centerOffset = balcony.offset + balcony.width / 2;
   const baseX = wall.start.x + directionX * centerOffset + normalX * (wall.thickness / 2 + balcony.depth / 2);
-  const baseZ = wall.start.y + directionZ * centerOffset + normalZ * (wall.thickness / 2 + balcony.depth / 2);
+  const baseZ = planYToSceneZ(wall.start.y) + directionZ * centerOffset + normalZ * (wall.thickness / 2 + balcony.depth / 2);
   const slab = new THREE.Mesh(
     new THREE.BoxGeometry(balcony.width, balcony.slabThickness, balcony.depth),
     getMaterial(balcony.materialId),
@@ -502,7 +519,7 @@ function createBalconyParts(
   outerRail.position.set(
     wall.start.x + directionX * centerOffset + normalX * (wall.thickness / 2 + balcony.depth),
     railY,
-    wall.start.y + directionZ * centerOffset + normalZ * (wall.thickness / 2 + balcony.depth),
+    planYToSceneZ(wall.start.y) + directionZ * centerOffset + normalZ * (wall.thickness / 2 + balcony.depth),
   );
   leftRail.position.set(baseX - directionX * sideOffset, railY, baseZ - directionZ * sideOffset);
   rightRail.position.set(baseX + directionX * sideOffset, railY, baseZ + directionZ * sideOffset);
@@ -528,11 +545,11 @@ function createSlabMaterial(project: HouseProject, materialId: string) {
 
 function buildSlabMesh(slab: SlabGeometry, material: THREE.Material): THREE.Mesh {
   const shape = new THREE.Shape(
-    slab.outline.map((point) => new THREE.Vector2(point.x, point.y)),
+    slab.outline.map((point) => new THREE.Vector2(point.x, planYToSceneZ(point.y))),
   );
   if (slab.hole) {
     shape.holes.push(
-      new THREE.Path(slab.hole.map((point) => new THREE.Vector2(point.x, point.y))),
+      new THREE.Path(slab.hole.map((point) => new THREE.Vector2(point.x, planYToSceneZ(point.y)))),
     );
   }
   const geometry = new THREE.ExtrudeGeometry(shape, {
@@ -700,9 +717,9 @@ export function mountHouseScene(
     const groundElevation = lowestStorey?.elevation ?? 0;
     return {
       x: (bounds.minX + bounds.maxX) / 2,
-      z: bounds.minZ - 3,
+      z: bounds.maxZ + 3,
       y: groundElevation + 1.6,
-      yaw: Math.PI, // face +Z, looking at the front facade
+      yaw: 0, // face -Z (Three.js default) so the front facade is in front of the player
       pitch: 0,
     };
   };
@@ -716,7 +733,7 @@ export function mountHouseScene(
       walkControls.enable(computeInitialSpawn());
     } else {
       walkControls.disable();
-      camera.position.copy(center).addScaledVector(new THREE.Vector3(0.85, 0.62, -1).normalize(), distance);
+      camera.position.copy(center).addScaledVector(new THREE.Vector3(0.85, 0.62, 1).normalize(), distance);
       camera.lookAt(center);
       currentOrbit = attachOrbitControls(renderer, camera, scene, center, distance, container);
     }

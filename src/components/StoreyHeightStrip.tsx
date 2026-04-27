@@ -4,9 +4,15 @@ type StoreyHeightStripProps = {
   storeys: Storey[];
   activeView: ViewId;
   onSelectStorey: (storeyId: string) => void;
+  onAddStorey?: () => void;
 };
 
-export function StoreyHeightStrip({ storeys, activeView, onSelectStorey }: StoreyHeightStripProps) {
+export function StoreyHeightStrip({
+  storeys,
+  activeView,
+  onSelectStorey,
+  onAddStorey,
+}: StoreyHeightStripProps) {
   return (
     <div className="storey-strip" role="group" aria-label="楼层">
       {storeys.map((storey) => (
@@ -20,6 +26,17 @@ export function StoreyHeightStrip({ storeys, activeView, onSelectStorey }: Store
           {storey.label}
         </button>
       ))}
+      {onAddStorey ? (
+        <button
+          type="button"
+          className="storey-pill storey-add"
+          aria-label="添加楼层"
+          title="添加楼层"
+          onClick={onAddStorey}
+        >
+          +
+        </button>
+      ) : null}
     </div>
   );
 }

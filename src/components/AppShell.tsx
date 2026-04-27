@@ -1,6 +1,19 @@
 import { type ChangeEvent, useEffect, useReducer, useState } from "react";
-import { exportProjectJson, importProjectJson } from "../app/persistence";
+import {
+  exportProjectJson,
+  importProjectJson,
+} from "../app/persistence";
 import { projectReducer, type ProjectAction } from "../app/projectReducer";
+import {
+  deleteProjectStorage,
+  generateProjectId,
+  initializeWorkspace,
+  loadProjectById,
+  nextProjectName,
+  saveCatalog,
+  saveProjectById,
+  type WorkspaceCatalog,
+} from "../app/workspace";
 import {
   createBalconyDraft,
   createOpeningDraft,
@@ -11,7 +24,9 @@ import {
   addBalcony,
   addOpening,
   addStair,
+  addStorey,
   addWall,
+  duplicateStorey,
   removeBalcony,
   removeOpening,
   removeStair,
@@ -21,6 +36,7 @@ import {
 import { createSampleProject } from "../domain/sampleProject";
 import type { ObjectSelection } from "../domain/selection";
 import type { HouseProject, Mode, OpeningType, Stair, ToolId, ViewId, Wall } from "../domain/types";
+import { planStoreyIdFromView } from "../domain/views";
 import { createWallDraft } from "../domain/walls";
 import { downloadTextFile } from "../export/exporters";
 import { projectElevationView } from "../projection/elevation";
@@ -32,17 +48,12 @@ import { StoreyHeightStrip } from "./StoreyHeightStrip";
 import { ElevationSideTabs } from "./ElevationSideTabs";
 import { ToolPalette } from "./ToolPalette";
 import { ViewTabs, primaryFromView, type PrimaryView } from "./ViewTabs";
+import { BrandMenu } from "./BrandMenu";
 
 const MODE_TABS: { id: Mode; label: string }[] = [
   { id: "2d", label: "2D" },
   { id: "3d", label: "3D" },
 ];
-
-const PLAN_STOREY_BY_VIEW: Partial<Record<ViewId, string>> = {
-  "plan-1f": "1f",
-  "plan-2f": "2f",
-  "plan-3f": "3f",
-};
 
 const ELEVATION_SIDE_BY_VIEW: Partial<Record<ViewId, ElevationSide>> = {
   "elevation-front": "front",
@@ -66,9 +77,16 @@ type HistoryState = {
   future: HouseProject[];
 };
 
-type HistoryAction = ProjectAction | { type: "undo" } | { type: "redo" };
+type HistoryAction =
+  | ProjectAction
+  | { type: "undo" }
+  | { type: "redo" }
+  | { type: "load-project"; project: HouseProject };
 
 function historyReducer(state: HistoryState, action: HistoryAction): HistoryState {
+  if (action.type === "load-project") {
+    return { past: [], present: action.project, future: [] };
+  }
   if (action.type === "undo") {
     if (state.past.length === 0) return state;
     const previous = state.past[state.past.length - 1];
@@ -144,31 +162,85 @@ function pickStairMaterialId(project: HouseProject): string {
   return frame?.id ?? project.materials[0]?.id ?? "";
 }
 
+type BootState = { catalog: WorkspaceCatalog; project: HouseProject };
+
+function bootWorkspace(): BootState {
+  try {
+    const snapshot = initializeWorkspace();
+    return { catalog: snapshot.catalog, project: snapshot.project };
+  } catch {
+    // Worst case — present sample without persistence.
+    const seed = createSampleProject();
+    return { catalog: { activeId: seed.id, ids: [seed.id] }, project: seed };
+  }
+}
+
 export function AppShell() {
+  const [boot] = useState(bootWorkspace);
+  const [catalog, setCatalog] = useState<WorkspaceCatalog>(boot.catalog);
+  const [projectNames, setProjectNames] = useState<Record<string, string>>(() => ({
+    [boot.project.id]: boot.project.name,
+  }));
+
   const [history, dispatchHistory] = useReducer(
     historyReducer,
     undefined,
-    (): HistoryState => ({ past: [], present: createSampleProject(), future: [] }),
+    (): HistoryState => ({ past: [], present: boot.project, future: [] }),
   );
   const project = history.present;
+
+  // Keep the displayed catalog name for the active project in sync with edits.
+  useEffect(() => {
+    setProjectNames((prev) =>
+      prev[project.id] === project.name ? prev : { ...prev, [project.id]: project.name },
+    );
+  }, [project.id, project.name]);
+
+  // Hydrate names for non-active projects in the catalog (one-time per id).
+  useEffect(() => {
+    setProjectNames((prev) => {
+      let next = prev;
+      for (const id of catalog.ids) {
+        if (next[id] !== undefined) continue;
+        const loaded = loadProjectById(id);
+        if (loaded) {
+          if (next === prev) next = { ...prev };
+          next[id] = loaded.name;
+        }
+      }
+      return next;
+    });
+  }, [catalog.ids]);
+
+  useEffect(() => {
+    saveProjectById(catalog.activeId, project);
+  }, [project, catalog.activeId]);
+
+  useEffect(() => {
+    saveCatalog(catalog);
+  }, [catalog]);
+
   const canUndo = history.past.length > 0;
   const canRedo = history.future.length > 0;
 
   const [importError, setImportError] = useState<string | undefined>();
   const [addError, setAddError] = useState<string | undefined>();
   const [lastPlanStorey, setLastPlanStorey] = useState<string>(
-    () => PLAN_STOREY_BY_VIEW[project.activeView] ?? project.storeys[0]?.id ?? "1f",
+    () =>
+      planStoreyIdFromView(project.activeView, project.storeys) ??
+      project.storeys[0]?.id ??
+      "1f",
   );
   const [lastElevationSide, setLastElevationSide] = useState<ElevationSide>(
     () => ELEVATION_SIDE_BY_VIEW[project.activeView] ?? "front",
   );
 
   useEffect(() => {
-    const planStorey = PLAN_STOREY_BY_VIEW[project.activeView];
+    const planStorey = planStoreyIdFromView(project.activeView, project.storeys);
     if (planStorey) setLastPlanStorey(planStorey);
     const side = ELEVATION_SIDE_BY_VIEW[project.activeView];
     if (side) setLastElevationSide(side);
-  }, [project.activeView]);
+  }, [project.activeView, project.storeys]);
 
   const dispatch = (action: ProjectAction) => dispatchHistory(action);
   const undo = () => dispatchHistory({ type: "undo" });
@@ -199,10 +271,17 @@ export function AppShell() {
         case "stair":
           next = removeStair(project, sel.id);
           break;
-        case "storey":
+        case "storey": {
           if (project.storeys.length <= 1) return;
           next = removeStorey(project, sel.id);
+          if (next.activeView === `plan-${sel.id}`) {
+            const fallback = next.storeys[0]?.id;
+            if (fallback) {
+              next = { ...next, activeView: `plan-${fallback}` as ViewId };
+            }
+          }
           break;
+        }
         default:
           return;
       }
@@ -269,7 +348,7 @@ export function AppShell() {
         const next = addWall(project, draft);
         dispatch({ type: "replace-project", project: next });
         dispatch({ type: "select", selection: { kind: "wall", id: draft.id } });
-        if (PLAN_STOREY_BY_VIEW[project.activeView] !== storeyId) {
+        if (planStoreyIdFromView(project.activeView, project.storeys) !== storeyId) {
           dispatch({ type: "set-view", viewId: `plan-${storeyId}` as ViewId });
         }
         return;
@@ -280,7 +359,7 @@ export function AppShell() {
         // 点"添加楼梯"通常意味着"在这层建一段上去 N+1 的楼梯"——所以这里
         // 把 plan-view 来的 storeyId 翻译成 N+1。非 plan-view（如立面/3D）
         // 走 storey 选择子菜单，那时用户显式选了 owning storey，原样使用。
-        const fromPlanStoreyId = PLAN_STOREY_BY_VIEW[project.activeView];
+        const fromPlanStoreyId = planStoreyIdFromView(project.activeView, project.storeys);
         const sortedStoreys = [...project.storeys].sort((a, b) => a.elevation - b.elevation);
         let targetStoreyId = storeyId;
         if (fromPlanStoreyId === storeyId) {
@@ -363,16 +442,118 @@ export function AppShell() {
 
   const handleStoreyClick = (storeyId: string) => {
     setLastPlanStorey(storeyId);
-    if (PLAN_STOREY_BY_VIEW[project.activeView]) {
+    if (planStoreyIdFromView(project.activeView, project.storeys)) {
       setView(`plan-${storeyId}` as ViewId);
     }
     select({ kind: "storey", id: storeyId });
+  };
+
+  const handleAddStorey = () => {
+    let next: HouseProject;
+    try {
+      next = addStorey(project);
+    } catch {
+      return;
+    }
+    const newStorey = next.storeys[next.storeys.length - 1];
+    dispatch({ type: "replace-project", project: next });
+    setLastPlanStorey(newStorey.id);
+    if (project.mode === "2d" && planStoreyIdFromView(project.activeView, project.storeys)) {
+      setView(`plan-${newStorey.id}` as ViewId);
+    }
+    select({ kind: "storey", id: newStorey.id });
+  };
+
+  const handleDuplicateStorey = (storeyId: string) => {
+    let next: HouseProject;
+    try {
+      next = duplicateStorey(project, storeyId);
+    } catch {
+      return;
+    }
+    const newStorey = next.storeys[next.storeys.length - 1];
+    dispatch({ type: "replace-project", project: next });
+    setLastPlanStorey(newStorey.id);
+    if (project.mode === "2d" && planStoreyIdFromView(project.activeView, project.storeys)) {
+      setView(`plan-${newStorey.id}` as ViewId);
+    }
+    select({ kind: "storey", id: newStorey.id });
   };
 
   const handleExport = () => {
     setImportError(undefined);
     downloadTextFile("houseclaw-project.json", exportProjectJson(project));
   };
+
+  const switchToProject = (id: string, loaded: HouseProject) => {
+    saveProjectById(catalog.activeId, project);
+    saveProjectById(id, loaded);
+    dispatchHistory({ type: "load-project", project: loaded });
+    setCatalog((prev) => (prev.activeId === id ? prev : { ...prev, activeId: id }));
+    setProjectNames((prev) => ({ ...prev, [id]: loaded.name }));
+  };
+
+  const insertProject = (incoming: HouseProject) => {
+    const existingIds = new Set(catalog.ids);
+    let id = incoming.id;
+    while (!id || existingIds.has(id)) id = generateProjectId();
+    const namesInUse = catalog.ids
+      .map((existing) => projectNames[existing])
+      .filter((value): value is string => typeof value === "string");
+    const name =
+      incoming.name && !namesInUse.includes(incoming.name)
+        ? incoming.name
+        : nextProjectName(namesInUse);
+    const project: HouseProject = { ...incoming, id, name };
+    saveProjectById(catalog.activeId, history.present);
+    saveProjectById(id, project);
+    dispatchHistory({ type: "load-project", project });
+    setCatalog((prev) => ({ activeId: id, ids: [...prev.ids, id] }));
+    setProjectNames((prev) => ({ ...prev, [id]: project.name }));
+  };
+
+  const handleSwitchProject = (id: string) => {
+    if (id === catalog.activeId) return;
+    const loaded = loadProjectById(id);
+    if (!loaded) {
+      setImportError("无法加载该项目，可能已损坏。");
+      return;
+    }
+    setImportError(undefined);
+    switchToProject(id, loaded);
+  };
+
+  const handleNewProject = () => {
+    const namesInUse = catalog.ids
+      .map((existing) => projectNames[existing])
+      .filter((value): value is string => typeof value === "string");
+    const seed = createSampleProject();
+    insertProject({ ...seed, name: nextProjectName(namesInUse) });
+    setImportError(undefined);
+  };
+
+  const handleDeleteProject = (id: string) => {
+    if (catalog.ids.length <= 1) return;
+    deleteProjectStorage(id);
+    setProjectNames((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+    setCatalog((prev) => {
+      const ids = prev.ids.filter((existing) => existing !== id);
+      if (id !== prev.activeId) {
+        return { activeId: prev.activeId, ids };
+      }
+      const fallbackId = ids[0];
+      const fallback = loadProjectById(fallbackId);
+      if (fallback) {
+        dispatchHistory({ type: "load-project", project: fallback });
+      }
+      return { activeId: fallbackId, ids };
+    });
+  };
+
   const handleImport = (event: ChangeEvent<HTMLInputElement>) => {
     const input = event.currentTarget;
     const file = input.files?.[0];
@@ -384,7 +565,7 @@ export function AppShell() {
     void file
       .text()
       .then((json) => {
-        dispatch({ type: "replace-project", project: importProjectJson(json) });
+        insertProject(importProjectJson(json));
         setImportError(undefined);
       })
       .catch((error: unknown) => {
@@ -411,26 +592,16 @@ export function AppShell() {
         )}
       </div>
 
-      <div className="brand-overlay" aria-label="HouseClaw">
-        <span className="brand-mark" aria-hidden="true" />
-        <span className="brand-name">HouseClaw</span>
-      </div>
-
-      <div className="mode-tabs" aria-label="工作模式">
-        {MODE_TABS.map((tab) => (
-          <button
-            key={tab.id}
-            type="button"
-            className="mode-tab"
-            aria-pressed={project.mode === tab.id}
-            onClick={() => setMode(tab.id)}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
-
-      <div className="top-actions">
+      <div className="left-actions">
+        <BrandMenu
+          projects={catalog.ids.map((id) => ({ id, name: projectNames[id] ?? "未命名项目" }))}
+          activeId={catalog.activeId}
+          onSwitch={handleSwitchProject}
+          onNew={handleNewProject}
+          onDelete={handleDeleteProject}
+          onExport={handleExport}
+          onImport={handleImport}
+        />
         <button
           className="action-button icon-action"
           type="button"
@@ -457,13 +628,20 @@ export function AppShell() {
             <path d="M20 9H9a5 5 0 0 0-5 5v0a5 5 0 0 0 5 5h6" />
           </svg>
         </button>
-        <button className="action-button" type="button" onClick={handleExport}>
-          导出 JSON
-        </button>
-        <label className="action-button file-button">
-          导入 JSON
-          <input aria-label="导入 JSON" type="file" accept="application/json" onChange={handleImport} />
-        </label>
+      </div>
+
+      <div className="mode-tabs" aria-label="工作模式">
+        {MODE_TABS.map((tab) => (
+          <button
+            key={tab.id}
+            type="button"
+            className="mode-tab"
+            aria-pressed={project.mode === tab.id}
+            onClick={() => setMode(tab.id)}
+          >
+            {tab.label}
+          </button>
+        ))}
       </div>
 
       {isPlanMode ? (
@@ -471,10 +649,10 @@ export function AppShell() {
           <ToolPalette
             activeTool={project.activeTool}
             storeys={project.storeys.map((storey) => ({ id: storey.id, label: storey.label }))}
-            defaultStoreyId={PLAN_STOREY_BY_VIEW[project.activeView]}
+            defaultStoreyId={planStoreyIdFromView(project.activeView, project.storeys)}
             onSelectMode={handleSelectMode}
             onAddComponent={handleAddComponent}
-            allowWallAdd={PLAN_STOREY_BY_VIEW[project.activeView] !== undefined}
+            allowWallAdd={planStoreyIdFromView(project.activeView, project.storeys) !== undefined}
           />
 
           <div className="bottom-overlay">
@@ -484,6 +662,7 @@ export function AppShell() {
                 storeys={project.storeys}
                 activeView={project.activeView}
                 onSelectStorey={handleStoreyClick}
+                onAddStorey={handleAddStorey}
               />
             ) : (
               <ElevationSideTabs activeView={project.activeView} onSideChange={handleSideChange} />
@@ -495,6 +674,7 @@ export function AppShell() {
             onApplyWallMaterial={applyWallMaterial}
             onProjectChange={(next) => dispatch({ type: "replace-project", project: next })}
             onDeleteSelection={handleDeleteSelection}
+            onDuplicateStorey={handleDuplicateStorey}
           />
         </>
       ) : null}

@@ -2,9 +2,10 @@ import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } fr
 import type { ObjectSelection } from "../domain/selection";
 import { isSelected } from "../domain/selection";
 import { wallLength } from "../domain/measurements";
-import { moveWall, updateBalcony, updateOpening, updateStair } from "../domain/mutations";
+import { moveWall, translateStorey, updateBalcony, updateOpening, updateStair } from "../domain/mutations";
 import { rotatePoint } from "../domain/stairs";
 import type { HouseProject, Point2, ToolId, ViewId } from "../domain/types";
+import { planStoreyIdFromView } from "../domain/views";
 import { snapPlanPoint, snapToEndpoint } from "../geometry/snapping";
 import { buildWallNetwork, slicePanelFootprint, type WallFootprint } from "../geometry/wallNetwork";
 import { elevationOffsetSign, projectElevationView } from "../projection/elevation";
@@ -28,12 +29,6 @@ const PLAN_GRID_SIZE = 0.1;
 const PLAN_ENDPOINT_THRESHOLD = 0.2;
 const DRAG_MOVE_THRESHOLD_WORLD = 0.04;
 const ENDPOINT_HANDLE_RADIUS = 7;
-
-const PLAN_STOREY_BY_VIEW: Partial<Record<ViewId, string>> = {
-  "plan-1f": "1f",
-  "plan-2f": "2f",
-  "plan-3f": "3f",
-};
 
 const ELEVATION_SIDE_BY_VIEW: Partial<Record<ViewId, ElevationSide>> = {
   "elevation-front": "front",
@@ -199,6 +194,16 @@ type DragState =
       center: Point2D;
       initialMouseAngle: number;
       origRotation: number;
+    }
+  | {
+      kind: "elev-storey-translate";
+      pointerId: number;
+      startWorld: Point2D;
+      moved: boolean;
+      mapping: PointMapping;
+      storeyId: string;
+      side: ElevationSide;
+      origProject: HouseProject;
     };
 
 type PlanDragHandlers = {
@@ -232,6 +237,7 @@ type PlanDragHandlers = {
 };
 
 type ElevationDragHandlers = {
+  onStoreyPointerDown: (event: PointerEvent<SVGElement>, storeyId: string) => void;
   onOpeningPointerDown: (event: PointerEvent<SVGElement>, openingId: string) => void;
   onOpeningCornerPointerDown: (
     event: PointerEvent<SVGElement>,
@@ -345,6 +351,28 @@ function planBounds(projection: PlanProjection): Bounds {
     minY: Math.min(...points.map((point) => point.y)),
     maxY: Math.max(...points.map((point) => point.y)),
   };
+}
+
+function unionBounds(a: Bounds, b: Bounds): Bounds {
+  return {
+    minX: Math.min(a.minX, b.minX),
+    maxX: Math.max(a.maxX, b.maxX),
+    minY: Math.min(a.minY, b.minY),
+    maxY: Math.max(a.maxY, b.maxY),
+  };
+}
+
+function elevationAxisToWorld(side: ElevationSide, dxAxis: number): { dx: number; dy: number } {
+  switch (side) {
+    case "front":
+      return { dx: dxAxis, dy: 0 };
+    case "back":
+      return { dx: -dxAxis, dy: 0 };
+    case "left":
+      return { dx: 0, dy: -dxAxis };
+    case "right":
+      return { dx: 0, dy: dxAxis };
+  }
 }
 
 function elevationBounds(projection: ElevationProjection): Bounds {
@@ -582,8 +610,11 @@ function renderPlan(
   footprints: Map<string, WallFootprint>,
   snapHit: Point2D | null,
   handlers?: PlanDragHandlers,
+  ghost?: PlanProjection,
 ) {
-  const { project: projectPoint } = createPointMapping(planBounds(projection));
+  const mainBounds = planBounds(projection);
+  const bounds = ghost ? unionBounds(mainBounds, planBounds(ghost)) : mainBounds;
+  const { project: projectPoint } = createPointMapping(bounds);
   const wallsById = new Map(projection.wallSegments.map((wall) => [wall.wallId, wall]));
   const selectedWall =
     selection?.kind === "wall"
@@ -604,6 +635,23 @@ function renderPlan(
 
   return (
     <>
+      {ghost
+        ? ghost.wallSegments.map((wall) => {
+            const start = projectPoint(wall.start);
+            const end = projectPoint(wall.end);
+            return (
+              <line
+                key={`ghost-${wall.wallId}`}
+                className="plan-wall-ghost"
+                x1={start.x}
+                y1={start.y}
+                x2={end.x}
+                y2={end.y}
+                aria-hidden="true"
+              />
+            );
+          })
+        : null}
       {projection.wallSegments.map((wall) => {
         const footprint = footprints.get(wall.wallId);
         if (!footprint) return null;
@@ -655,6 +703,7 @@ function renderPlan(
         const start = projectPoint(line.start);
         const end = projectPoint(line.end);
         const selected = isSelected(selection, "opening", opening.openingId);
+        const typeClass = `plan-opening--${opening.type}`;
 
         return (
           <g key={opening.openingId} className="opening-glyph">
@@ -663,7 +712,7 @@ function renderPlan(
               tabIndex={0}
               aria-label={`选择开孔 ${opening.openingId}`}
               aria-pressed={selected}
-              className={selected ? "plan-opening is-selected" : "plan-opening"}
+              className={`plan-opening ${typeClass}${selected ? " is-selected" : ""}`}
               x1={start.x}
               y1={start.y}
               x2={end.x}
@@ -950,16 +999,18 @@ function renderElevation(
       {projection.wallBands.map((band) => {
         const topLeft = projectPoint({ x: band.x, y: band.y + band.height });
         const bottomRight = projectPoint({ x: band.x + band.width, y: band.y });
+        const selected = isSelected(selection, "storey", band.storeyId);
 
         return (
           <rect
             key={`${band.storeyId}-${band.wallId}`}
-            className="elevation-wall"
+            className={selected ? "elevation-wall is-selected" : "elevation-wall"}
             x={topLeft.x}
             y={topLeft.y}
             width={bottomRight.x - topLeft.x}
             height={bottomRight.y - topLeft.y}
-            onClick={() => onSelect(undefined)}
+            onPointerDown={(event) => handlers?.onStoreyPointerDown(event, band.storeyId)}
+            onClick={() => onSelect({ kind: "storey", id: band.storeyId })}
           />
         );
       })}
@@ -1083,7 +1134,7 @@ export function DrawingSurface2D({
   onSelect,
   onProjectChange,
 }: DrawingSurface2DProps) {
-  const storeyId = PLAN_STOREY_BY_VIEW[project.activeView];
+  const storeyId = planStoreyIdFromView(project.activeView, project.storeys);
   const elevationSide = ELEVATION_SIDE_BY_VIEW[project.activeView];
 
   const svgRef = useRef<SVGSVGElement | null>(null);
@@ -1145,8 +1196,22 @@ export function DrawingSurface2D({
         .map((wall) => ({ start: wall.start, end: wall.end }))
     : [];
 
-  const planMapping = storeyId
-    ? createPointMapping(planBounds(projectPlanView(project, storeyId)))
+  const planProjection = storeyId ? projectPlanView(project, storeyId) : undefined;
+  const ghostProjection = (() => {
+    if (!storeyId) return undefined;
+    const index = project.storeys.findIndex((storey) => storey.id === storeyId);
+    if (index <= 0) return undefined;
+    const belowId = project.storeys[index - 1].id;
+    const ghost = projectPlanView(project, belowId);
+    return ghost.wallSegments.length > 0 ? ghost : undefined;
+  })();
+
+  const planMapping = planProjection
+    ? createPointMapping(
+        ghostProjection
+          ? unionBounds(planBounds(planProjection), planBounds(ghostProjection))
+          : planBounds(planProjection),
+      )
     : undefined;
 
   const planFootprints = (() => {
@@ -1537,7 +1602,26 @@ export function DrawingSurface2D({
     }));
   };
 
+  const onElevationStoreyPointerDown: ElevationDragHandlers["onStoreyPointerDown"] = (
+    event,
+    bandStoreyId,
+  ) => {
+    if (!elevationSide) return;
+    if (!project.storeys.some((storey) => storey.id === bandStoreyId)) return;
+    beginDragWith(event, elevationMapping, (pointerId, startWorld, mapping) => ({
+      kind: "elev-storey-translate",
+      pointerId,
+      startWorld,
+      mapping,
+      moved: false,
+      storeyId: bandStoreyId,
+      side: elevationSide,
+      origProject: project,
+    }));
+  };
+
   const elevationDragHandlers: ElevationDragHandlers = {
+    onStoreyPointerDown: onElevationStoreyPointerDown,
     onOpeningPointerDown: onElevationOpeningPointerDown,
     onOpeningCornerPointerDown: onElevationOpeningCornerPointerDown,
     onBalconyPointerDown: onElevationBalconyPointerDown,
@@ -1831,6 +1915,14 @@ export function DrawingSurface2D({
           onProjectChange(updateStair(project, state.storeyId, { rotation: newRotation }));
           break;
         }
+        case "elev-storey-translate": {
+          const grid = snapToGrid(dx);
+          const { dx: dwx, dy: dwy } = elevationAxisToWorld(state.side, grid);
+          onProjectChange(
+            translateStorey(state.origProject, state.storeyId, roundToMm(dwx), roundToMm(dwy)),
+          );
+          break;
+        }
       }
     } catch {
       // invalid move — keep last valid state
@@ -1881,6 +1973,9 @@ export function DrawingSurface2D({
           case "balcony":
           case "elev-balcony-move":
             onSelect({ kind: "balcony", id: finished.balconyId });
+            break;
+          case "elev-storey-translate":
+            onSelect({ kind: "storey", id: finished.storeyId });
             break;
           // resize/endpoint handles: keep selection
         }
@@ -1937,15 +2032,16 @@ export function DrawingSurface2D({
           height={SURFACE_HEIGHT}
           onClick={ambientSelect}
         />
-        {storeyId
+        {storeyId && planProjection
           ? renderPlan(
-              projectPlanView(project, storeyId),
+              planProjection,
               project.selection,
               onSelect,
               project.activeTool,
               planFootprints,
               activeSnap,
               planDragHandlers,
+              ghostProjection,
             )
           : elevationProjection
             ? renderElevation(

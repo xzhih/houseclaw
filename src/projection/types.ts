@@ -12,6 +12,7 @@ export type PlanWallSegment = {
 export type PlanOpeningGlyph = {
   openingId: string;
   wallId: string;
+  type: OpeningType;
   offset: number;
   width: number;
 };
