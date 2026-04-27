@@ -1,4 +1,5 @@
 import { computeStairConfig } from "../domain/stairs";
+import type { StairConfig } from "../domain/stairs";
 import type { Stair, Storey } from "../domain/types";
 
 export type StairBox = {
@@ -77,23 +78,36 @@ function makeBoxAtCross(args: {
   };
 }
 
+function appendLowerFlight(
+  treads: StairBox[],
+  stair: Stair,
+  basis: EdgeBasis,
+  cfg: StairConfig,
+  nLow: number,
+  lowerStoreyTopY: number,
+  crossCenter: number,
+  crossSize: number,
+): void {
+  for (let i = 0; i < nLow; i += 1) {
+    treads.push(
+      makeBoxAtCross({
+        stair, basis,
+        runCenter: basis.runCenterAt(i, stair.treadDepth),
+        runSize: stair.treadDepth,
+        crossCenter,
+        crossSize,
+        cy: lowerStoreyTopY + (i + 0.5) * cfg.riserHeight,
+        sy: cfg.riserHeight,
+      }),
+    );
+  }
+}
+
 function buildStraight(stair: Stair, lowerStoreyTopY: number, climb: number): StairGeometry {
   const cfg = computeStairConfig(climb, stair.treadDepth);
   const basis = basisForEdge(stair);
   const treads: StairBox[] = [];
-  for (let i = 0; i < cfg.treadCount; i += 1) {
-    const runCenter = basis.runCenterAt(i, stair.treadDepth);
-    // Tread i: top at (i+1)*r, center at (i+0.5)*r relative to lowerStoreyTopY.
-    const cy = lowerStoreyTopY + (i + 0.5) * cfg.riserHeight;
-    treads.push(
-      makeBoxAtCross({
-        stair, basis,
-        runCenter, runSize: stair.treadDepth,
-        crossCenter: basis.crossLength / 2, crossSize: basis.crossLength,
-        cy, sy: cfg.riserHeight,
-      }),
-    );
-  }
+  appendLowerFlight(treads, stair, basis, cfg, cfg.treadCount, lowerStoreyTopY, basis.crossLength / 2, basis.crossLength);
   return { treads, landings: [] };
 }
 
@@ -105,6 +119,15 @@ function buildL(
   const cfg = computeStairConfig(climb, stair.treadDepth);
   const basis = basisForEdge(stair);
   const lw = Math.min(stair.width, stair.depth) / 2;
+
+  // Tread height invariant for L (and U):
+  //   treadCount = nLow + 1 (landing) + nUp.
+  //   Tread i (0-indexed) has top y = lowerStoreyTopY + (i+1)*riserHeight.
+  //   After nLow lower treads, the player is at nLow*r; the landing sits one
+  //   riser higher at (nLow+1)*r. The first upper-flight tread is at
+  //   (nLow+2)*r and the last upper-flight tread (j = nUp-1) tops out at
+  //   (nLow+1+nUp)*r = treadCount*r — exactly one riser below the upper
+  //   floor, which the walker reaches via the existing vertical-snap logic.
   const nLow = Math.floor(cfg.treadCount / 2);
   const nUp = cfg.treadCount - nLow - 1;
   const turn = stair.turn ?? "right";
@@ -116,20 +139,7 @@ function buildL(
   const lowerCrossCenter = lowerCrossOffset + lw / 2;
 
   const treads: StairBox[] = [];
-
-  // Lower flight: nLow treads along the run axis from bottomEdge inward.
-  for (let i = 0; i < nLow; i += 1) {
-    const runCenter = basis.runCenterAt(i, stair.treadDepth);
-    const cy = lowerStoreyTopY + (i + 0.5) * cfg.riserHeight;
-    treads.push(
-      makeBoxAtCross({
-        stair, basis,
-        runCenter, runSize: stair.treadDepth,
-        crossCenter: lowerCrossCenter, crossSize: lw,
-        cy, sy: cfg.riserHeight,
-      }),
-    );
-  }
+  appendLowerFlight(treads, stair, basis, cfg, nLow, lowerStoreyTopY, lowerCrossCenter, lw);
 
   // Landing: square LW × LW at the lower flight's inner corner, one riser above tread nLow.
   const landingRunEnd = basis.runLength - nLow * stair.treadDepth;
@@ -165,6 +175,53 @@ function buildL(
   return { treads, landings };
 }
 
+function buildU(stair: Stair, lowerStoreyTopY: number, climb: number): StairGeometry {
+  const cfg = computeStairConfig(climb, stair.treadDepth);
+  const basis = basisForEdge(stair);
+  const GAP = 0.05;
+  const flightWidth = (basis.crossLength - GAP) / 2;
+
+  // Same tread-height invariant as L (see buildL comment).
+  const nLow = Math.floor(cfg.treadCount / 2);
+  const nUp = cfg.treadCount - nLow - 1;
+
+  const lowerCrossCenter = flightWidth / 2;
+  const upperCrossCenter = basis.crossLength - flightWidth / 2;
+
+  const treads: StairBox[] = [];
+  appendLowerFlight(treads, stair, basis, cfg, nLow, lowerStoreyTopY, lowerCrossCenter, flightWidth);
+
+  // Landing: one tread-depth deep at far end of run axis, full crossLength wide.
+  const landingRunSize = stair.treadDepth;
+  const landingRunCenter = basis.runLength - nLow * stair.treadDepth - landingRunSize / 2;
+  const landingTopY = lowerStoreyTopY + (nLow + 1) * cfg.riserHeight;
+  const landings: StairBox[] = [
+    makeBoxAtCross({
+      stair, basis,
+      runCenter: landingRunCenter, runSize: landingRunSize,
+      crossCenter: basis.crossLength / 2, crossSize: basis.crossLength,
+      cy: landingTopY - cfg.riserHeight / 2, sy: cfg.riserHeight,
+    }),
+  ];
+
+  // Upper flight: from landing's near edge stepping toward bottomEdge.
+  const landingNearRun = basis.runLength - nLow * stair.treadDepth - landingRunSize;
+  for (let j = 0; j < nUp; j += 1) {
+    const runCenter = landingNearRun - (j + 0.5) * stair.treadDepth;
+    const cy = lowerStoreyTopY + (nLow + 1 + j + 0.5) * cfg.riserHeight;
+    treads.push(
+      makeBoxAtCross({
+        stair, basis,
+        runCenter, runSize: stair.treadDepth,
+        crossCenter: upperCrossCenter, crossSize: flightWidth,
+        cy, sy: cfg.riserHeight,
+      }),
+    );
+  }
+
+  return { treads, landings };
+}
+
 export function buildStairGeometry(
   stair: Stair,
   storey: Storey,
@@ -177,7 +234,6 @@ export function buildStairGeometry(
     case "l":
       return buildL(stair, lowerStoreyTopY, climb);
     case "u":
-      // Implemented in T8.
-      return { treads: [], landings: [] };
+      return buildU(stair, lowerStoreyTopY, climb);
   }
 }

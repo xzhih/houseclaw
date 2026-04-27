@@ -169,11 +169,61 @@ describe("buildStairGeometry — L", () => {
   });
 });
 
-describe("buildStairGeometry — U (placeholder for T8)", () => {
-  it("returns empty arrays for U until T8 implements it", () => {
-    const stair: Stair = { ...BASE_STAIR, shape: "u" };
-    const geom = buildStairGeometry(stair, STOREY, 0);
-    expect(geom.treads).toEqual([]);
-    expect(geom.landings).toEqual([]);
+describe("buildStairGeometry — U", () => {
+  const STAIR: Stair = {
+    x: 0, y: 0, width: 2.5, depth: 5.0,
+    shape: "u", treadDepth: 0.27,
+    bottomEdge: "+y",
+    materialId: "mat-dark-frame",
+  };
+
+  it("emits nLow + nUp tread boxes + 1 landing", () => {
+    const geom = buildStairGeometry(STAIR, STOREY, 0);
+    // riserCount=19, treadCount=18, nLow=9, nUp=8
+    expect(geom.treads).toHaveLength(9 + 8);
+    expect(geom.landings).toHaveLength(1);
+  });
+
+  it("flight widths are (crossLength - 0.05) / 2", () => {
+    const geom = buildStairGeometry(STAIR, STOREY, 0);
+    const flightWidth = (2.5 - 0.05) / 2;
+    expect(geom.treads[0].sx).toBeCloseTo(flightWidth, 4);
+  });
+
+  it("lower flight on cross-low half, upper flight on cross-high half", () => {
+    const geom = buildStairGeometry(STAIR, STOREY, 0);
+    const fw = (2.5 - 0.05) / 2;
+    const lower0 = geom.treads[0];
+    const upper0 = geom.treads[9]; // first upper flight tread
+    expect(lower0.cx).toBeCloseTo(fw / 2, 4);
+    expect(upper0.cx).toBeCloseTo(2.5 - fw / 2, 4);
+  });
+
+  it("landing spans full crossLength, run-extent = treadDepth, top at (nLow+1)*riserHeight", () => {
+    const geom = buildStairGeometry(STAIR, STOREY, 0);
+    const r = 3.2 / 19;
+    const td = 0.27;
+    const landing = geom.landings[0];
+    expect(landing.sx).toBeCloseTo(STAIR.width, 4);  // full crossLength
+    expect(landing.sz).toBeCloseTo(td, 4);            // run extent = one tread depth
+    expect(landing.cy + landing.sy / 2).toBeCloseTo(10 * r, 4);
+    // landing's run center = runLength - nLow*td - td/2 = 5.0 - 9*0.27 - 0.135 = 2.435
+    expect(landing.cz).toBeCloseTo(STAIR.depth - 9 * td - td / 2, 4);
+  });
+
+  it("upper flight tread j runCenter = landing's near edge - (j+0.5)*td", () => {
+    const geom = buildStairGeometry(STAIR, STOREY, 0);
+    const td = 0.27;
+    const upper0 = geom.treads[9];
+    // landing near edge (toward bottomEdge) at run = runLength - nLow*td - td = 5.0 - 9*0.27 - 0.27 = 2.30
+    // upper flight tread 0 runCenter = 2.30 - 0.5*td = 2.165
+    expect(upper0.cz).toBeCloseTo(STAIR.depth - 9 * td - td - 0.5 * td, 4);
+  });
+
+  it("top upper-flight tread top y = treadCount * riserHeight", () => {
+    const geom = buildStairGeometry(STAIR, STOREY, 0);
+    const r = 3.2 / 19;
+    const top = geom.treads[geom.treads.length - 1];
+    expect(top.cy + top.sy / 2).toBeCloseTo(18 * r, 4);
   });
 });
