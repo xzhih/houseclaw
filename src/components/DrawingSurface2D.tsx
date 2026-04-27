@@ -773,6 +773,26 @@ function renderPlan(
           </g>
         );
       })}
+      {projection.skirts.map((rect) => {
+        const points = rect.vertices
+          .map((v) => {
+            const p = projectPoint(v);
+            return `${p.x},${p.y}`;
+          })
+          .join(" ");
+        const selected = isSelected(selection, "skirt", rect.skirtId);
+        return (
+          <polygon
+            key={rect.skirtId}
+            className={`plan-skirt${selected ? " is-selected" : ""}`}
+            points={points}
+            onClick={(e) => {
+              e.stopPropagation();
+              onSelect({ kind: "skirt", id: rect.skirtId });
+            }}
+          />
+        );
+      })}
       {projection.stairs.map((stair) => {
         const selected = isSelected(selection, "stair", stair.storeyId);
         const symbol = buildStairSymbolGeometry(stair, projectPoint);
