@@ -85,4 +85,23 @@ describe("PropertyPanel editing", () => {
 
     expect(depth.value).toBe("1500");
   });
+
+  it("PropertyPanel stair editor lets user switch shape", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    // Navigate to 2F plan (2f already has a stair in the sample project;
+    // adding via ToolPalette overwrites it and auto-selects)
+    await user.click(screen.getByRole("button", { name: "2F" }));
+    await user.click(screen.getByRole("button", { name: "添加组件" }));
+    await user.click(screen.getByRole("menuitem", { name: "添加楼梯" }));
+
+    // Stair editor should now be visible
+    expect(screen.getByText(/踢踏数/)).toBeInTheDocument();
+
+    // Switch to L shape
+    const lButton = screen.getByRole("button", { name: "L" });
+    await user.click(lButton);
+    expect(lButton).toHaveAttribute("aria-pressed", "true");
+  });
 });

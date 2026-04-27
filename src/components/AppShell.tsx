@@ -14,6 +14,7 @@ import {
   addWall,
   removeBalcony,
   removeOpening,
+  removeStair,
   removeStorey,
   removeWall,
 } from "../domain/mutations";
@@ -191,6 +192,9 @@ export function AppShell() {
           break;
         case "balcony":
           next = removeBalcony(project, sel.id);
+          break;
+        case "stair":
+          next = removeStair(project, sel.id);
           break;
         case "storey":
           if (project.storeys.length <= 1) return;

@@ -32,15 +32,18 @@ import {
   moveWall,
   updateBalcony,
   updateOpening,
+  updateStair,
   updateStorey,
   updateWall,
   type BalconyPatch,
   type OpeningPatch,
+  type StairPatch,
   type StoreyPatch,
   type WallPatch,
 } from "../domain/mutations";
 import { wallLength } from "../domain/measurements";
-import type { HouseProject, OpeningType } from "../domain/types";
+import { computeStairConfig } from "../domain/stairs";
+import type { HouseProject, OpeningType, StairEdge, StairShape, StairTurn } from "../domain/types";
 import { materialCatalog } from "../materials/catalog";
 
 const OPENING_LABELS: Record<OpeningType, string> = {
@@ -95,6 +98,7 @@ export function PropertyPanel({
     selection?.kind === "wall" ||
     selection?.kind === "opening" ||
     selection?.kind === "balcony" ||
+    selection?.kind === "stair" ||
     (selection?.kind === "storey" && project.storeys.length > 1);
 
   const deleteLabel = selection?.kind === "storey" ? "删除楼层" : "删除";
@@ -102,7 +106,7 @@ export function PropertyPanel({
   return (
     <aside className="property-panel" aria-label="Properties">
       <h2>属性</h2>
-      {!selection ? <p className="panel-placeholder">选择墙、门、窗、开孔、阳台或楼层查看属性。</p> : null}
+      {!selection ? <p className="panel-placeholder">选择墙、门、窗、开孔、阳台、楼梯或楼层查看属性。</p> : null}
 
       {selection?.kind === "opening" ? (
         <OpeningEditor project={project} id={selection.id} onProjectChange={onProjectChange} />
@@ -120,6 +124,9 @@ export function PropertyPanel({
       ) : null}
       {selection?.kind === "storey" ? (
         <StoreyEditor project={project} id={selection.id} onProjectChange={onProjectChange} />
+      ) : null}
+      {selection?.kind === "stair" ? (
+        <StairEditor project={project} id={selection.id} onProjectChange={onProjectChange} />
       ) : null}
 
       {isDeletable ? (
@@ -245,6 +252,114 @@ function StoreyEditor({ project, id, onProjectChange }: EditorProps) {
       <h3 id="storey-heading">楼层 · {storey.label}</h3>
       <MmField label="层高" value={storey.height} min={2} onCommit={(height) => apply({ height })} />
       <MmField label="楼板厚度" value={storey.slabThickness} min={0.05} onCommit={(slabThickness) => apply({ slabThickness })} />
+    </section>
+  );
+}
+
+function StairEditor({ project, id, onProjectChange }: EditorProps) {
+  const storey = project.storeys.find((s) => s.id === id);
+  const stair = storey?.stair;
+  if (!storey || !stair) return null;
+
+  const apply = (patch: StairPatch) =>
+    commit(onProjectChange, patch, (final) => updateStair(project, storey.id, final));
+
+  const cfg = computeStairConfig(storey.height, stair.treadDepth);
+
+  const shapes: { id: StairShape; label: string }[] = [
+    { id: "straight", label: "一字" },
+    { id: "l", label: "L" },
+    { id: "u", label: "U" },
+  ];
+  const edges: StairEdge[] = ["+x", "-x", "+y", "-y"];
+  const stairMaterials = project.materials.filter(
+    (m) => m.kind === "frame" || m.kind === "decor",
+  );
+
+  return (
+    <section className="property-section" aria-labelledby="stair-heading">
+      <h3 id="stair-heading">楼梯 · {storey.label}</h3>
+
+      <div className="property-row">
+        <span className="property-label">形状</span>
+        <div className="property-button-group">
+          {shapes.map((s) => (
+            <button
+              key={s.id}
+              type="button"
+              aria-pressed={stair.shape === s.id}
+              onClick={() =>
+                apply({
+                  shape: s.id,
+                  ...(s.id === "l" && !stair.turn ? { turn: "right" as const } : {}),
+                })
+              }
+            >
+              {s.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <MmField
+        label="踏步深度"
+        value={stair.treadDepth}
+        min={0.2}
+        max={0.4}
+        onCommit={(treadDepth) => apply({ treadDepth })}
+      />
+
+      <div className="property-row">
+        <span className="property-label">入口边</span>
+        <div className="property-button-group">
+          {edges.map((edge) => (
+            <button
+              key={edge}
+              type="button"
+              aria-pressed={stair.bottomEdge === edge}
+              onClick={() => apply({ bottomEdge: edge })}
+            >
+              {edge}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {stair.shape === "l" ? (
+        <div className="property-row">
+          <span className="property-label">转向</span>
+          <div className="property-button-group">
+            {(["left", "right"] as StairTurn[]).map((t) => (
+              <button
+                key={t}
+                type="button"
+                aria-pressed={(stair.turn ?? "right") === t}
+                onClick={() => apply({ turn: t })}
+              >
+                {t === "left" ? "左转" : "右转"}
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      <div className="property-row">
+        <span className="property-label">材质</span>
+        <select
+          value={stair.materialId}
+          onChange={(e) => apply({ materialId: e.target.value })}
+        >
+          {stairMaterials.map((m) => (
+            <option key={m.id} value={m.id}>
+              {m.name}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <p className="property-derived">
+        踢踏数 {cfg.riserCount} · 踢踏高度 {Math.round(cfg.riserHeight * 1000)}mm
+      </p>
     </section>
   );
 }
