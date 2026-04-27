@@ -23,6 +23,7 @@ import {
 import {
   addBalcony,
   addOpening,
+  addSkirt,
   addStair,
   addStorey,
   addWall,
@@ -383,6 +384,19 @@ export function AppShell() {
         const next = addStair(project, targetStoreyId, draftStair);
         dispatch({ type: "replace-project", project: next });
         dispatch({ type: "select", selection: { kind: "stair", id: targetStoreyId } });
+        return;
+      }
+
+      if (toolId === "skirt") {
+        const wall = pickTargetWall(project, storeyId, elevationSide);
+        if (!wall) {
+          setAddError("当前楼层没有可附着的外墙,先添加一面墙。");
+          return;
+        }
+        const next = addSkirt(project, wall.id);
+        const newSkirt = next.skirts[next.skirts.length - 1];
+        dispatch({ type: "replace-project", project: next });
+        dispatch({ type: "select", selection: { kind: "skirt", id: newSkirt.id } });
         return;
       }
 
