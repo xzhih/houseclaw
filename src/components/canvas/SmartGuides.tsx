@@ -45,7 +45,7 @@ export function SmartGuides({ matches, cursorWorld, mapping, viewport }: Props) 
             x1={a.x}
             x2={b.x}
             y1={a.y}
-            y2={a.y}
+            y2={b.y}
             strokeWidth={stroke}
           />
         );
