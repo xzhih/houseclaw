@@ -417,6 +417,48 @@ function createBalconyMeshes(project: HouseProject, geometry: HouseGeometry) {
   return { meshes, materials: [...materials.values()] };
 }
 
+const STAIR_FALLBACK_COLOR = "#8a7d6b";
+
+function createStairMaterial(project: HouseProject, materialId: string) {
+  const material = project.materials.find((candidate) => candidate.id === materialId);
+
+  return new THREE.MeshStandardMaterial({
+    color: material?.color ?? STAIR_FALLBACK_COLOR,
+    roughness: 0.6,
+    metalness: 0.05,
+  });
+}
+
+function createStairMeshes(project: HouseProject, geometry: HouseGeometry) {
+  const materials = new Map<string, THREE.MeshStandardMaterial>();
+  const meshes: THREE.Mesh[] = [];
+
+  const getMaterial = (materialId: string) => {
+    let material = materials.get(materialId);
+    if (!material) {
+      material = createStairMaterial(project, materialId);
+      materials.set(materialId, material);
+    }
+
+    return material;
+  };
+
+  for (const stair of geometry.stairs) {
+    for (const box of [...stair.treads, ...stair.landings]) {
+      const mesh = new THREE.Mesh(
+        new THREE.BoxGeometry(box.sx, box.sy, box.sz),
+        getMaterial(stair.materialId),
+      );
+      mesh.position.set(box.cx, box.cy, box.cz);
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      meshes.push(mesh);
+    }
+  }
+
+  return { meshes, materials: [...materials.values()] };
+}
+
 function createBalconyParts(
   wall: Wall,
   balcony: BalconyGeometry,
@@ -562,6 +604,7 @@ export function mountHouseScene(
   const { meshes: wallMeshes, materials: wallMaterials } = createWallMeshes(project, houseGeometry);
   const { meshes: balconyMeshes, materials: balconyMaterials } = createBalconyMeshes(project, houseGeometry);
   const { meshes: slabMeshes, materials: slabMaterials } = createSlabMeshes(project, houseGeometry);
+  const { meshes: stairMeshes, materials: stairMaterials } = createStairMeshes(project, houseGeometry);
   const { ground, grid, geometry: groundGeometry, material: groundMaterial } = createGround(bounds);
 
   const buildingCenter = new THREE.Vector3(
@@ -603,8 +646,8 @@ export function mountHouseScene(
 
   renderer.toneMappingExposure = initialLighting.exposure;
 
-  const meshes = [...wallMeshes, ...balconyMeshes, ...slabMeshes];
-  const materials = [...wallMaterials, ...balconyMaterials, ...slabMaterials];
+  const meshes = [...wallMeshes, ...balconyMeshes, ...slabMeshes, ...stairMeshes];
+  const materials = [...wallMaterials, ...balconyMaterials, ...slabMaterials, ...stairMaterials];
 
   for (const mesh of meshes) {
     mesh.castShadow = true;
@@ -625,7 +668,7 @@ export function mountHouseScene(
   container.replaceChildren(renderer.domElement);
   renderer.render(scene, camera);
 
-  const collidables: THREE.Object3D[] = [...wallMeshes, ...slabMeshes, ...balconyMeshes, ground];
+  const collidables: THREE.Object3D[] = [...wallMeshes, ...slabMeshes, ...balconyMeshes, ...stairMeshes, ground];
 
   const callbacks: WalkCallbacks = {
     onWalkExit: () => options?.onWalkExit?.(),
