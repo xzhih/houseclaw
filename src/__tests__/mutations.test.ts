@@ -330,4 +330,13 @@ describe("storey mutations clear roof", () => {
     const next = removeStorey(project, "2f");
     expect(next.roof).toBeUndefined();
   });
+  it("removeStorey strips stair on the new top storey", () => {
+    const project = createSampleProject();
+    // sample tops: 1F has stair, 2F has stair, 3F has no stair (top).
+    // Removing 3F makes 2F the new top → its stair must be stripped.
+    const next = removeStorey(project, "3f");
+    const newTop = next.storeys[next.storeys.length - 1];
+    expect(newTop.id).toBe("2f");
+    expect(newTop.stair).toBeUndefined();
+  });
 });
