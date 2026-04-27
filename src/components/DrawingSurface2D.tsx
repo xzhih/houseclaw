@@ -1144,6 +1144,8 @@ export function DrawingSurface2D({
   const panPointerId = useRef<number | null>(null);
   const [dragState, setDragState] = useState<DragState | undefined>(undefined);
   const [activeSnap, setActiveSnap] = useState<Point2D | null>(null);
+  const [cursorWorld, setCursorWorld] = useState<Point2D | null>(null);
+  const [gridVisible, setGridVisible] = useState(true);
 
   useEffect(() => {
     setViewport(DEFAULT_VIEWPORT);
@@ -1933,6 +1935,7 @@ export function DrawingSurface2D({
     if (dragState && event.pointerId === dragState.pointerId) {
       const currentWorld = eventToWorldWith(event, dragState.mapping);
       if (!currentWorld) return;
+      setCursorWorld(currentWorld);
       const dx = currentWorld.x - dragState.startWorld.x;
       const dy = currentWorld.y - dragState.startWorld.y;
       if (!dragState.moved && Math.hypot(dx, dy) < DRAG_MOVE_THRESHOLD_WORLD) return;
@@ -1943,13 +1946,24 @@ export function DrawingSurface2D({
       return;
     }
 
-    if (!isPanning || event.pointerId !== panPointerId.current || !svgRef.current) return;
-    const rect = svgRef.current.getBoundingClientRect();
-    if (rect.width === 0 || rect.height === 0) return;
-    const dx = ((event.clientX - panLastPos.current.x) * SURFACE_WIDTH) / (rect.width * viewport.zoom);
-    const dy = ((event.clientY - panLastPos.current.y) * SURFACE_HEIGHT) / (rect.height * viewport.zoom);
-    panLastPos.current = { x: event.clientX, y: event.clientY };
-    setViewport((current) => ({ ...current, panX: current.panX - dx, panY: current.panY - dy }));
+    if (isPanning && event.pointerId === panPointerId.current && svgRef.current) {
+      const rect = svgRef.current.getBoundingClientRect();
+      if (rect.width === 0 || rect.height === 0) return;
+      const dx = ((event.clientX - panLastPos.current.x) * SURFACE_WIDTH) / (rect.width * viewport.zoom);
+      const dy = ((event.clientY - panLastPos.current.y) * SURFACE_HEIGHT) / (rect.height * viewport.zoom);
+      panLastPos.current = { x: event.clientX, y: event.clientY };
+      setViewport((current) => ({ ...current, panX: current.panX - dx, panY: current.panY - dy }));
+      return;
+    }
+
+    // hover: 更新 cursorWorld（plan 或 elevation 视图）
+    const activeMapping = planMapping ?? elevationMapping;
+    if (!activeMapping) {
+      setCursorWorld(null);
+      return;
+    }
+    const world = eventToWorldWith(event, activeMapping);
+    setCursorWorld(world ?? null);
   };
 
   const handlePointerUp = (event: PointerEvent<SVGSVGElement>) => {
@@ -2023,6 +2037,7 @@ export function DrawingSurface2D({
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerUp}
+        onPointerLeave={() => setCursorWorld(null)}
       >
         <rect
           className="surface-grid"
