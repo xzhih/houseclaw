@@ -214,6 +214,56 @@ describe("resolveVerticalState", () => {
   });
 });
 
+describe("walkPhysics — full jump arc", () => {
+  it("rises to ~1m apex, falls back, and re-grounds without snap cancellation", () => {
+    // Locks the snap-gate invariant: a jump impulse (vy>0) must not be
+    // absorbed by the snap branch on the very next frame, even though the
+    // player is still within snapThreshold of the floor. Regression guard
+    // for the resolveVerticalState `vy <= 0` gate.
+    const probe: VerticalProbe = () => 0; // floor at y=0 always
+    const config = {
+      eyeHeight: 1.6,
+      snapThreshold: 0.2,
+      gravity: -9.8,
+      maxRayLength: 50,
+      stepRate: 8,
+    };
+    const dt = 1 / 60;
+    const JUMP_VELOCITY = 4.5;
+
+    let state = { cameraY: 1.6, vy: JUMP_VELOCITY };
+    const trajectory: number[] = [state.cameraY];
+    let groundedFrames = 0;
+
+    for (let frame = 0; frame < 120; frame += 1) {
+      const next = resolveVerticalState(state, { x: 0, z: 0 }, dt, config, probe);
+      if (next === "respawn") throw new Error(`unexpected respawn at frame ${frame}`);
+      state = { cameraY: next.cameraY, vy: next.vy };
+      trajectory.push(state.cameraY);
+      if (next.grounded) groundedFrames += 1;
+    }
+
+    // Kinematics: peak height = v² / (2|g|) = 4.5² / 19.6 ≈ 1.03m above start.
+    const peak = Math.max(...trajectory);
+    expect(peak).toBeGreaterThan(1.6 + 0.9);
+    expect(peak).toBeLessThan(1.6 + 1.1);
+
+    // Rise must precede fall: there is exactly one apex (no oscillation).
+    let directionChanges = 0;
+    for (let i = 2; i < trajectory.length; i += 1) {
+      const prev = trajectory[i - 1] - trajectory[i - 2];
+      const curr = trajectory[i] - trajectory[i - 1];
+      if (prev > 0 && curr < 0) directionChanges += 1;
+    }
+    expect(directionChanges).toBeLessThanOrEqual(1);
+
+    // Lands at eye height and re-grounds; most late frames are grounded.
+    expect(state.cameraY).toBeCloseTo(1.6, 4);
+    expect(state.vy).toBe(0);
+    expect(groundedFrames).toBeGreaterThan(50);
+  });
+});
+
 describe("pickFloorSwitchXZ", () => {
   const bounds = { minX: -5, maxX: 5, minZ: -3, maxZ: 3 };
 
@@ -302,8 +352,8 @@ describe("walkPhysics — straight stair ascent", () => {
       eyeHeight: EYE_HEIGHT,
       snapThreshold: SNAP_THRESHOLD,
       gravity: -9.8,
-      maxRayLength: 5,
-      stepRate: 5, // m/s — same as runtime
+      maxRayLength: 50,
+      stepRate: 8, // m/s — matches runtime
     };
 
     // Start: standing on lower floor at z=6 (just before stair), facing -Z

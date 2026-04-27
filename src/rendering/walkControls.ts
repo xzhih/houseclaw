@@ -3,6 +3,7 @@ import {
   resolveHorizontalCollision,
   resolveVerticalState,
   type HorizontalProbe,
+  type Vec2XZ,
   type VerticalProbe,
 } from "./walkPhysics";
 
@@ -49,7 +50,7 @@ export type WalkControls = {
    * for explicit floor switches so the user keeps their look direction. */
   teleportTo(position: { x: number; y: number; z: number }): void;
   getYaw(): number;
-  getPosition(): { x: number; z: number };
+  getPosition(): Vec2XZ;
   dispose(): void;
 };
 
