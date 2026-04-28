@@ -12,6 +12,7 @@ import {
   addSkirt,
   updateSkirt,
   removeSkirt,
+  removeWall,
 } from "../domain/mutations";
 import { createSampleProject } from "../domain/sampleProject";
 
@@ -397,5 +398,17 @@ describe("removeSkirt", () => {
     project = { ...project, selection: { kind: "wall", id: "wall-front-1f" } };
     const next = removeSkirt(project, id);
     expect(next.selection).toEqual({ kind: "wall", id: "wall-front-1f" });
+  });
+});
+
+describe("removeWall cascade", () => {
+  it("removes skirts attached to the wall", () => {
+    let project = createSampleProject();
+    project = addSkirt(project, "wall-front-2f");
+    expect(project.skirts.length).toBeGreaterThan(0);
+    const wallSkirt = project.skirts.find((s) => s.hostWallId === "wall-front-2f");
+    expect(wallSkirt).toBeDefined();
+    const next = removeWall(project, "wall-front-2f");
+    expect(next.skirts.find((s) => s.hostWallId === "wall-front-2f")).toBeUndefined();
   });
 });
