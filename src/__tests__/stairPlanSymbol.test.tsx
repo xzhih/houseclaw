@@ -4,25 +4,27 @@ import { describe, expect, it } from "vitest";
 import App from "../App";
 
 describe("stair plan symbol", () => {
-  it("renders UP label on 1F plan (1F's own stair, lower half)", () => {
+  it("renders UP label on 1F plan (1F's own up-stair)", () => {
     render(<App />);
     expect(screen.getByText("UP")).toBeInTheDocument();
   });
 
-  it("renders DN label on 3F plan (2F's stair, upper half)", async () => {
+  it("does NOT echo the lower neighbor's stair as DN on the upper plan", async () => {
     const user = userEvent.setup();
     render(<App />);
 
+    // 3F has no own stair (top floor) and we no longer project 2F's stair as
+    // a DN hole, so 3F's plan has no stair symbol at all.
     await user.click(screen.getByRole("button", { name: "3F" }));
 
-    expect(screen.getByText("DN")).toBeInTheDocument();
+    expect(screen.queryByText("DN")).not.toBeInTheDocument();
+    expect(screen.queryByText("UP")).not.toBeInTheDocument();
   });
 
   it("clicking the stair symbol selects the stair owner-storey", async () => {
     const user = userEvent.setup();
     render(<App />);
 
-    // 1F plan shows 1F's own stair as lower half
     const stairBtn = screen.getByRole("button", { name: "选择楼梯 1f" });
     await user.click(stairBtn);
 

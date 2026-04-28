@@ -34,7 +34,6 @@ export type PlanSkirtRect = {
 
 export type PlanStairSymbol = {
   storeyId: string;
-  half: "upper" | "lower";
   rect: { x: number; y: number; width: number; depth: number };
   shape: StairShape;
   bottomEdge: StairEdge;

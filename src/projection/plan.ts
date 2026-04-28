@@ -21,7 +21,6 @@ export function projectPlanView(project: HouseProject, storeyId: string): PlanPr
   const sortedStoreys = [...project.storeys].sort((a, b) => a.elevation - b.elevation);
   const currentIdx = sortedStoreys.findIndex((s) => s.id === storeyId);
   const currentStorey = currentIdx >= 0 ? sortedStoreys[currentIdx] : undefined;
-  const lowerStorey = currentIdx > 0 ? sortedStoreys[currentIdx - 1] : undefined;
   const upperStorey =
     currentIdx >= 0 && currentIdx + 1 < sortedStoreys.length
       ? sortedStoreys[currentIdx + 1]
@@ -29,13 +28,15 @@ export function projectPlanView(project: HouseProject, storeyId: string): PlanPr
 
   const stairs: PlanStairSymbol[] = [];
 
-  // Own stair: the going-up stair starting at this storey. Show as lower half (UP).
+  // Each plan view shows ONLY this storey's own up-stair. We deliberately do
+  // not project the lower neighbor's stair as a DN hole on this floor — the
+  // designer can mentally reconcile, and hiding it lets each storey place its
+  // own stair without visual clash from below.
   if (currentStorey?.stair && upperStorey) {
     const climb = upperStorey.elevation - currentStorey.elevation;
     const cfg = computeStairConfig(climb, upperStorey.slabThickness, currentStorey.stair.treadDepth);
     stairs.push({
       storeyId: currentStorey.id,
-      half: "lower",
       rect: {
         x: currentStorey.stair.x,
         y: currentStorey.stair.y,
@@ -51,32 +52,6 @@ export function projectPlanView(project: HouseProject, storeyId: string): PlanPr
       center: {
         x: currentStorey.stair.x + currentStorey.stair.width / 2,
         y: currentStorey.stair.y + currentStorey.stair.depth / 2,
-      },
-    });
-  }
-
-  // Lower neighbor's stair: it climbs up to me. Show as upper half (DN).
-  if (lowerStorey?.stair && currentStorey) {
-    const climb = currentStorey.elevation - lowerStorey.elevation;
-    const cfg = computeStairConfig(climb, currentStorey.slabThickness, lowerStorey.stair.treadDepth);
-    stairs.push({
-      storeyId: lowerStorey.id,
-      half: "upper",
-      rect: {
-        x: lowerStorey.stair.x,
-        y: lowerStorey.stair.y,
-        width: lowerStorey.stair.width,
-        depth: lowerStorey.stair.depth,
-      },
-      shape: lowerStorey.stair.shape,
-      bottomEdge: lowerStorey.stair.bottomEdge,
-      treadDepth: lowerStorey.stair.treadDepth,
-      treadCount: cfg.treadCount,
-      turn: lowerStorey.stair.turn,
-      rotation: lowerStorey.stair.rotation ?? 0,
-      center: {
-        x: lowerStorey.stair.x + lowerStorey.stair.width / 2,
-        y: lowerStorey.stair.y + lowerStorey.stair.depth / 2,
       },
     });
   }

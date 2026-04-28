@@ -202,42 +202,39 @@ describe("2D projections", () => {
     expect(leftMaxY).toBeCloseTo(ridgeZ, 2);
   });
 
-  it("emits stair symbols using lower-storey ownership", () => {
-    // after the ownership flip: 1F has a stair (1F→2F), 2F has a stair (2F→3F),
-    // 3F has no stair (top floor).
+  it("emits only this storey's own up-stair (no DN echo from below)", () => {
+    // 1F has a stair (1F→2F), 2F has a stair (2F→3F), 3F has none (top).
+    // Each plan view shows ONLY the storey's own up-stair — the DN hole
+    // from the lower neighbor is intentionally not projected.
     const project = createSampleProject();
 
     const planFor1F = projectPlanView(project, "1f");
-    expect(planFor1F.stairs).toHaveLength(1); // own stair, lower half (UP)
+    expect(planFor1F.stairs).toHaveLength(1);
     expect(planFor1F.stairs[0].storeyId).toBe("1f");
-    expect(planFor1F.stairs[0].half).toBe("lower");
 
     const planFor2F = projectPlanView(project, "2f");
-    expect(planFor2F.stairs).toHaveLength(2); // 1F's stair (upper, DN) + 2F's own (lower, UP)
-    expect(planFor2F.stairs.find((s) => s.storeyId === "1f")?.half).toBe("upper");
-    expect(planFor2F.stairs.find((s) => s.storeyId === "2f")?.half).toBe("lower");
+    expect(planFor2F.stairs).toHaveLength(1);
+    expect(planFor2F.stairs[0].storeyId).toBe("2f");
 
     const planFor3F = projectPlanView(project, "3f");
-    expect(planFor3F.stairs).toHaveLength(1); // 2F's stair (upper, DN)
-    expect(planFor3F.stairs[0].storeyId).toBe("2f");
-    expect(planFor3F.stairs[0].half).toBe("upper");
+    expect(planFor3F.stairs).toHaveLength(0);
   });
 
   it("populates rotation and center on PlanStairSymbol", () => {
-    // stair on 2F is the 2F→3F stair; appears as lower half on 2F's plan
+    // stair on 2F is the 2F→3F stair; appears as 2F's own up-stair on 2F's plan
     const project = createSampleProject();
     const planFor2F = projectPlanView(project, "2f");
-    const lowerHalf = planFor2F.stairs.find((s) => s.storeyId === "2f" && s.half === "lower");
-    expect(lowerHalf).toBeDefined();
-    expect(lowerHalf!.rotation).toBe(0);
-    expect(lowerHalf!.center).toMatchObject({
+    const symbol = planFor2F.stairs.find((s) => s.storeyId === "2f");
+    expect(symbol).toBeDefined();
+    expect(symbol!.rotation).toBe(0);
+    expect(symbol!.center).toMatchObject({
       x: expect.any(Number),
       y: expect.any(Number),
     });
     const twoF = project.storeys.find((s) => s.id === "2f")!;
     const stair = twoF.stair!;
-    expect(lowerHalf!.center.x).toBeCloseTo(stair.x + stair.width / 2, 6);
-    expect(lowerHalf!.center.y).toBeCloseTo(stair.y + stair.depth / 2, 6);
+    expect(symbol!.center.x).toBeCloseTo(stair.x + stair.width / 2, 6);
+    expect(symbol!.center.y).toBeCloseTo(stair.y + stair.depth / 2, 6);
   });
 
   it("propagates a non-zero rotation from the Stair data model into PlanStairSymbol", () => {
@@ -251,8 +248,8 @@ describe("2D projections", () => {
       ),
     };
     const planFor2F = projectPlanView(modifiedProject, "2f");
-    const lowerHalf = planFor2F.stairs.find((s) => s.storeyId === "2f" && s.half === "lower");
-    expect(lowerHalf!.rotation).toBeCloseTo(Math.PI / 6, 6);
+    const symbol = planFor2F.stairs.find((s) => s.storeyId === "2f");
+    expect(symbol!.rotation).toBeCloseTo(Math.PI / 6, 6);
   });
 
   describe("elevation — skirts", () => {

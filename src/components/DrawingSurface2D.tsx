@@ -590,21 +590,19 @@ function buildStairSymbolGeometry(
     }
   }
 
-  // Label centered on the half being shown:
-  // - lower half = run [0, runLength/2] (near bottomEdge, UP arrow on lower flight for U)
-  // - upper half = run [runLength/2, runLength]            (DN arrow on upper flight for U)
-  const labelRunCenter = stair.half === "lower" ? runLength * 0.25 : runLength * 0.75;
+  // UP label sits on the lower flight (near bottomEdge); for U-shape this is
+  // the bottomEdge-side flight, not the gap.
+  const labelRunCenter = runLength * 0.25;
   let labelCross = crossLength / 2;
   if (shape === "u") {
     const GAP = 0.05;
     const flightWidth = (crossLength - GAP) / 2;
-    labelCross = stair.half === "lower" ? flightWidth / 2 : crossLength - flightWidth / 2;
+    labelCross = flightWidth / 2;
   }
   const labelPos = proj(labelRunCenter, labelCross);
 
   // CAD cut line: zig-zag across the run at midpoint, marking where the upper
-  // floor's slab severs the staircase. Drawn on both halves at the same run
-  // position (run = runLength / 2).
+  // floor's slab severs the staircase.
   const cutRun = runLength / 2;
   const cutOffset = Math.min(0.12, runLength * 0.08); // stagger half-depth
   const cutLine: Point2D[] = [
@@ -822,11 +820,10 @@ function renderPlan(
       {projection.stairs.map((stair) => {
         const selected = isSelected(selection, "stair", stair.storeyId);
         const symbol = buildStairSymbolGeometry(stair, projectPoint);
-        const label = stair.half === "lower" ? "UP" : "DN";
 
         return (
           <g
-            key={`${stair.storeyId}-${stair.half}`}
+            key={stair.storeyId}
             role="button"
             tabIndex={0}
             aria-label={`选择楼梯 ${stair.storeyId}`}
@@ -872,7 +869,7 @@ function renderPlan(
               dominantBaseline="middle"
               className="plan-stair-label"
             >
-              {label}
+              UP
             </text>
           </g>
         );
