@@ -46,7 +46,7 @@ describe("project persistence", () => {
 
   it("imports older project JSON without balcony data", () => {
     const project = createSampleProject();
-    const { balconies: _balconies, ...legacyProject } = project;
+    const { balconies: _balconies, schemaVersion: _v, ...legacyProject } = project;
     const restored = importProjectJson(JSON.stringify(legacyProject));
 
     expect(restored.balconies).toEqual([]);

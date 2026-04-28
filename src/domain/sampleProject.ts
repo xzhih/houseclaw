@@ -189,6 +189,7 @@ export function createSampleProject(): HouseProject {
   };
 
   return {
+    schemaVersion: 1,
     id: "sample-house",
     name: "三层别墅草案",
     unitSystem: "metric",

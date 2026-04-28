@@ -146,6 +146,7 @@ export type Balcony = {
 };
 
 export type HouseProject = {
+  schemaVersion: 1;
   id: string;
   name: string;
   unitSystem: UnitSystem;
