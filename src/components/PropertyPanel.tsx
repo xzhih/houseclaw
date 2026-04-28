@@ -1,4 +1,5 @@
 import { NumberField } from "./NumberField";
+import type { ObjectSelection } from "../domain/selection";
 
 const MM_PER_M = 1000;
 
@@ -61,11 +62,14 @@ const OPENING_LABELS: Record<OpeningType, string> = {
 
 const wallMaterials = materialCatalog.filter((material) => material.kind === "wall");
 
-type EditorProps = {
+type EditorCtx = {
   project: HouseProject;
-  id: string;
-  onProjectChange: (project: HouseProject) => void;
+  onProjectChange: (p: HouseProject) => void;
+  onApplyWallMaterial: (wallId: string, materialId: string) => void;
+  onDuplicateStorey?: (storeyId: string) => void;
 };
+
+type Sel<K extends ObjectSelection["kind"]> = Extract<ObjectSelection, { kind: K }>;
 
 type PropertyPanelProps = {
   project: HouseProject;
@@ -102,6 +106,7 @@ export function PropertyPanel({
   onDuplicateStorey,
 }: PropertyPanelProps) {
   const selection = project.selection;
+  const ctx: EditorCtx = { project, onProjectChange, onApplyWallMaterial, onDuplicateStorey };
 
   const isDeletable =
     selection?.kind === "wall" ||
@@ -118,35 +123,14 @@ export function PropertyPanel({
       <h2>属性</h2>
       {!selection ? <p className="panel-placeholder">选择墙、门、窗、开孔、阳台、楼梯或楼层查看属性。</p> : null}
 
-      {selection?.kind === "opening" ? (
-        <OpeningEditor project={project} id={selection.id} onProjectChange={onProjectChange} />
-      ) : null}
-      {selection?.kind === "wall" ? (
-        <WallEditor
-          project={project}
-          id={selection.id}
-          onProjectChange={onProjectChange}
-          onApplyWallMaterial={onApplyWallMaterial}
-        />
-      ) : null}
-      {selection?.kind === "balcony" ? (
-        <BalconyEditor project={project} id={selection.id} onProjectChange={onProjectChange} />
-      ) : null}
-      {selection?.kind === "storey" ? (
-        <StoreyEditor project={project} id={selection.id} onProjectChange={onProjectChange} />
-      ) : null}
-      {selection?.kind === "stair" ? (
-        <StairEditor project={project} id={selection.id} onProjectChange={onProjectChange} />
-      ) : null}
-      {selection?.kind === "roof" ? (
-        <RoofEditor project={project} onProjectChange={onProjectChange} />
-      ) : null}
-      {selection?.kind === "roof-edge" ? (
-        <RoofEdgeEditor project={project} wallId={selection.wallId} onProjectChange={onProjectChange} />
-      ) : null}
-      {selection?.kind === "skirt" ? (
-        <SkirtEditor project={project} id={selection.id} onProjectChange={onProjectChange} />
-      ) : null}
+      {selection?.kind === "opening" ? <OpeningEditor sel={selection} ctx={ctx} /> : null}
+      {selection?.kind === "wall" ? <WallEditor sel={selection} ctx={ctx} /> : null}
+      {selection?.kind === "balcony" ? <BalconyEditor sel={selection} ctx={ctx} /> : null}
+      {selection?.kind === "storey" ? <StoreyEditor sel={selection} ctx={ctx} /> : null}
+      {selection?.kind === "stair" ? <StairEditor sel={selection} ctx={ctx} /> : null}
+      {selection?.kind === "roof" ? <RoofEditor sel={selection} ctx={ctx} /> : null}
+      {selection?.kind === "roof-edge" ? <RoofEdgeEditor sel={selection} ctx={ctx} /> : null}
+      {selection?.kind === "skirt" ? <SkirtEditor sel={selection} ctx={ctx} /> : null}
 
       {selection?.kind === "storey" && onDuplicateStorey ? (
         <button
@@ -167,13 +151,13 @@ export function PropertyPanel({
   );
 }
 
-function OpeningEditor({ project, id, onProjectChange }: EditorProps) {
-  const opening = project.openings.find((candidate) => candidate.id === id);
+function OpeningEditor({ sel, ctx }: { sel: Sel<"opening">; ctx: EditorCtx }) {
+  const opening = ctx.project.openings.find((candidate) => candidate.id === sel.id);
   if (!opening) return null;
 
   const widthLabel = opening.type === "window" ? "窗宽" : "宽度";
   const apply = (patch: OpeningPatch) =>
-    commit(onProjectChange, patch, (final) => updateOpening(project, id, final));
+    commit(ctx.onProjectChange, patch, (final) => updateOpening(ctx.project, sel.id, final));
 
   return (
     <section className="property-section" aria-labelledby="opening-heading">
@@ -186,17 +170,13 @@ function OpeningEditor({ project, id, onProjectChange }: EditorProps) {
   );
 }
 
-type WallEditorProps = EditorProps & {
-  onApplyWallMaterial: (wallId: string, materialId: string) => void;
-};
-
-function WallEditor({ project, id, onProjectChange, onApplyWallMaterial }: WallEditorProps) {
-  const wall = project.walls.find((candidate) => candidate.id === id);
+function WallEditor({ sel, ctx }: { sel: Sel<"wall">; ctx: EditorCtx }) {
+  const wall = ctx.project.walls.find((candidate) => candidate.id === sel.id);
   if (!wall) return null;
 
   const length = wallLength(wall);
   const apply = (patch: WallPatch) =>
-    commit(onProjectChange, patch, (final) => updateWall(project, id, final));
+    commit(ctx.onProjectChange, patch, (final) => updateWall(ctx.project, sel.id, final));
 
   const applyLength = (newLength: number): string | undefined => {
     const dx = wall.end.x - wall.start.x;
@@ -210,7 +190,7 @@ function WallEditor({ project, id, onProjectChange, onApplyWallMaterial }: WallE
       y: Math.round((wall.start.y + uy * newLength) * MM_PER_M) / MM_PER_M,
     };
     try {
-      onProjectChange(moveWall(project, id, wall.start, newEnd));
+      ctx.onProjectChange(moveWall(ctx.project, sel.id, wall.start, newEnd));
       return undefined;
     } catch (error) {
       return error instanceof Error ? error.message : String(error);
@@ -233,7 +213,7 @@ function WallEditor({ project, id, onProjectChange, onApplyWallMaterial }: WallE
               aria-pressed={wall.materialId === material.id}
               className="material-swatch"
               key={material.id}
-              onClick={() => onApplyWallMaterial(wall.id, material.id)}
+              onClick={() => ctx.onApplyWallMaterial(wall.id, material.id)}
               type="button"
             >
               <span
@@ -250,12 +230,12 @@ function WallEditor({ project, id, onProjectChange, onApplyWallMaterial }: WallE
   );
 }
 
-function BalconyEditor({ project, id, onProjectChange }: EditorProps) {
-  const balcony = project.balconies.find((candidate) => candidate.id === id);
+function BalconyEditor({ sel, ctx }: { sel: Sel<"balcony">; ctx: EditorCtx }) {
+  const balcony = ctx.project.balconies.find((candidate) => candidate.id === sel.id);
   if (!balcony) return null;
 
   const apply = (patch: BalconyPatch) =>
-    commit(onProjectChange, patch, (final) => updateBalcony(project, id, final));
+    commit(ctx.onProjectChange, patch, (final) => updateBalcony(ctx.project, sel.id, final));
 
   return (
     <section className="property-section" aria-labelledby="balcony-heading">
@@ -269,21 +249,21 @@ function BalconyEditor({ project, id, onProjectChange }: EditorProps) {
   );
 }
 
-function StoreyEditor({ project, id, onProjectChange }: EditorProps) {
-  const storey = project.storeys.find((candidate) => candidate.id === id);
+function StoreyEditor({ sel, ctx }: { sel: Sel<"storey">; ctx: EditorCtx }) {
+  const storey = ctx.project.storeys.find((candidate) => candidate.id === sel.id);
   if (!storey) return null;
 
   const apply = (patch: StoreyPatch) =>
-    commit(onProjectChange, patch, (final) => updateStorey(project, id, final));
+    commit(ctx.onProjectChange, patch, (final) => updateStorey(ctx.project, sel.id, final));
 
-  const storeyWalls = project.walls.filter((wall) => wall.storeyId === id);
+  const storeyWalls = ctx.project.walls.filter((wall) => wall.storeyId === sel.id);
   const xs = storeyWalls.flatMap((wall) => [wall.start.x, wall.end.x]);
   const ys = storeyWalls.flatMap((wall) => [wall.start.y, wall.end.y]);
   const widthExtent = xs.length > 0 ? Math.max(...xs) - Math.min(...xs) : 0;
   const depthExtent = ys.length > 0 ? Math.max(...ys) - Math.min(...ys) : 0;
 
   const applyExtent = (axis: "x" | "y", newSize: number) =>
-    commit(onProjectChange, newSize, (final) => resizeStoreyExtent(project, id, axis, final));
+    commit(ctx.onProjectChange, newSize, (final) => resizeStoreyExtent(ctx.project, sel.id, axis, final));
 
   return (
     <section className="property-section" aria-labelledby="storey-heading">
@@ -300,19 +280,19 @@ function StoreyEditor({ project, id, onProjectChange }: EditorProps) {
   );
 }
 
-function RoofEditor({ project, onProjectChange }: { project: HouseProject; onProjectChange: (project: HouseProject) => void }) {
-  const roof = project.roof;
+function RoofEditor({ sel: _sel, ctx }: { sel: Sel<"roof">; ctx: EditorCtx }) {
+  const roof = ctx.project.roof;
   if (!roof) return null;
 
-  const roofMaterials = project.materials.filter((m) => m.kind === "roof");
+  const roofMaterials = ctx.project.materials.filter((m) => m.kind === "roof");
   const pitchDeg = Math.round((roof.pitch * 180) / Math.PI);
 
   const apply = <K extends "pitch" | "overhang" | "materialId">(
     key: K,
     value: K extends "materialId" ? string : number,
   ): string | undefined =>
-    commit(onProjectChange, { [key]: value }, (patch) =>
-      updateRoof(project, patch as Partial<Pick<typeof roof, "pitch" | "overhang" | "materialId">>),
+    commit(ctx.onProjectChange, { [key]: value }, (patch) =>
+      updateRoof(ctx.project, patch as Partial<Pick<typeof roof, "pitch" | "overhang" | "materialId">>),
     );
 
   return (
@@ -339,7 +319,7 @@ function RoofEditor({ project, onProjectChange }: { project: HouseProject; onPro
         <button
           type="button"
           className="property-secondary property-danger"
-          onClick={() => onProjectChange(removeRoof(project))}
+          onClick={() => ctx.onProjectChange(removeRoof(ctx.project))}
         >
           移除屋顶
         </button>
@@ -369,13 +349,13 @@ function RoofEditor({ project, onProjectChange }: { project: HouseProject; onPro
   );
 }
 
-function RoofEdgeEditor({ project, wallId, onProjectChange }: { project: HouseProject; wallId: string; onProjectChange: (project: HouseProject) => void }) {
-  const roof = project.roof;
+function RoofEdgeEditor({ sel, ctx }: { sel: Sel<"roof-edge">; ctx: EditorCtx }) {
+  const roof = ctx.project.roof;
   if (!roof) return null;
 
-  const top = [...project.storeys].sort((a, b) => b.elevation - a.elevation)[0];
-  const topWalls = project.walls.filter((w) => w.storeyId === top.id && w.exterior);
-  const current = roof.edges[wallId] === "eave" ? "eave" : "gable";
+  const top = [...ctx.project.storeys].sort((a, b) => b.elevation - a.elevation)[0];
+  const topWalls = ctx.project.walls.filter((w) => w.storeyId === top.id && w.exterior);
+  const current = roof.edges[sel.wallId] === "eave" ? "eave" : "gable";
   const eaveCount = topWalls.filter((w) => roof.edges[w.id] === "eave").length;
   const isOnlyEave = current === "eave" && eaveCount === 1;
   const targetLabel = current === "eave" ? "山墙" : "檐";
@@ -388,7 +368,7 @@ function RoofEdgeEditor({ project, wallId, onProjectChange }: { project: HousePr
         type="button"
         disabled={isOnlyEave}
         title={isOnlyEave ? "至少需要一条檐边" : undefined}
-        onClick={() => commit(onProjectChange, wallId, (id) => toggleRoofEdge(project, id))}
+        onClick={() => commit(ctx.onProjectChange, sel.wallId, (id) => toggleRoofEdge(ctx.project, id))}
       >
         切换为 {targetLabel}
       </button>
@@ -396,14 +376,14 @@ function RoofEdgeEditor({ project, wallId, onProjectChange }: { project: HousePr
   );
 }
 
-function SkirtEditor({ project, id, onProjectChange }: EditorProps) {
-  const skirt = project.skirts.find((s) => s.id === id);
+function SkirtEditor({ sel, ctx }: { sel: Sel<"skirt">; ctx: EditorCtx }) {
+  const skirt = ctx.project.skirts.find((s) => s.id === sel.id);
   if (!skirt) return null;
-  const roofMaterials = project.materials.filter((m) => m.kind === "roof");
+  const roofMaterials = ctx.project.materials.filter((m) => m.kind === "roof");
   const pitchDeg = Math.round((skirt.pitch * 180) / Math.PI);
 
   const apply = (patch: SkirtPatch): string | undefined =>
-    commit(onProjectChange, patch, (final) => updateSkirt(project, id, final));
+    commit(ctx.onProjectChange, patch, (final) => updateSkirt(ctx.project, sel.id, final));
 
   return (
     <>
@@ -445,16 +425,16 @@ function SkirtEditor({ project, id, onProjectChange }: EditorProps) {
   );
 }
 
-function StairEditor({ project, id, onProjectChange }: EditorProps) {
-  const sortedStoreys = [...project.storeys].sort((a, b) => a.elevation - b.elevation);
-  const idx = sortedStoreys.findIndex((s) => s.id === id);
+function StairEditor({ sel, ctx }: { sel: Sel<"stair">; ctx: EditorCtx }) {
+  const sortedStoreys = [...ctx.project.storeys].sort((a, b) => a.elevation - b.elevation);
+  const idx = sortedStoreys.findIndex((s) => s.id === sel.id);
   const storey = idx >= 0 ? sortedStoreys[idx] : undefined;
   const upperStorey = idx >= 0 && idx + 1 < sortedStoreys.length ? sortedStoreys[idx + 1] : undefined;
   const stair = storey?.stair;
   if (!storey || !stair || !upperStorey) return null;
 
   const apply = (patch: StairPatch) =>
-    commit(onProjectChange, patch, (final) => updateStair(project, storey.id, final));
+    commit(ctx.onProjectChange, patch, (final) => updateStair(ctx.project, storey.id, final));
 
   const climb = upperStorey.elevation - storey.elevation;
   const cfg = computeStairConfig(climb, upperStorey.slabThickness, stair.treadDepth);
@@ -466,7 +446,7 @@ function StairEditor({ project, id, onProjectChange }: EditorProps) {
   ];
   const edges: StairEdge[] = ["+x", "-x", "+y", "-y"];
   // 楼梯候选材质：装饰类（木）、框类（深色）、墙类（混凝土）都可选
-  const stairMaterials = project.materials.filter(
+  const stairMaterials = ctx.project.materials.filter(
     (m) => m.kind === "decor" || m.kind === "frame" || m.kind === "wall",
   );
 
