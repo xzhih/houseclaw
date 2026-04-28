@@ -325,17 +325,6 @@ export function exportProjectJson(project: HouseProject): string {
   return JSON.stringify({ ...rest, schemaVersion: CURRENT_SCHEMA_VERSION }, null, 2);
 }
 
-function normalizeRoof(p: ProjectJsonObject): ProjectJsonObject {
-  if (p.roof !== undefined) {
-    try {
-      assertRoofShape(p.roof);
-    } catch {
-      delete p.roof;
-    }
-  }
-  return p;
-}
-
 export function importProjectJson(json: string): HouseProject {
   const raw = JSON.parse(json) as unknown;
   assertProjectJsonObject(raw);
@@ -343,7 +332,6 @@ export function importProjectJson(json: string): HouseProject {
   delete cloned.selection;
   delete cloned.selectedObjectId;
   const migrated = migrate(cloned);
-  normalizeRoof(migrated);
   assertImportedProjectShape(migrated);
 
   // Filter skirts to only those with valid shape and a known host wall.

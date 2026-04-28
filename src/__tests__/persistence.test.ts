@@ -196,16 +196,6 @@ describe("roof persistence", () => {
     expect(reloaded.roof).toEqual(project.roof);
   });
 
-  it("drops the roof when pitch is out of range, but keeps loading the project", () => {
-    const project = createSampleProject();
-    const json = exportProjectJson({
-      ...project,
-      roof: { ...project.roof!, pitch: Math.PI }, // 180° — invalid
-    });
-    const reloaded = importProjectJson(json);
-    expect(reloaded.roof).toBeUndefined();
-    expect(reloaded.id).toBe(project.id);
-  });
 });
 
 const V0_FIXTURE = {
