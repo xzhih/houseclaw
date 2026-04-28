@@ -135,16 +135,6 @@ export function PropertyPanel({
 
       {selection ? <EditorRouter selection={selection} ctx={ctx} /> : null}
 
-      {selection?.kind === "storey" && onDuplicateStorey ? (
-        <button
-          type="button"
-          className="property-secondary"
-          onClick={() => onDuplicateStorey(selection.id)}
-        >
-          复制楼层
-        </button>
-      ) : null}
-
       {isDeletable ? (
         <button type="button" className="property-delete" onClick={onDeleteSelection}>
           {deleteLabel}
@@ -278,6 +268,15 @@ export function StoreyEditor({ sel, ctx }: { sel: Sel<"storey">; ctx: EditorCtx 
       ) : null}
       {depthExtent > 0 ? (
         <MmField label="进深" value={depthExtent} min={0.5} onCommit={(depth) => applyExtent("y", depth)} />
+      ) : null}
+      {ctx.onDuplicateStorey ? (
+        <button
+          type="button"
+          className="property-secondary"
+          onClick={() => ctx.onDuplicateStorey?.(sel.id)}
+        >
+          复制楼层
+        </button>
       ) : null}
     </section>
   );
