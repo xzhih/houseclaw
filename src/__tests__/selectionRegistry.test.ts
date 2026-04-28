@@ -19,6 +19,9 @@ const ALL_KINDS: ObjectSelectionKind[] = [
   "roof-edge",
 ];
 
+// Trims to a single-storey shape sufficient for isSelectionDeletable checks.
+// NOT a fully valid project: roof references and top-storey stair are left
+// stale. Don't reuse with code paths that revalidate the project.
 function withSingleStorey(project: HouseProject): HouseProject {
   const top = project.storeys[0];
   const topWallIds = new Set(
@@ -54,10 +57,6 @@ describe("selectionRegistry", () => {
   describe("isSelectionDeletable", () => {
     const project = createSampleProject();
     const wallId = project.walls[0].id;
-    const openingId = project.openings[0]?.id;
-    const balconyId = project.balconies[0]?.id;
-    const skirtId = project.skirts[0]?.id;
-    const stairStoreyId = project.storeys.find((s) => s.stair)?.id;
     const storeyId = project.storeys[0].id;
 
     it("returns false for undefined selection", () => {
@@ -66,11 +65,11 @@ describe("selectionRegistry", () => {
 
     it("returns true for wall / opening / balcony / skirt / stair", () => {
       const cases: ObjectSelection[] = [
-        { kind: "wall", id: wallId },
-        ...(openingId ? [{ kind: "opening", id: openingId } as const] : []),
-        ...(balconyId ? [{ kind: "balcony", id: balconyId } as const] : []),
-        ...(skirtId ? [{ kind: "skirt", id: skirtId } as const] : []),
-        ...(stairStoreyId ? [{ kind: "stair", id: stairStoreyId } as const] : []),
+        { kind: "wall", id: "w-1" },
+        { kind: "opening", id: "o-1" },
+        { kind: "balcony", id: "b-1" },
+        { kind: "skirt", id: "s-1" },
+        { kind: "stair", id: "st-1" },
       ];
       for (const sel of cases) {
         expect(isSelectionDeletable(sel, project)).toBe(true);
