@@ -27,6 +27,14 @@ const VALID_OPENING_TYPES = ["door", "window", "void"] as const satisfies readon
 
 type ProjectJsonObject = Record<string, unknown>;
 
+const CURRENT_SCHEMA_VERSION = 1;
+
+type Migration = {
+  from: number;
+  to: number;
+  apply(raw: ProjectJsonObject): ProjectJsonObject;
+};
+
 function invalidProjectJson(message: string): never {
   throw new Error(`Invalid project JSON: ${message}`);
 }
@@ -37,34 +45,39 @@ function assertProjectJsonObject(value: unknown): asserts value is ProjectJsonOb
   }
 }
 
-function withImportedDefaults(value: unknown): unknown {
-  if (value === null || typeof value !== "object" || Array.isArray(value)) {
-    return value;
+const MIGRATIONS: Migration[] = [
+  {
+    from: 0,
+    to: 1,
+    apply(raw) {
+      if (raw.balconies === undefined) raw.balconies = [];
+      if (raw.skirts === undefined) raw.skirts = [];
+      if (raw.roof !== undefined) {
+        try {
+          assertRoofShape(raw.roof);
+        } catch {
+          delete raw.roof;
+        }
+      }
+      raw.schemaVersion = 1;
+      return raw;
+    },
+  },
+];
+
+function migrate(raw: ProjectJsonObject): ProjectJsonObject {
+  let v = typeof raw.schemaVersion === "number" ? raw.schemaVersion : 0;
+  let p = raw;
+  while (v < CURRENT_SCHEMA_VERSION) {
+    const step = MIGRATIONS.find((m) => m.from === v);
+    if (!step) invalidProjectJson(`No migration path from schemaVersion ${v}.`);
+    p = step.apply(p);
+    v = step.to;
   }
-
-  const project = { ...(value as ProjectJsonObject) };
-
-  if (project.balconies === undefined) {
-    project.balconies = [];
+  if (v > CURRENT_SCHEMA_VERSION) {
+    invalidProjectJson(`schemaVersion ${v} is newer than supported (${CURRENT_SCHEMA_VERSION}).`);
   }
-
-  if (project.skirts === undefined) {
-    project.skirts = [];
-  }
-
-  if (project.roof !== undefined) {
-    try {
-      assertRoofShape(project.roof);
-    } catch {
-      delete project.roof;
-    }
-  }
-
-  // Selection is transient; never honored on import.
-  delete project.selection;
-  delete project.selectedObjectId;
-
-  return project;
+  return p;
 }
 
 function assertObject(value: unknown, field: string): asserts value is ProjectJsonObject {
@@ -252,6 +265,11 @@ function validateSkirts(raw: unknown, walls: Wall[]): SkirtRoof[] {
 function assertImportedProjectShape(value: unknown): asserts value is HouseProject {
   assertProjectJsonObject(value);
 
+  const schemaVersion = assertFiniteNumberField(value, "schemaVersion");
+  if (schemaVersion !== CURRENT_SCHEMA_VERSION) {
+    invalidProjectJson(`schemaVersion must be ${CURRENT_SCHEMA_VERSION}.`);
+  }
+
   const storeys = assertArrayField(value, "storeys");
   const materials = assertArrayField(value, "materials");
   const walls = assertArrayField(value, "walls");
@@ -304,19 +322,36 @@ function assertImportedProjectShape(value: unknown): asserts value is HouseProje
 
 export function exportProjectJson(project: HouseProject): string {
   const { selection: _selection, ...rest } = project;
-  return JSON.stringify(rest, null, 2);
+  return JSON.stringify({ ...rest, schemaVersion: CURRENT_SCHEMA_VERSION }, null, 2);
+}
+
+function normalizeRoof(p: ProjectJsonObject): ProjectJsonObject {
+  if (p.roof !== undefined) {
+    try {
+      assertRoofShape(p.roof);
+    } catch {
+      delete p.roof;
+    }
+  }
+  return p;
 }
 
 export function importProjectJson(json: string): HouseProject {
-  const parsed = withImportedDefaults(JSON.parse(json) as unknown);
-  assertImportedProjectShape(parsed);
+  const raw = JSON.parse(json) as unknown;
+  assertProjectJsonObject(raw);
+  const cloned = { ...raw };
+  delete cloned.selection;
+  delete cloned.selectedObjectId;
+  const migrated = migrate(cloned);
+  normalizeRoof(migrated);
+  assertImportedProjectShape(migrated);
 
   // Filter skirts to only those with valid shape and a known host wall.
-  // Done post-assertion so `parsed.walls` is already type-safe.
-  parsed.skirts = validateSkirts(parsed.skirts, parsed.walls);
+  // Done post-assertion so `migrated.walls` is already type-safe.
+  migrated.skirts = validateSkirts(migrated.skirts, migrated.walls);
 
   try {
-    return assertValidProject(parsed);
+    return assertValidProject(migrated);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     invalidProjectJson(message);

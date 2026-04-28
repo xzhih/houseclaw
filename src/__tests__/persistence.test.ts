@@ -207,3 +207,59 @@ describe("roof persistence", () => {
     expect(reloaded.id).toBe(project.id);
   });
 });
+
+const V0_FIXTURE = {
+  id: "p1",
+  name: "v0 sample",
+  unitSystem: "metric",
+  mode: "2d",
+  activeView: "plan-1f",
+  activeTool: "select",
+  defaultWallThickness: 0.2,
+  defaultStoreyHeight: 3,
+  storeys: [{ id: "1f", label: "1F", elevation: 0, height: 3, slabThickness: 0.2 }],
+  materials: [{ id: "m-wall", name: "墙", color: "#fff", kind: "wall" }],
+  walls: [],
+  openings: [],
+  // 缺 balconies / skirts / roof / schemaVersion
+  selection: { kind: "wall", id: "abc" }, // transient
+};
+
+describe("schema migration", () => {
+  it("migrates v0 (no schemaVersion) → v1: backfills arrays, drops transient", () => {
+    const restored = importProjectJson(JSON.stringify(V0_FIXTURE));
+    expect(restored.schemaVersion).toBe(1);
+    expect(restored.balconies).toEqual([]);
+    expect(restored.skirts).toEqual([]);
+    expect(restored.roof).toBeUndefined();
+    expect(restored.selection).toBeUndefined();
+  });
+
+  it("migrates v0 with invalid roof: drops roof silently", () => {
+    const v0 = {
+      ...V0_FIXTURE,
+      roof: { pitch: 999, overhang: 99, materialId: "x", edges: {} },
+    };
+    const restored = importProjectJson(JSON.stringify(v0));
+    expect(restored.roof).toBeUndefined();
+  });
+
+  it("rejects schemaVersion newer than supported", () => {
+    const v999 = { ...V0_FIXTURE, schemaVersion: 999, balconies: [], skirts: [] };
+    expect(() => importProjectJson(JSON.stringify(v999))).toThrow(/newer than supported/);
+  });
+
+  it("v1 round-trip preserves schemaVersion", () => {
+    const project = createSampleProject();
+    const json = exportProjectJson(project);
+    expect(JSON.parse(json).schemaVersion).toBe(1);
+    const restored = importProjectJson(json);
+    expect(restored.schemaVersion).toBe(1);
+  });
+
+  it("export always writes schemaVersion: 1 even if memory copy differs", () => {
+    const project = { ...createSampleProject(), schemaVersion: 0 as unknown as 1 };
+    const json = exportProjectJson(project);
+    expect(JSON.parse(json).schemaVersion).toBe(1);
+  });
+});
