@@ -62,7 +62,7 @@ const OPENING_LABELS: Record<OpeningType, string> = {
 
 const wallMaterials = materialCatalog.filter((material) => material.kind === "wall");
 
-type EditorCtx = {
+export type EditorCtx = {
   project: HouseProject;
   onProjectChange: (p: HouseProject) => void;
   onApplyWallMaterial: (wallId: string, materialId: string) => void;
@@ -151,7 +151,7 @@ export function PropertyPanel({
   );
 }
 
-function OpeningEditor({ sel, ctx }: { sel: Sel<"opening">; ctx: EditorCtx }) {
+export function OpeningEditor({ sel, ctx }: { sel: Sel<"opening">; ctx: EditorCtx }) {
   const opening = ctx.project.openings.find((candidate) => candidate.id === sel.id);
   if (!opening) return null;
 
@@ -170,7 +170,7 @@ function OpeningEditor({ sel, ctx }: { sel: Sel<"opening">; ctx: EditorCtx }) {
   );
 }
 
-function WallEditor({ sel, ctx }: { sel: Sel<"wall">; ctx: EditorCtx }) {
+export function WallEditor({ sel, ctx }: { sel: Sel<"wall">; ctx: EditorCtx }) {
   const wall = ctx.project.walls.find((candidate) => candidate.id === sel.id);
   if (!wall) return null;
 
@@ -230,7 +230,7 @@ function WallEditor({ sel, ctx }: { sel: Sel<"wall">; ctx: EditorCtx }) {
   );
 }
 
-function BalconyEditor({ sel, ctx }: { sel: Sel<"balcony">; ctx: EditorCtx }) {
+export function BalconyEditor({ sel, ctx }: { sel: Sel<"balcony">; ctx: EditorCtx }) {
   const balcony = ctx.project.balconies.find((candidate) => candidate.id === sel.id);
   if (!balcony) return null;
 
@@ -249,7 +249,7 @@ function BalconyEditor({ sel, ctx }: { sel: Sel<"balcony">; ctx: EditorCtx }) {
   );
 }
 
-function StoreyEditor({ sel, ctx }: { sel: Sel<"storey">; ctx: EditorCtx }) {
+export function StoreyEditor({ sel, ctx }: { sel: Sel<"storey">; ctx: EditorCtx }) {
   const storey = ctx.project.storeys.find((candidate) => candidate.id === sel.id);
   if (!storey) return null;
 
@@ -280,7 +280,7 @@ function StoreyEditor({ sel, ctx }: { sel: Sel<"storey">; ctx: EditorCtx }) {
   );
 }
 
-function RoofEditor({ sel: _sel, ctx }: { sel: Sel<"roof">; ctx: EditorCtx }) {
+export function RoofEditor({ sel: _sel, ctx }: { sel: Sel<"roof">; ctx: EditorCtx }) {
   const roof = ctx.project.roof;
   if (!roof) return null;
 
@@ -349,7 +349,7 @@ function RoofEditor({ sel: _sel, ctx }: { sel: Sel<"roof">; ctx: EditorCtx }) {
   );
 }
 
-function RoofEdgeEditor({ sel, ctx }: { sel: Sel<"roof-edge">; ctx: EditorCtx }) {
+export function RoofEdgeEditor({ sel, ctx }: { sel: Sel<"roof-edge">; ctx: EditorCtx }) {
   const roof = ctx.project.roof;
   if (!roof) return null;
 
@@ -376,7 +376,7 @@ function RoofEdgeEditor({ sel, ctx }: { sel: Sel<"roof-edge">; ctx: EditorCtx })
   );
 }
 
-function SkirtEditor({ sel, ctx }: { sel: Sel<"skirt">; ctx: EditorCtx }) {
+export function SkirtEditor({ sel, ctx }: { sel: Sel<"skirt">; ctx: EditorCtx }) {
   const skirt = ctx.project.skirts.find((s) => s.id === sel.id);
   if (!skirt) return null;
   const roofMaterials = ctx.project.materials.filter((m) => m.kind === "roof");
@@ -425,7 +425,7 @@ function SkirtEditor({ sel, ctx }: { sel: Sel<"skirt">; ctx: EditorCtx }) {
   );
 }
 
-function StairEditor({ sel, ctx }: { sel: Sel<"stair">; ctx: EditorCtx }) {
+export function StairEditor({ sel, ctx }: { sel: Sel<"stair">; ctx: EditorCtx }) {
   const sortedStoreys = [...ctx.project.storeys].sort((a, b) => a.elevation - b.elevation);
   const idx = sortedStoreys.findIndex((s) => s.id === sel.id);
   const storey = idx >= 0 ? sortedStoreys[idx] : undefined;
