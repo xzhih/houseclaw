@@ -87,8 +87,6 @@ const MIGRATIONS: Migration[] = [
           delete raw.roof;
         }
       }
-      delete raw.selection;
-      delete raw.selectedObjectId;
       raw.schemaVersion = 1;
       return raw;
     },
@@ -126,7 +124,11 @@ function migrate(raw: ProjectJsonObject): ProjectJsonObject {
 export function importProjectJson(json: string): HouseProject {
   const raw = JSON.parse(json) as unknown;
   assertProjectJsonObject(raw);
-  const migrated = migrate({ ...raw });
+  const cloned = { ...raw };
+  // 序列化层 hygiene：transient 字段永远不该在保存的 JSON 里，与版本无关
+  delete cloned.selection;
+  delete cloned.selectedObjectId;
+  const migrated = migrate(cloned);
   assertImportedProjectShape(migrated);
   migrated.skirts = validateSkirts(migrated.skirts, migrated.walls);
   try {
@@ -140,8 +142,9 @@ export function importProjectJson(json: string): HouseProject {
 
 变化：
 1. 显式 `assertProjectJsonObject(raw)` 在 migrate 前（migrate 期望对象）
-2. `withImportedDefaults` → `migrate`，传入 `{...raw}` 浅拷贝
-3. 其他步骤（assertImportedProjectShape、validateSkirts、assertValidProject）顺序不变
+2. **transient strip 移出 migrate**：`selection` / `selectedObjectId` 是 runtime-only 字段，无论版本号都不该在 JSON 里，所以 strip 是 serialization hygiene，不是 schema 演化
+3. `withImportedDefaults` → `migrate`，传入浅拷贝
+4. 其他步骤（assertImportedProjectShape、validateSkirts、assertValidProject）顺序不变
 
 **exportProjectJson**：
 
