@@ -4,10 +4,14 @@ import { createCrudStore } from "../domain/mutations/crudStore";
 import {
   EntityNotFoundError,
   EntityRangeError,
+  EntityStateError,
 } from "../domain/mutations/errors";
 import type { Wall, HouseProject } from "../domain/types";
 import { createAttachStore } from "../domain/mutations/attachStore";
 import type { Stair } from "../domain/types";
+import { createSingletonStore } from "../domain/mutations/singletonStore";
+import { addRoof, removeRoof } from "../domain/mutations";
+import type { Roof } from "../domain/types";
 
 describe("createCrudStore", () => {
   // 用一个最小 wall store 跑通骨架；真正配置在 Task 5 的 stores.ts
@@ -193,5 +197,78 @@ describe("createAttachStore (stair)", () => {
       const next = stairStore.detach(project, noStairStorey.id);
       expect(next).toBe(project);
     });
+  });
+});
+
+describe("createSingletonStore (roof)", () => {
+  const PI3 = Math.PI / 3;
+
+  function projectWithRoof(): HouseProject {
+    const p = createSampleProject();
+    return p.roof ? p : addRoof(p);
+  }
+
+  function projectWithoutRoof(): HouseProject {
+    const p = createSampleProject();
+    return p.roof ? removeRoof(p) : p;
+  }
+
+  type RoofPatch = Partial<Pick<Roof, "pitch" | "overhang" | "materialId">>;
+  const roofStore = createSingletonStore<Roof, RoofPatch>({
+    field: "roof",
+    entityKind: "roof",
+    applyPatch: (roof, patch) => ({
+      ...roof,
+      ...(patch.pitch !== undefined ? { pitch: Math.min(PI3, Math.max(Math.PI / 36, patch.pitch)) } : {}),
+      ...(patch.overhang !== undefined ? { overhang: Math.min(2, Math.max(0, patch.overhang)) } : {}),
+      ...(patch.materialId !== undefined ? { materialId: patch.materialId } : {}),
+    }),
+  });
+
+  describe("update", () => {
+    it("applies clamp via applyPatch", () => {
+      const project = projectWithRoof();
+      const next = roofStore.update(project, { pitch: 999 });
+      expect(next.roof!.pitch).toBeCloseTo(PI3, 5);
+    });
+
+    it("throws EntityStateError when no roof", () => {
+      const project = projectWithoutRoof();
+      expect(() => roofStore.update(project, { pitch: 0.5 })).toThrow(EntityStateError);
+    });
+  });
+
+  describe("clear", () => {
+    it("sets field to undefined", () => {
+      const project = projectWithRoof();
+      const next = roofStore.clear(project);
+      expect(next.roof).toBeUndefined();
+    });
+
+    it("returns same project when already undefined", () => {
+      const project = projectWithoutRoof();
+      const next = roofStore.clear(project);
+      expect(next).toBe(project);
+    });
+  });
+});
+
+describe("error types", () => {
+  it("EntityNotFoundError carries kind + id", () => {
+    const err = new EntityNotFoundError("wall", "w-1");
+    expect(err.kind).toBe("wall");
+    expect(err.id).toBe("w-1");
+    expect(err.message).toBe("wall w-1 not found");
+  });
+
+  it("EntityRangeError carries field name", () => {
+    const err = new EntityRangeError("width", "too small");
+    expect(err.field).toBe("width");
+    expect(err.message).toBe("too small");
+  });
+
+  it("EntityStateError preserves message", () => {
+    const err = new EntityStateError("Roof already exists.");
+    expect(err.message).toBe("Roof already exists.");
   });
 });
