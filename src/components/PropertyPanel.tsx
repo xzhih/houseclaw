@@ -32,7 +32,6 @@ function MmField({ label, value, step = 10, min, max, onCommit }: MmFieldProps) 
 import {
   moveWall,
   removeRoof,
-  removeSkirt,
   resizeStoreyExtent,
   toggleRoofEdge,
   updateBalcony,
