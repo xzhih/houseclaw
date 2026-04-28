@@ -53,6 +53,10 @@ import { wallLength } from "../domain/measurements";
 import { computeStairConfig } from "../domain/stairs";
 import type { HouseProject, OpeningType, StairEdge, StairShape, StairTurn } from "../domain/types";
 import { materialCatalog } from "../materials/catalog";
+import {
+  getDescriptor,
+  isSelectionDeletable,
+} from "./selectionRegistry";
 
 const OPENING_LABELS: Record<OpeningType, string> = {
   door: "门",
@@ -98,6 +102,17 @@ function commit<T>(
   return undefined;
 }
 
+function EditorRouter({
+  selection,
+  ctx,
+}: {
+  selection: ObjectSelection;
+  ctx: EditorCtx;
+}) {
+  const descriptor = getDescriptor(selection);
+  return <>{descriptor.renderEditor(selection, ctx)}</>;
+}
+
 export function PropertyPanel({
   project,
   onApplyWallMaterial,
@@ -108,29 +123,17 @@ export function PropertyPanel({
   const selection = project.selection;
   const ctx: EditorCtx = { project, onProjectChange, onApplyWallMaterial, onDuplicateStorey };
 
-  const isDeletable =
-    selection?.kind === "wall" ||
-    selection?.kind === "opening" ||
-    selection?.kind === "balcony" ||
-    selection?.kind === "stair" ||
-    selection?.kind === "skirt" ||
-    (selection?.kind === "storey" && project.storeys.length > 1);
-
-  const deleteLabel = selection?.kind === "storey" ? "删除楼层" : "删除";
+  const isDeletable = isSelectionDeletable(selection, project);
+  const deleteLabel = selection
+    ? getDescriptor(selection).deleteLabel ?? "删除"
+    : "删除";
 
   return (
     <aside className="property-panel" aria-label="Properties">
       <h2>属性</h2>
       {!selection ? <p className="panel-placeholder">选择墙、门、窗、开孔、阳台、楼梯或楼层查看属性。</p> : null}
 
-      {selection?.kind === "opening" ? <OpeningEditor sel={selection} ctx={ctx} /> : null}
-      {selection?.kind === "wall" ? <WallEditor sel={selection} ctx={ctx} /> : null}
-      {selection?.kind === "balcony" ? <BalconyEditor sel={selection} ctx={ctx} /> : null}
-      {selection?.kind === "storey" ? <StoreyEditor sel={selection} ctx={ctx} /> : null}
-      {selection?.kind === "stair" ? <StairEditor sel={selection} ctx={ctx} /> : null}
-      {selection?.kind === "roof" ? <RoofEditor sel={selection} ctx={ctx} /> : null}
-      {selection?.kind === "roof-edge" ? <RoofEdgeEditor sel={selection} ctx={ctx} /> : null}
-      {selection?.kind === "skirt" ? <SkirtEditor sel={selection} ctx={ctx} /> : null}
+      {selection ? <EditorRouter selection={selection} ctx={ctx} /> : null}
 
       {selection?.kind === "storey" && onDuplicateStorey ? (
         <button
