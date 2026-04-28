@@ -114,8 +114,10 @@ export function createCrudStore<T extends HasId, P>(cfg: CrudStoreConfig<T, P>):
 
 - `add`：把 draft 推入数组；若有 `validate`，先校验；最后 `assertValidProject`
 - `update`：找 id（找不到抛 `EntityNotFoundError(kind, id)`）；调 `applyPatch(current, patch)`；validate；assertValidProject
-- `remove`：filter 掉；若有 `cascade`，合并其返回的 `Partial<HouseProject>`；assertValidProject。id 不存在 → 静默返回原 project（与现有 `removeSkirt` 行为一致）
+- `remove`：filter 掉；若有 `cascade`，**浅 spread 合并**返回的 `Partial<HouseProject>`（即 `{ ...project, ...cascadeResult, [arrayKey]: filteredArray }`，cascade 返回的字段整体替换原字段）；assertValidProject。id 不存在 → 静默返回原 project（与现有 `removeSkirt` 行为一致）
 - **不**管选区。`removeSkirt:96-99` 现有的内联选区清理删掉（dead code，AppShell 在 `selectionRegistry.deleteSelection` 后无条件 dispatch select undefined）
+
+**关于 `UnsafeWallPatch` 等类型**：当前定义在 `mutations.ts:14-16` 私有作用域。M3 重构后 stores.ts 需引用，**移到 stores.ts 顶部本地定义**（不需要导出，stores.ts 内部用即可）。`mutations.ts` 不再持有这些类型。
 
 ### attachStore.ts
 
@@ -123,7 +125,6 @@ export function createCrudStore<T extends HasId, P>(cfg: CrudStoreConfig<T, P>):
 export type AttachStoreConfig<T, P> = {
   hostArrayKey: "storeys";              // 暂时只支持 storey-attached
   field: keyof Storey;                  // "stair"
-  entityKind: ObjectSelectionKind;
   applyPatch?(current: T, patch: P): T;
   validate?(merged: T, host: Storey, project: HouseProject): void;
 };
@@ -139,9 +140,11 @@ export function createAttachStore<T, P>(cfg: AttachStoreConfig<T, P>): AttachSto
 
 **内部行为**：
 
-- `attach`：找 host storey（找不到抛 `EntityNotFoundError("storey", id)`）；写 `host.field = value`；validate；assertValidProject
-- `update`：找 host；若 `host.field === undefined`，静默返回（与现有 `updateStair` 行为一致：no stair → no-op）；否则 mutate；validate；assertValidProject
-- `detach`：找 host；用 spread 删除 `host.field`；assertValidProject
+- `attach`：找 host storey（找不到抛 `EntityNotFoundError("storey", id)`）；写 `host.field = value`（**允许覆盖**已有值，匹配现有 `addStair` 行为）；validate；assertValidProject
+- `update`：找 host；**host 不存在 → 静默返回原 project**（匹配现有 `updateStair`：用 `.map` 遍历无匹配项不报错）；host 存在但 `host.field === undefined` → 静默返回；否则 mutate；validate；assertValidProject
+- `detach`：找 host；host 不存在 → 静默返回；host 存在但 `host.field === undefined` → 静默返回；否则用 spread 删除 `host.field`；assertValidProject
+
+注：`AttachStoreConfig` 不需要 `entityKind` 字段——所有错误路径都涉及 host（kind 总是 "storey"），entity 自身无独立 NotFound 路径。若未来 attach.update 在 host 不存在时改为抛错，再加该字段。
 
 ### singletonStore.ts
 
@@ -230,7 +233,6 @@ export const skirtStore = createCrudStore<SkirtRoof, SkirtPatch>({
 export const stairStore = createAttachStore<Stair, StairPatch>({
   hostArrayKey: "storeys",
   field: "stair",
-  entityKind: "stair",
   // applyPatch 默认 spread；validate 暂留空，依赖 assertValidProject
 });
 
@@ -394,5 +396,6 @@ skirt 的 7 条范围校验消息逐字保留；测试用 `toThrow(/出檐超出
 | `EntityNotFoundError` 与 `assertValidProject` 抛的"id not found"语义重叠 | 两层都抛错，调试混乱 | store 在 mutate 前查 id（抛 NotFound）；assertValidProject 只做"全局不变量"（端点共用、storey 单调等），与 entity-by-id 解耦 |
 | `export const addWall = wallStore.add` 让 TS 推导丢失精确类型 | 调用方编译通过但实际签名是 any | `CrudStore<T, P>` 等返回值类型显式声明每个方法签名；现有测试编译过即对齐 |
 | `removeSkirt` 内联选区清理删除后某条 path 漏接外层兜底 | 选区悬挂在已删实体上 | 验收时 grep 所有 `removeSkirt(` / `removeWall(` 调用方，确认每个下游有 selection 重置（或在 selectionRegistry 的 deleteSelection 路径上） |
+| `addSkirt` 经过 `skirtStore.add` 后会运行 `skirtStore.validate`（原 `addSkirt` 不做范围校验） | 若 `createSkirtDraft` 产出的 draft 越界，`addSkirt` 会抛错而非成功 | 已验证：`createSkirtDraft` 默认值（offset=0、width=wallLength、depth=1.0、pitch=π/6、overhang=0.3、elevation=storey 顶）全部落在校验范围内。新行为更严格但不破坏现有路径 |
 
 **回滚**：纯 mutation 层重构，无数据 schema 变化、无公共 API 变化。git revert 即可。
