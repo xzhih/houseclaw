@@ -28,13 +28,8 @@ import {
   addStorey,
   addWall,
   duplicateStorey,
-  removeBalcony,
-  removeOpening,
-  removeSkirt,
-  removeStair,
-  removeStorey,
-  removeWall,
 } from "../domain/mutations";
+import { deleteSelection, isSelectionDeletable } from "./selectionRegistry";
 import { createSampleProject } from "../domain/sampleProject";
 import type { ObjectSelection } from "../domain/selection";
 import type { HouseProject, Mode, OpeningType, Stair, ToolId, ViewId, Wall } from "../domain/types";
@@ -256,39 +251,10 @@ export function AppShell() {
 
   const handleDeleteSelection = () => {
     const sel = project.selection;
-    if (!sel) return;
+    if (!sel || !isSelectionDeletable(sel, project)) return;
     let next: HouseProject;
     try {
-      switch (sel.kind) {
-        case "wall":
-          next = removeWall(project, sel.id);
-          break;
-        case "opening":
-          next = removeOpening(project, sel.id);
-          break;
-        case "balcony":
-          next = removeBalcony(project, sel.id);
-          break;
-        case "stair":
-          next = removeStair(project, sel.id);
-          break;
-        case "skirt":
-          next = removeSkirt(project, sel.id);
-          break;
-        case "storey": {
-          if (project.storeys.length <= 1) return;
-          next = removeStorey(project, sel.id);
-          if (next.activeView === `plan-${sel.id}`) {
-            const fallback = next.storeys[0]?.id;
-            if (fallback) {
-              next = { ...next, activeView: `plan-${fallback}` as ViewId };
-            }
-          }
-          break;
-        }
-        default:
-          return;
-      }
+      next = deleteSelection(project, sel);
     } catch {
       return;
     }
@@ -323,12 +289,7 @@ export function AppShell() {
 
       if (event.key !== "Delete" && event.key !== "Backspace") return;
       if (editingField) return;
-      const sel = project.selection;
-      if (!sel) return;
-      const isStorey = sel.kind === "storey" && project.storeys.length > 1;
-      const isOther =
-        sel.kind === "wall" || sel.kind === "opening" || sel.kind === "balcony" || sel.kind === "stair" || sel.kind === "skirt";
-      if (!isStorey && !isOther) return;
+      if (!isSelectionDeletable(project.selection, project)) return;
       event.preventDefault();
       handleDeleteSelection();
     };
