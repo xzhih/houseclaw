@@ -56,11 +56,12 @@ export function createCrudStore<T extends HasId, P>(
       if (!removed) return project;
       const filtered = arr.filter((e) => e.id !== id);
       const cascadePatch = cfg.cascade?.(project, removed) ?? {};
-      return {
+      const next = {
         ...project,
         ...cascadePatch,
         [cfg.arrayKey]: filtered,
       };
+      return assertValidProject(next);
     },
   };
 }

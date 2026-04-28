@@ -12,6 +12,11 @@ describe("createCrudStore", () => {
   const testWallStore = createCrudStore<Wall, { thickness?: number }>({
     arrayKey: "walls",
     entityKind: "wall",
+    cascade: (project, removed) => ({
+      openings: project.openings.filter((o) => o.wallId !== removed.id),
+      balconies: project.balconies.filter((b) => b.attachedWallId !== removed.id),
+      skirts: project.skirts.filter((s) => s.hostWallId !== removed.id),
+    }),
   });
 
   describe("add", () => {
