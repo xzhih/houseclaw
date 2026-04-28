@@ -1,3 +1,4 @@
+import { assertValidProject } from "../constraints";
 import type { HouseProject, Storey } from "../types";
 import { EntityNotFoundError } from "./errors";
 
@@ -25,7 +26,7 @@ export function createAttachStore<T, P>(cfg: AttachStoreConfig<T, P>): AttachSto
       cfg.validate?.(value, host, project);
       const storeys = [...project.storeys];
       storeys[idx] = host;
-      return { ...project, storeys };
+      return assertValidProject({ ...project, storeys });
     },
 
     update(project, hostId, patch) {
@@ -38,7 +39,7 @@ export function createAttachStore<T, P>(cfg: AttachStoreConfig<T, P>): AttachSto
       cfg.validate?.(merged, host, project);
       const storeys = [...project.storeys];
       storeys[idx] = host;
-      return { ...project, storeys };
+      return assertValidProject({ ...project, storeys });
     },
 
     detach(project, hostId) {
@@ -49,7 +50,7 @@ export function createAttachStore<T, P>(cfg: AttachStoreConfig<T, P>): AttachSto
       const { [cfg.field]: _removed, ...rest } = project.storeys[idx];
       const storeys = [...project.storeys];
       storeys[idx] = rest as Storey;
-      return { ...project, storeys };
+      return assertValidProject({ ...project, storeys });
     },
   };
 }

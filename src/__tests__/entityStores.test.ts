@@ -131,17 +131,18 @@ describe("createAttachStore (stair)", () => {
   describe("attach", () => {
     it("writes to host.field", () => {
       const project = createSampleProject();
-      const targetStorey = project.storeys.find((s) => !s.stair)!;
       const sample = projectWithStair();
-      const next = stairStore.attach(project, targetStorey.id, sample.stair);
-      expect(findStair(next, targetStorey.id)).toBeDefined();
+      // Detach 1f's existing stair to free up a non-top storey for attach
+      const cleared = stairStore.detach(project, sample.storeyId);
+      const next = stairStore.attach(cleared, sample.storeyId, sample.stair);
+      expect(findStair(next, sample.storeyId)).toBeDefined();
     });
 
     it("overwrites existing entity (matches addStair behavior)", () => {
       const { project, storeyId, stair } = projectWithStair();
-      const replaced: Stair = { ...stair, width: 9.99 };
+      const replaced: Stair = { ...stair, width: 1.2 };
       const next = stairStore.attach(project, storeyId, replaced);
-      expect(findStair(next, storeyId)!.width).toBe(9.99);
+      expect(findStair(next, storeyId)!.width).toBe(1.2);
     });
 
     it("throws EntityNotFoundError when host id missing", () => {
@@ -155,8 +156,8 @@ describe("createAttachStore (stair)", () => {
   describe("update", () => {
     it("mutates host.field via default spread", () => {
       const { project, storeyId } = projectWithStair();
-      const next = stairStore.update(project, storeyId, { width: 1.5 });
-      expect(findStair(next, storeyId)!.width).toBe(1.5);
+      const next = stairStore.update(project, storeyId, { width: 1.2 });
+      expect(findStair(next, storeyId)!.width).toBe(1.2);
     });
 
     it("silent no-op if host has no entity", () => {
