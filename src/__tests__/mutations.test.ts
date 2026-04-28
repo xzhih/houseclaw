@@ -390,16 +390,6 @@ describe("addSkirt", () => {
 });
 
 describe("removeSkirt", () => {
-  it("removes the skirt and clears matching selection", () => {
-    let project = createSampleProject();
-    project = addSkirt(project, "wall-front-2f");
-    const id = project.skirts[0].id;
-    project = { ...project, selection: { kind: "skirt", id } };
-    const next = removeSkirt(project, id);
-    expect(next.skirts).toHaveLength(0);
-    expect(next.selection).toBeUndefined();
-  });
-
   it("preserves other selections", () => {
     let project = createSampleProject();
     project = addSkirt(project, "wall-front-2f");

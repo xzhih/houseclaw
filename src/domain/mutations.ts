@@ -1,158 +1,137 @@
-import { storeyTop, wallLength } from "./measurements";
+import { storeyTop } from "./measurements";
 import { assertValidProject } from "./constraints";
 import { canBuildRoof } from "./views";
 import { createSkirtDraft } from "./drafts";
-import type { Balcony, HouseProject, Opening, Point2, Roof, RoofEdgeKind, SkirtRoof, Stair, Storey, Wall } from "./types";
+import type {
+  Balcony,
+  HouseProject,
+  Opening,
+  Point2,
+  Roof,
+  RoofEdgeKind,
+  Stair,
+  Storey,
+  Wall,
+} from "./types";
+import {
+  balconyStore,
+  openingStore,
+  roofStore,
+  skirtStore,
+  stairStore,
+  wallStore,
+} from "./mutations/stores";
+import { EntityStateError } from "./mutations/errors";
 
-export type OpeningPatch = Partial<Omit<Opening, "id" | "wallId">>;
-export type WallPatch = Partial<Omit<Wall, "id" | "storeyId" | "start" | "end">>;
-export type BalconyPatch = Partial<Omit<Balcony, "id" | "storeyId" | "attachedWallId">>;
+// ───── Patch 类型 re-export（PropertyPanel 等引用）─────
+export type {
+  BalconyPatch,
+  OpeningPatch,
+  RoofPatch,
+  SkirtPatch,
+  StairPatch,
+  WallPatch,
+} from "./mutations/stores";
+
 export type StoreyPatch = Partial<Omit<Storey, "id" | "elevation">>;
-export type StairPatch = Partial<Omit<Stair, never>>;
 
-type UnsafeOpeningPatch = OpeningPatch & Partial<Pick<Opening, "id" | "wallId">>;
-type UnsafeWallPatch = WallPatch & Partial<Pick<Wall, "id" | "storeyId" | "start" | "end">>;
-type UnsafeBalconyPatch = BalconyPatch & Partial<Pick<Balcony, "id" | "storeyId" | "attachedWallId">>;
 type UnsafeStoreyPatch = StoreyPatch & Partial<Pick<Storey, "id" | "elevation">>;
 
-export function addWall(project: HouseProject, wall: Wall): HouseProject {
-  return assertValidProject({
-    ...project,
-    walls: [...project.walls, wall],
-  });
-}
+// ───── 从 store 派生 ─────
+export const addWall = wallStore.add;
+export const updateWall = wallStore.update;
+export const removeWall = wallStore.remove;
 
-export function addOpening(project: HouseProject, opening: Opening): HouseProject {
-  return assertValidProject({
-    ...project,
-    openings: [...project.openings, opening],
-  });
-}
+export const addOpening = openingStore.add;
+export const updateOpening = openingStore.update;
+export const removeOpening = openingStore.remove;
 
-export function addBalcony(project: HouseProject, balcony: Balcony): HouseProject {
-  return assertValidProject({
-    ...project,
-    balconies: [...project.balconies, balcony],
-  });
-}
+export const addBalcony = balconyStore.add;
+export const updateBalcony = balconyStore.update;
+export const removeBalcony = balconyStore.remove;
 
+export const updateSkirt = skirtStore.update;
+export const removeSkirt = skirtStore.remove;
+
+export const addStair = stairStore.attach;
+export const updateStair = stairStore.update;
+export const removeStair = stairStore.detach;
+
+export const updateRoof = roofStore.update;
+export const removeRoof = roofStore.clear;
+
+// ───── bespoke：addSkirt（包装 createSkirtDraft + skirtStore.add）─────
 export function addSkirt(project: HouseProject, hostWallId: string): HouseProject {
   const wall = project.walls.find((w) => w.id === hostWallId);
-  if (!wall) throw new Error(`Wall ${hostWallId} not found`);
-  if (!wall.exterior) throw new Error(`Skirt must attach to an exterior wall`);
+  if (!wall) throw new EntityStateError(`Wall ${hostWallId} not found`);
+  if (!wall.exterior) throw new EntityStateError(`Skirt must attach to an exterior wall`);
   const skirt = createSkirtDraft(project, wall);
-  return { ...project, skirts: [...project.skirts, skirt] };
+  return skirtStore.add(project, skirt);
 }
 
-export type SkirtPatch = Partial<Omit<SkirtRoof, "id" | "hostWallId">>;
+// ───── bespoke：roof 的非派生操作 ─────
+const DEFAULT_PITCH = Math.PI / 6; // 30°
+const DEFAULT_OVERHANG = 0.6;
 
-const SKIRT_LIMITS = {
-  width: { min: 0.3 },
-  depth: { min: 0.3, max: 4 },
-  overhang: { min: 0.05, max: 1.5 },
-  pitch: { min: Math.PI / 36, max: Math.PI / 3 },
-};
+function topStoreyOf(project: HouseProject) {
+  return [...project.storeys].sort((a, b) => b.elevation - a.elevation)[0];
+}
 
-export function updateSkirt(
+export function addRoof(project: HouseProject): HouseProject {
+  if (project.roof) throw new EntityStateError("Roof already exists.");
+  if (!canBuildRoof(project))
+    throw new EntityStateError("Top storey is not a 4-wall axis-aligned rectangle.");
+  const top = topStoreyOf(project);
+  const topWalls = project.walls.filter((w) => w.storeyId === top.id && w.exterior);
+  const lengths = topWalls.map((w) => ({
+    wall: w,
+    length: Math.hypot(w.end.x - w.start.x, w.end.y - w.start.y),
+  }));
+  lengths.sort((a, b) => b.length - a.length || a.wall.id.localeCompare(b.wall.id));
+  const eaveIds = new Set([lengths[0].wall.id, lengths[1].wall.id]);
+  const edges: Record<string, RoofEdgeKind> = {};
+  for (const w of topWalls) edges[w.id] = eaveIds.has(w.id) ? "eave" : "gable";
+
+  const roofMaterial =
+    project.materials.find((m) => m.kind === "roof") ?? project.materials[0];
+  const roof: Roof = {
+    edges,
+    pitch: DEFAULT_PITCH,
+    overhang: DEFAULT_OVERHANG,
+    materialId: roofMaterial.id,
+  };
+  return assertValidProject({ ...project, roof });
+}
+
+export function toggleRoofEdge(project: HouseProject, wallId: string): HouseProject {
+  if (!project.roof) throw new EntityStateError("No roof to toggle.");
+  const flipped: RoofEdgeKind = project.roof.edges[wallId] === "eave" ? "gable" : "eave";
+  const top = topStoreyOf(project);
+  const topWalls = project.walls.filter((w) => w.storeyId === top.id && w.exterior);
+  const nextEdges = { ...project.roof.edges, [wallId]: flipped };
+  const effectiveEaves = topWalls.filter((w) => nextEdges[w.id] === "eave").length;
+  if (effectiveEaves === 0) throw new EntityStateError("Roof must keep at least one eave.");
+  return assertValidProject({ ...project, roof: { ...project.roof, edges: nextEdges } });
+}
+
+// ───── bespoke：楼层 ops ─────
+export function updateStorey(
   project: HouseProject,
-  id: string,
-  patch: SkirtPatch,
+  storeyId: string,
+  patch: StoreyPatch,
 ): HouseProject {
-  const idx = project.skirts.findIndex((s) => s.id === id);
-  if (idx === -1) throw new Error(`Skirt ${id} not found`);
-  const current = project.skirts[idx];
-  const merged: SkirtRoof = { ...current, ...patch };
-
-  const wall = project.walls.find((w) => w.id === merged.hostWallId);
-  if (!wall) throw new Error(`Host wall ${merged.hostWallId} not found`);
-  const wlen = wallLength(wall);
-  const storey = project.storeys.find((s) => s.id === wall.storeyId);
-  if (!storey) throw new Error(`Storey ${wall.storeyId} not found`);
-
-  if (merged.offset < 0) throw new Error("offset 不能为负");
-  if (merged.width < SKIRT_LIMITS.width.min) throw new Error("宽度过小");
-  if (merged.offset + merged.width > wlen + 1e-6) throw new Error("披檐超出墙长");
-  if (merged.depth < SKIRT_LIMITS.depth.min || merged.depth > SKIRT_LIMITS.depth.max) {
-    throw new Error("外伸深度超出范围");
-  }
-  if (merged.overhang < SKIRT_LIMITS.overhang.min || merged.overhang > SKIRT_LIMITS.overhang.max) {
-    throw new Error("出檐超出范围");
-  }
-  if (merged.pitch < SKIRT_LIMITS.pitch.min || merged.pitch > SKIRT_LIMITS.pitch.max) {
-    throw new Error("坡度超出范围");
-  }
-  if (merged.elevation <= storey.elevation || merged.elevation > storey.elevation + storey.height + 1e-6) {
-    throw new Error("挂接高度必须在所属楼层范围内");
-  }
-
-  const skirts = [...project.skirts];
-  skirts[idx] = merged;
-  return { ...project, skirts };
-}
-
-export function removeSkirt(project: HouseProject, id: string): HouseProject {
-  const skirts = project.skirts.filter((s) => s.id !== id);
-  if (skirts.length === project.skirts.length) return project;
-  const selection =
-    project.selection?.kind === "skirt" && project.selection.id === id
-      ? undefined
-      : project.selection;
-  return { ...project, skirts, selection };
-}
-
-export function updateOpening(project: HouseProject, openingId: string, patch: OpeningPatch): HouseProject {
-  const { id: _ignoredId, wallId: _ignoredWallId, ...allowedPatch } = patch as UnsafeOpeningPatch;
-
-  return assertValidProject({
-    ...project,
-    openings: project.openings.map((opening) => (opening.id === openingId ? { ...opening, ...allowedPatch } : opening)),
-  });
-}
-
-export function updateWall(project: HouseProject, wallId: string, patch: WallPatch): HouseProject {
-  const {
-    id: _ignoredId,
-    storeyId: _ignoredStoreyId,
-    start: _ignoredStart,
-    end: _ignoredEnd,
-    ...allowedPatch
-  } = patch as UnsafeWallPatch;
-
-  return assertValidProject({
-    ...project,
-    walls: project.walls.map((wall) => (wall.id === wallId ? { ...wall, ...allowedPatch } : wall)),
-  });
-}
-
-export function updateBalcony(project: HouseProject, balconyId: string, patch: BalconyPatch): HouseProject {
-  const {
-    id: _ignoredId,
-    storeyId: _ignoredStoreyId,
-    attachedWallId: _ignoredAttachedWallId,
-    ...allowedPatch
-  } = patch as UnsafeBalconyPatch;
-
-  return assertValidProject({
-    ...project,
-    balconies: project.balconies.map((balcony) =>
-      balcony.id === balconyId ? { ...balcony, ...allowedPatch } : balcony,
-    ),
-  });
-}
-
-export function updateStorey(project: HouseProject, storeyId: string, patch: StoreyPatch): HouseProject {
-  const { id: _ignoredId, elevation: _ignoredElevation, ...allowedPatch } = patch as UnsafeStoreyPatch;
-  const nextHeight = allowedPatch.height;
+  const { id: _id, elevation: _elev, ...allowed } = patch as UnsafeStoreyPatch;
+  const nextHeight = allowed.height;
 
   if (nextHeight !== undefined && (!Number.isFinite(nextHeight) || nextHeight <= 0)) {
-    throw new Error(`Storey ${storeyId} height must be positive.`);
+    throw new EntityStateError(`Storey ${storeyId} height must be positive.`);
   }
 
   let nextElevation = 0;
   const storeys = project.storeys.map((storey) => {
     const next: Storey = {
       ...storey,
-      ...(storey.id === storeyId ? allowedPatch : {}),
+      ...(storey.id === storeyId ? allowed : {}),
       elevation: nextElevation,
     };
     nextElevation = storeyTop(nextElevation, next.height);
@@ -161,20 +140,28 @@ export function updateStorey(project: HouseProject, storeyId: string, patch: Sto
 
   const walls =
     nextHeight !== undefined
-      ? project.walls.map((wall) => (wall.storeyId === storeyId ? { ...wall, height: nextHeight } : wall))
+      ? project.walls.map((wall) =>
+          wall.storeyId === storeyId ? { ...wall, height: nextHeight } : wall,
+        )
       : project.walls;
 
   return assertValidProject({ ...project, storeys, walls });
 }
 
-export function applyWallMaterial(project: HouseProject, wallId: string, materialId: string): HouseProject {
-  return assertValidProject({
-    ...project,
-    walls: project.walls.map((wall) => (wall.id === wallId ? { ...wall, materialId } : wall)),
-  });
+export function applyWallMaterial(
+  project: HouseProject,
+  wallId: string,
+  materialId: string,
+): HouseProject {
+  return updateWall(project, wallId, { materialId });
 }
 
-export function moveWall(project: HouseProject, wallId: string, start: Point2, end: Point2): HouseProject {
+export function moveWall(
+  project: HouseProject,
+  wallId: string,
+  start: Point2,
+  end: Point2,
+): HouseProject {
   return assertValidProject({
     ...project,
     walls: project.walls.map((wall) => (wall.id === wallId ? { ...wall, start, end } : wall)),
@@ -188,7 +175,7 @@ export function resizeStoreyExtent(
   newSize: number,
 ): HouseProject {
   if (!Number.isFinite(newSize) || newSize <= 0) {
-    throw new Error(`Storey ${storeyId} ${axis} extent must be positive.`);
+    throw new EntityStateError(`Storey ${storeyId} ${axis} extent must be positive.`);
   }
 
   const storeyWalls = project.walls.filter((wall) => wall.storeyId === storeyId);
@@ -201,7 +188,9 @@ export function resizeStoreyExtent(
   const maxCoord = Math.max(...coords);
   const oldSize = maxCoord - minCoord;
   if (oldSize <= 0) {
-    throw new Error(`Storey ${storeyId} has zero ${axis} extent and cannot be resized.`);
+    throw new EntityStateError(
+      `Storey ${storeyId} has zero ${axis} extent and cannot be resized.`,
+    );
   }
 
   const factor = newSize / oldSize;
@@ -232,20 +221,12 @@ export function resizeStoreyExtent(
       if (axis === "x") {
         return {
           ...storey,
-          stair: {
-            ...stair,
-            x: scaleAlong(stair.x),
-            width: stair.width * factor,
-          },
+          stair: { ...stair, x: scaleAlong(stair.x), width: stair.width * factor },
         };
       }
       return {
         ...storey,
-        stair: {
-          ...stair,
-          y: scaleAlong(stair.y),
-          depth: stair.depth * factor,
-        },
+        stair: { ...stair, y: scaleAlong(stair.y), depth: stair.depth * factor },
       };
     }),
   });
@@ -284,29 +265,7 @@ export function translateStorey(
   });
 }
 
-export function removeWall(project: HouseProject, wallId: string): HouseProject {
-  return assertValidProject({
-    ...project,
-    walls: project.walls.filter((wall) => wall.id !== wallId),
-    openings: project.openings.filter((opening) => opening.wallId !== wallId),
-    balconies: project.balconies.filter((balcony) => balcony.attachedWallId !== wallId),
-  });
-}
-
-export function removeOpening(project: HouseProject, openingId: string): HouseProject {
-  return assertValidProject({
-    ...project,
-    openings: project.openings.filter((opening) => opening.id !== openingId),
-  });
-}
-
-export function removeBalcony(project: HouseProject, balconyId: string): HouseProject {
-  return assertValidProject({
-    ...project,
-    balconies: project.balconies.filter((balcony) => balcony.id !== balconyId),
-  });
-}
-
+// ───── 楼层增删（bespoke，依赖大量内部 helpers）─────
 function nextStoreyNumber(project: HouseProject): number {
   const used = new Set<number>();
   for (const storey of project.storeys) {
@@ -318,10 +277,8 @@ function nextStoreyNumber(project: HouseProject): number {
   return n;
 }
 
-function freshStoreyIdAndLabel(
-  project: HouseProject,
-): { id: string; label: string } {
-  const taken = new Set(project.storeys.map((storey) => storey.id));
+function freshStoreyIdAndLabel(project: HouseProject): { id: string; label: string } {
+  const taken = new Set(project.storeys.map((s) => s.id));
   let n = nextStoreyNumber(project);
   while (taken.has(`${n}f`)) n += 1;
   return { id: `${n}f`, label: `${n}F` };
@@ -357,29 +314,24 @@ export function addStorey(project: HouseProject): HouseProject {
     height: last?.height ?? project.defaultStoreyHeight,
     slabThickness: last?.slabThickness ?? project.defaultWallThickness,
   };
-  return assertValidProject({
-    ...project,
-    storeys: [...project.storeys, storey],
-    roof: undefined,
-  });
+  return assertValidProject({ ...project, storeys: [...project.storeys, storey], roof: undefined });
 }
 
 export function duplicateStorey(project: HouseProject, sourceStoreyId: string): HouseProject {
-  const source = project.storeys.find((storey) => storey.id === sourceStoreyId);
+  const source = project.storeys.find((s) => s.id === sourceStoreyId);
   if (!source) {
-    throw new Error(`Storey ${sourceStoreyId} not found.`);
+    throw new EntityStateError(`Storey ${sourceStoreyId} not found.`);
   }
-
   const { id: newStoreyId, label: newLabel } = freshStoreyIdAndLabel(project);
   const last = project.storeys[project.storeys.length - 1];
   const elevation = last ? storeyTop(last.elevation, last.height) : 0;
 
-  const wallIdsTaken = new Set(project.walls.map((wall) => wall.id));
-  const openingIdsTaken = new Set(project.openings.map((opening) => opening.id));
-  const balconyIdsTaken = new Set(project.balconies.map((balcony) => balcony.id));
+  const wallIdsTaken = new Set(project.walls.map((w) => w.id));
+  const openingIdsTaken = new Set(project.openings.map((o) => o.id));
+  const balconyIdsTaken = new Set(project.balconies.map((b) => b.id));
   const wallIdMap = new Map<string, string>();
 
-  const sourceWalls = project.walls.filter((wall) => wall.storeyId === sourceStoreyId);
+  const sourceWalls = project.walls.filter((w) => w.storeyId === sourceStoreyId);
   const newWalls: Wall[] = sourceWalls.map((wall) => {
     const newId = reindexId(wall.id, sourceStoreyId, newStoreyId, wallIdsTaken);
     wallIdsTaken.add(newId);
@@ -393,27 +345,27 @@ export function duplicateStorey(project: HouseProject, sourceStoreyId: string): 
     };
   });
 
-  const sourceWallIds = new Set(sourceWalls.map((wall) => wall.id));
+  const sourceWallIds = new Set(sourceWalls.map((w) => w.id));
   const newOpenings: Opening[] = project.openings
-    .filter((opening) => sourceWallIds.has(opening.wallId))
+    .filter((o) => sourceWallIds.has(o.wallId))
     .map((opening) => {
       const newId = reindexId(opening.id, sourceStoreyId, newStoreyId, openingIdsTaken);
       openingIdsTaken.add(newId);
       const remappedWallId = wallIdMap.get(opening.wallId);
       if (!remappedWallId) {
-        throw new Error(`Cannot duplicate opening ${opening.id}: source wall missing.`);
+        throw new EntityStateError(`Cannot duplicate opening ${opening.id}: source wall missing.`);
       }
       return { ...opening, id: newId, wallId: remappedWallId };
     });
 
   const newBalconies: Balcony[] = project.balconies
-    .filter((balcony) => balcony.storeyId === sourceStoreyId)
+    .filter((b) => b.storeyId === sourceStoreyId)
     .map((balcony) => {
       const newId = reindexId(balcony.id, sourceStoreyId, newStoreyId, balconyIdsTaken);
       balconyIdsTaken.add(newId);
       const remappedWallId = wallIdMap.get(balcony.attachedWallId);
       if (!remappedWallId) {
-        throw new Error(`Cannot duplicate balcony ${balcony.id}: source wall missing.`);
+        throw new EntityStateError(`Cannot duplicate balcony ${balcony.id}: source wall missing.`);
       }
       return {
         ...balcony,
@@ -429,8 +381,6 @@ export function duplicateStorey(project: HouseProject, sourceStoreyId: string): 
     elevation,
     height: source.height,
     slabThickness: source.slabThickness,
-    // Drop the stair on the duplicate: it becomes the new top storey, which
-    // cannot own a stair under the lower-storey ownership rule.
     stair: undefined,
   };
 
@@ -446,147 +396,40 @@ export function duplicateStorey(project: HouseProject, sourceStoreyId: string): 
 
 export function removeStorey(project: HouseProject, storeyId: string): HouseProject {
   if (project.storeys.length <= 1) {
-    throw new Error("Cannot remove the last storey.");
+    throw new EntityStateError("Cannot remove the last storey.");
   }
-  if (!project.storeys.some((storey) => storey.id === storeyId)) {
+  if (!project.storeys.some((s) => s.id === storeyId)) {
     return project;
   }
 
-  const remainingWalls = project.walls.filter((wall) => wall.storeyId !== storeyId);
-  const remainingWallIds = new Set(remainingWalls.map((wall) => wall.id));
-  const remainingOpenings = project.openings.filter((opening) =>
-    remainingWallIds.has(opening.wallId),
-  );
+  const remainingWalls = project.walls.filter((w) => w.storeyId !== storeyId);
+  const remainingWallIds = new Set(remainingWalls.map((w) => w.id));
+  const remainingOpenings = project.openings.filter((o) => remainingWallIds.has(o.wallId));
   const remainingBalconies = project.balconies.filter(
-    (balcony) =>
-      balcony.storeyId !== storeyId && remainingWallIds.has(balcony.attachedWallId),
+    (b) => b.storeyId !== storeyId && remainingWallIds.has(b.attachedWallId),
   );
 
   let nextElevation = 0;
   const remainingStoreys = project.storeys
-    .filter((storey) => storey.id !== storeyId)
+    .filter((s) => s.id !== storeyId)
     .map((storey) => {
       const next: Storey = { ...storey, elevation: nextElevation };
-      nextElevation = storeyTop(nextElevation, next.height);
+      nextElevation = storeyTop(nextElevation, storey.height);
       return next;
     });
 
-  // Strip the stair on the new top storey: it cannot own a stair under the
-  // lower-storey ownership rule once the storey above it is gone.
-  const newTopId = remainingStoreys[remainingStoreys.length - 1]?.id;
-  const cleanedStoreys = remainingStoreys.map((storey) =>
-    storey.id === newTopId && storey.stair ? { ...storey, stair: undefined } : storey,
-  );
+  // 顶层不能挂 stair
+  const top = remainingStoreys[remainingStoreys.length - 1];
+  if (top?.stair) {
+    remainingStoreys[remainingStoreys.length - 1] = { ...top, stair: undefined };
+  }
 
   return assertValidProject({
     ...project,
-    storeys: cleanedStoreys,
+    storeys: remainingStoreys,
     walls: remainingWalls,
     openings: remainingOpenings,
     balconies: remainingBalconies,
     roof: undefined,
   });
-}
-
-export function addStair(project: HouseProject, storeyId: string, stair: Stair): HouseProject {
-  return assertValidProject({
-    ...project,
-    storeys: project.storeys.map((storey) =>
-      storey.id === storeyId ? { ...storey, stair } : storey,
-    ),
-  });
-}
-
-export function updateStair(project: HouseProject, storeyId: string, patch: StairPatch): HouseProject {
-  return assertValidProject({
-    ...project,
-    storeys: project.storeys.map((storey) => {
-      if (storey.id !== storeyId) return storey;
-      if (!storey.stair) return storey;
-      return { ...storey, stair: { ...storey.stair, ...patch } };
-    }),
-  });
-}
-
-export function removeStair(project: HouseProject, storeyId: string): HouseProject {
-  return assertValidProject({
-    ...project,
-    storeys: project.storeys.map((storey) => {
-      if (storey.id !== storeyId) return storey;
-      const { stair: _ignored, ...rest } = storey;
-      return rest as Storey;
-    }),
-  });
-}
-
-const PITCH_MIN = Math.PI / 36;
-const PITCH_MAX = Math.PI / 3;
-const OVERHANG_MIN = 0;
-const OVERHANG_MAX = 2;
-const DEFAULT_PITCH = Math.PI / 6; // 30°
-const DEFAULT_OVERHANG = 0.6;
-
-function clamp(v: number, lo: number, hi: number) {
-  return Math.max(lo, Math.min(hi, v));
-}
-
-function topStoreyOf(project: HouseProject) {
-  return [...project.storeys].sort((a, b) => b.elevation - a.elevation)[0];
-}
-
-export function addRoof(project: HouseProject): HouseProject {
-  if (project.roof) throw new Error("Roof already exists.");
-  if (!canBuildRoof(project)) throw new Error("Top storey is not a 4-wall axis-aligned rectangle.");
-  const top = topStoreyOf(project);
-  const topWalls = project.walls.filter((w) => w.storeyId === top.id && w.exterior);
-  const lengths = topWalls.map((w) => ({
-    wall: w,
-    length: Math.hypot(w.end.x - w.start.x, w.end.y - w.start.y),
-  }));
-  // Sort longest first; tie-break by id for determinism.
-  lengths.sort((a, b) => b.length - a.length || a.wall.id.localeCompare(b.wall.id));
-  const eaveIds = new Set([lengths[0].wall.id, lengths[1].wall.id]);
-  const edges: Record<string, RoofEdgeKind> = {};
-  for (const w of topWalls) edges[w.id] = eaveIds.has(w.id) ? "eave" : "gable";
-
-  const roofMaterial =
-    project.materials.find((m) => m.kind === "roof") ?? project.materials[0];
-  const roof: Roof = {
-    edges,
-    pitch: DEFAULT_PITCH,
-    overhang: DEFAULT_OVERHANG,
-    materialId: roofMaterial.id,
-  };
-  return assertValidProject({ ...project, roof });
-}
-
-export function removeRoof(project: HouseProject): HouseProject {
-  if (!project.roof) return project;
-  return assertValidProject({ ...project, roof: undefined });
-}
-
-export function updateRoof(
-  project: HouseProject,
-  patch: Partial<Pick<Roof, "pitch" | "overhang" | "materialId">>,
-): HouseProject {
-  if (!project.roof) throw new Error("No roof to update.");
-  const next: Roof = {
-    ...project.roof,
-    ...(patch.pitch !== undefined ? { pitch: clamp(patch.pitch, PITCH_MIN, PITCH_MAX) } : {}),
-    ...(patch.overhang !== undefined ? { overhang: clamp(patch.overhang, OVERHANG_MIN, OVERHANG_MAX) } : {}),
-    ...(patch.materialId !== undefined ? { materialId: patch.materialId } : {}),
-  };
-  return assertValidProject({ ...project, roof: next });
-}
-
-export function toggleRoofEdge(project: HouseProject, wallId: string): HouseProject {
-  if (!project.roof) throw new Error("No roof to toggle.");
-  const flipped: RoofEdgeKind = project.roof.edges[wallId] === "eave" ? "gable" : "eave";
-  const top = topStoreyOf(project);
-  const topWalls = project.walls.filter((w) => w.storeyId === top.id && w.exterior);
-  const nextEdges = { ...project.roof.edges, [wallId]: flipped };
-  // Recount effective eaves (apply edge-resolution rule).
-  const effectiveEaves = topWalls.filter((w) => nextEdges[w.id] === "eave").length;
-  if (effectiveEaves === 0) throw new Error("Roof must keep at least one eave.");
-  return assertValidProject({ ...project, roof: { ...project.roof, edges: nextEdges } });
 }
