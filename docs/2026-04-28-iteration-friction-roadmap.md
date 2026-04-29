@@ -125,6 +125,15 @@ M1 已完成（M3 重构 PropertyPanel 时仍会调用 `tryMutate`，需要 regi
 
 M3 已完成（M4 大量调用 mutation，需要稳定接口）
 
+### 落地结果
+
+- 主文件：2390 → 266 LOC（-89%）
+- 8 个 `canvas/*` 子模块 + 1 个 `__tests__/dragMachine.test.ts`
+- `applyDrag` 改成纯函数 `(state, world, ctx) → DragOutcome | null`
+- 测试套件 358 → 398（+40 dragMachine 单测；13 transition × happy + 边界 + selectionOnClick）
+
+状态：✅ 已合并 @ a9fd046
+
 ---
 
 ## 顺序与节奏
