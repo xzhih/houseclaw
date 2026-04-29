@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { wallLength } from "../domain/measurements";
 import type { HouseProject, Point3, Wall } from "../domain/types";
 import { buildHouseGeometry } from "../geometry/houseGeometry";
+import { buildOpeningFrameStrips } from "../geometry/openingFrameGeometry";
 import type { RoofGeometry } from "../geometry/roofGeometry";
 import type { BalconyGeometry, HouseGeometry, SlabGeometry, WallGeometry, WallPanel } from "../geometry/types";
 import { slicePanelFootprint } from "../geometry/wallNetwork";
@@ -398,6 +399,27 @@ function createWallMeshes(project: HouseProject, geometry: HouseGeometry) {
 
     for (const panel of wallGeometry.panels) {
       meshes.push(createWallPanelMesh(wallGeometry, panel, storeyElevation, material));
+    }
+
+    // Window/door frame meshes — one rectangular ring per opening on this wall.
+    const wall = project.walls.find((w) => w.id === wallGeometry.wallId);
+    if (!wall) continue;
+    const wallOpenings = project.openings.filter((o) => o.wallId === wall.id);
+    for (const opening of wallOpenings) {
+      const strips = buildOpeningFrameStrips(opening, wall);
+      for (const strip of strips) {
+        let frameMat = materials.get(strip.materialId);
+        if (!frameMat) {
+          frameMat = createMaterial(project, strip.materialId);
+          materials.set(strip.materialId, frameMat);
+        }
+        const box = new THREE.BoxGeometry(strip.size.alongWall, strip.size.height, strip.size.depth);
+        const mesh = new THREE.Mesh(box, frameMat);
+        // Convert plan-space (x, y, z=height) to scene coords (x, height, -y).
+        mesh.position.set(strip.center.x, storeyElevation + strip.center.z, -strip.center.y);
+        mesh.rotation.y = strip.rotationY;
+        meshes.push(mesh);
+      }
     }
   }
 
