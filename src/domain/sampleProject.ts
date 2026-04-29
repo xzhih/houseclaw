@@ -308,22 +308,10 @@ export function createSampleProject(): HouseProject {
     },
   ];
 
-  // 单条 2F 前披檐：贯通全前墙、外挑 1.2m、30° 坡，作为中式立面核心特征
-  // 双侧披檐去掉——之前与前披檐在角部撞结构
-  const SKIRT_ELEVATION = STOREY_HEIGHT + 0.2;
-  const skirts: SkirtRoof[] = [
-    {
-      id: "skirt-front-2f",
-      hostWallId: "wall-front-2f",
-      offset: 0,
-      width: 12,
-      depth: 1.2,
-      elevation: SKIRT_ELEVATION,
-      pitch: Math.PI / 6,
-      overhang: 0.3,
-      materialId: ROOF_MATERIAL_ID,
-    },
-  ];
+  // 披檐在 showcase 里暂时去掉——多轮反馈视觉上别扭。
+  // 渲染层 skirt geometry 在某些视角下出现交叉斜面伪影（疑似 endCap 或材质问题），
+  // 单独排查再加回；当前 showcase 用 3F gable + 多阳台 + 带框开洞已足够丰富。
+  const skirts: SkirtRoof[] = [];
 
   // 3F 主屋面：南北 eave / 东西 gable，30° 坡，40cm 出挑，灰瓦
   const roof = {

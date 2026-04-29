@@ -24,8 +24,4 @@ describe("createSampleProject", () => {
     expect(() => importProjectJson(json)).not.toThrow();
   });
 
-  it("uses skirts (披檐) — showcase houses must demo this feature", () => {
-    const project = createSampleProject();
-    expect(project.skirts.length).toBeGreaterThan(0);
-  });
 });
