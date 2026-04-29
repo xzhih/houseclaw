@@ -267,8 +267,7 @@ export function createSampleProject(): HouseProject {
     },
   ];
 
-  // 阳台：2F 前小窄台（披檐之下、视觉作为窗台延伸）+ 2F 后大阳台 + 3F 前小阳台
-  // 前阳台 depth 0.8m、披檐 depth 1.2m，披檐外伸超过阳台不会撞栏杆
+  // 阳台：2F 前窄台（窗台延伸感）+ 3F 前小阳台。后阳台已删——视觉上像走廊
   const balconies: Balcony[] = [
     {
       id: "balcony-front-2f",
@@ -279,18 +278,6 @@ export function createSampleProject(): HouseProject {
       depth: 0.8,
       slabThickness: SLAB_THICKNESS,
       railingHeight: 0.9,
-      materialId: SLAB_MATERIAL_ID,
-      railingMaterialId: FRAME_MATERIAL_ID,
-    },
-    {
-      id: "balcony-back-2f",
-      storeyId: "2f",
-      attachedWallId: "wall-back-2f",
-      offset: 2.0,
-      width: 5.0,
-      depth: 1.2,
-      slabThickness: SLAB_THICKNESS,
-      railingHeight: 1.05,
       materialId: SLAB_MATERIAL_ID,
       railingMaterialId: FRAME_MATERIAL_ID,
     },
