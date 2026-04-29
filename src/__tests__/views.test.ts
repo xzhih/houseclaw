@@ -1,26 +1,26 @@
 import { describe, expect, it } from "vitest";
 import { canBuildRoof, planStoreyIdFromView } from "../domain/views";
-import { createSampleProject } from "../domain/sampleProject";
+import { createBasicProject } from "../domain/sampleProject";
 
 describe("planStoreyIdFromView", () => {
   it("returns the encoded storey id when it matches", () => {
-    const project = createSampleProject();
+    const project = createBasicProject();
     expect(planStoreyIdFromView("plan-2f", project.storeys)).toBe("2f");
   });
   it("returns undefined for non-plan views", () => {
-    const project = createSampleProject();
+    const project = createBasicProject();
     expect(planStoreyIdFromView("roof", project.storeys)).toBeUndefined();
   });
 });
 
 describe("canBuildRoof", () => {
   it("returns true for the rectangular sample top storey", () => {
-    const project = createSampleProject();
+    const project = createBasicProject();
     expect(canBuildRoof(project)).toBe(true);
   });
 
   it("returns false when the top storey has fewer than 4 exterior walls", () => {
-    const project = createSampleProject();
+    const project = createBasicProject();
     const top = project.storeys[project.storeys.length - 1];
     const walls = project.walls.filter(
       (wall) => !(wall.storeyId === top.id && wall.id === `wall-front-${top.id}`),
@@ -29,7 +29,7 @@ describe("canBuildRoof", () => {
   });
 
   it("returns false when the top storey is not axis-aligned", () => {
-    const project = createSampleProject();
+    const project = createBasicProject();
     const top = project.storeys[project.storeys.length - 1];
     const walls = project.walls.map((wall) => {
       if (wall.storeyId !== top.id) return wall;
@@ -42,7 +42,7 @@ describe("canBuildRoof", () => {
   });
 
   it("returns false for a project with no storeys", () => {
-    const project = createSampleProject();
+    const project = createBasicProject();
     expect(canBuildRoof({ ...project, storeys: [], walls: [] })).toBe(false);
   });
 });

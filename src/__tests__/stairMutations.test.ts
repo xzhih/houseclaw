@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createSampleProject } from "../domain/sampleProject";
+import { createBasicProject } from "../domain/sampleProject";
 import { addStair, removeStair, updateStair } from "../domain/mutations";
 import type { Stair } from "../domain/types";
 
@@ -16,7 +16,7 @@ const FULL_STAIR: Stair = {
 
 describe("stair mutations", () => {
   it("addStair attaches stair to a non-top storey", () => {
-    const project = createSampleProject();
+    const project = createBasicProject();
     // sample now has stairs on 1f / 2f; clear 1f then re-add
     const cleared = removeStair(project, "1f");
     const next = addStair(cleared, "1f", FULL_STAIR);
@@ -25,18 +25,18 @@ describe("stair mutations", () => {
   });
 
   it("addStair on the top storey throws via constraints", () => {
-    const project = createSampleProject();
+    const project = createBasicProject();
     expect(() => addStair(project, "3f", FULL_STAIR)).toThrow(/cannot have a stair/);
   });
 
   it("removeStair clears the field", () => {
-    const project = createSampleProject();
+    const project = createBasicProject();
     const next = removeStair(project, "1f");
     expect(next.storeys.find((s) => s.id === "1f")?.stair).toBeUndefined();
   });
 
   it("updateStair patches selected fields and validates", () => {
-    const project = createSampleProject();
+    const project = createBasicProject();
     const next = updateStair(project, "1f", { shape: "u", treadDepth: 0.3 });
     const oneF = next.storeys.find((s) => s.id === "1f");
     expect(oneF?.stair?.shape).toBe("u");

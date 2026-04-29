@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { validateProject } from "../domain/constraints";
 import { addOpening, updateBalcony, updateStorey, updateWall } from "../domain/mutations";
-import { createSampleProject } from "../domain/sampleProject";
+import { createBasicProject } from "../domain/sampleProject";
 
 describe("house constraints", () => {
   it("rejects an opening that is not attached to an existing wall", () => {
-    const project = createSampleProject();
+    const project = createBasicProject();
     const invalid = {
       ...project,
       openings: [
@@ -27,7 +27,7 @@ describe("house constraints", () => {
   });
 
   it("rejects an opening that exceeds wall length", () => {
-    const project = createSampleProject();
+    const project = createBasicProject();
 
     expect(() =>
       addOpening(project, {
@@ -44,7 +44,7 @@ describe("house constraints", () => {
   });
 
   it("rejects overlapping openings on the same wall", () => {
-    const project = createSampleProject();
+    const project = createBasicProject();
     const seed = project.openings.find((opening) => opening.id === "window-front-1f")!;
     const overlapping = {
       ...seed,
@@ -59,7 +59,7 @@ describe("house constraints", () => {
   });
 
   it("allows openings that touch end-to-end without gap", () => {
-    const project = createSampleProject();
+    const project = createBasicProject();
     const seed = project.openings.find((opening) => opening.id === "window-front-1f")!;
     const adjacent = {
       ...seed,
@@ -72,7 +72,7 @@ describe("house constraints", () => {
   });
 
   it("keeps storey elevations normalized after changing a floor height", () => {
-    const project = updateStorey(createSampleProject(), "1f", { height: 3.6 });
+    const project = updateStorey(createBasicProject(), "1f", { height: 3.6 });
 
     expect(project.storeys.map((storey) => storey.elevation)).toEqual([0, 3.6, 6.8]);
     expect(project.storeys[0].height).toBe(3.6);
@@ -80,23 +80,23 @@ describe("house constraints", () => {
   });
 
   it("updates a wall thickness through updateWall", () => {
-    const project = updateWall(createSampleProject(), "wall-front-1f", { thickness: 0.3 });
+    const project = updateWall(createBasicProject(), "wall-front-1f", { thickness: 0.3 });
     expect(project.walls.find((wall) => wall.id === "wall-front-1f")!.thickness).toBe(0.3);
   });
 
   it("rejects updateWall when the new thickness is non-positive", () => {
-    expect(() => updateWall(createSampleProject(), "wall-front-1f", { thickness: 0 })).toThrow(
+    expect(() => updateWall(createBasicProject(), "wall-front-1f", { thickness: 0 })).toThrow(
       /thickness/,
     );
   });
 
   it("updates a balcony depth through updateBalcony", () => {
-    const project = updateBalcony(createSampleProject(), "balcony-front-2f", { depth: 1.5 });
+    const project = updateBalcony(createBasicProject(), "balcony-front-2f", { depth: 1.5 });
     expect(project.balconies.find((balcony) => balcony.id === "balcony-front-2f")!.depth).toBe(1.5);
   });
 
   it("updates a storey label through updateStorey without touching height", () => {
-    const project = updateStorey(createSampleProject(), "1f", { label: "一层" });
+    const project = updateStorey(createBasicProject(), "1f", { label: "一层" });
     const storey = project.storeys.find((candidate) => candidate.id === "1f")!;
     expect(storey.label).toBe("一层");
     expect(storey.height).toBe(3.2);
@@ -104,7 +104,7 @@ describe("house constraints", () => {
   });
 
   it("propagates a height change in updateStorey through wall heights and elevations", () => {
-    const project = updateStorey(createSampleProject(), "1f", { height: 3.5 });
+    const project = updateStorey(createBasicProject(), "1f", { height: 3.5 });
 
     expect(project.storeys.map((storey) => ({ id: storey.id, elevation: storey.elevation, height: storey.height }))).toEqual([
       { id: "1f", elevation: 0, height: 3.5 },
@@ -117,7 +117,7 @@ describe("house constraints", () => {
 
 describe("stair validation", () => {
   it("rejects a stair on the top storey (3F)", () => {
-    const project = createSampleProject();
+    const project = createBasicProject();
     const threeF = project.storeys.find((s) => s.id === "3f")!;
     threeF.stair = {
       x: 1,
@@ -137,7 +137,7 @@ describe("stair validation", () => {
   });
 
   it("rejects zero or negative size", () => {
-    const project = createSampleProject();
+    const project = createBasicProject();
     const twoF = project.storeys.find((s) => s.id === "2f")!;
     twoF.stair = {
       x: 1,
@@ -157,7 +157,7 @@ describe("stair validation", () => {
   });
 
   it("rejects a stair that falls outside the storey's exterior ring", () => {
-    const project = createSampleProject();
+    const project = createBasicProject();
     const twoF = project.storeys.find((s) => s.id === "2f")!;
     // Sample is a 10×8 rectangle; this stair hangs off the back wall.
     twoF.stair = {
@@ -178,7 +178,7 @@ describe("stair validation", () => {
   });
 
   it("accepts a well-placed stair on 2F", () => {
-    const project = createSampleProject();
+    const project = createBasicProject();
     const twoF = project.storeys.find((s) => s.id === "2f")!;
     twoF.stair = {
       x: 0.6,
@@ -198,7 +198,7 @@ describe("stair validation", () => {
   it("accepts a well-placed rotated stair that fits inside even when rotated", () => {
     // Place a 1.2×1.2 stair centered at (5, 4) — well inside the 10×8 footprint.
     // Rotate 45°: corners move diagonally but stay inside.
-    const project = createSampleProject();
+    const project = createBasicProject();
     const twoF = project.storeys.find((s) => s.id === "2f")!;
     twoF.stair = {
       x: 5 - 0.6,  // center x=5
@@ -226,7 +226,7 @@ describe("stair validation", () => {
     // Use x=8.0, y=5.0, width=2.5, depth=2.5, rotation=45°:
     // center=(9.25, 6.25); half-diagonal = sqrt(2)*1.25 ≈ 1.77.
     // corner at 9.25+1.77≈11.02 → outside x=10.
-    const project = createSampleProject();
+    const project = createBasicProject();
     const twoF = project.storeys.find((s) => s.id === "2f")!;
     twoF.stair = {
       x: 8.0,

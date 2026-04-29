@@ -1,16 +1,16 @@
 import { describe, expect, it } from "vitest";
 import { projectReducer } from "../app/projectReducer";
-import { createSampleProject } from "../domain/sampleProject";
+import { createBasicProject } from "../domain/sampleProject";
 
 describe("project reducer", () => {
   it("switches between 2d and 3d modes", () => {
-    const project = projectReducer(createSampleProject(), { type: "set-mode", mode: "3d" });
+    const project = projectReducer(createBasicProject(), { type: "set-mode", mode: "3d" });
 
     expect(project.mode).toBe("3d");
   });
 
   it("edits the front window sill height through a reducer action", () => {
-    const project = projectReducer(createSampleProject(), {
+    const project = projectReducer(createBasicProject(), {
       type: "update-opening",
       openingId: "window-front-1f",
       patch: { sillHeight: 1.1 },
@@ -21,7 +21,7 @@ describe("project reducer", () => {
 
   it("propagates domain validation errors from opening edits", () => {
     expect(() =>
-      projectReducer(createSampleProject(), {
+      projectReducer(createBasicProject(), {
         type: "update-opening",
         openingId: "window-front-1f",
         patch: { sillHeight: 3 },
@@ -30,7 +30,7 @@ describe("project reducer", () => {
   });
 
   it("stores selection through the select action", () => {
-    const project = projectReducer(createSampleProject(), {
+    const project = projectReducer(createBasicProject(), {
       type: "select",
       selection: { kind: "wall", id: "wall-front-1f" },
     });
@@ -39,7 +39,7 @@ describe("project reducer", () => {
   });
 
   it("updates a wall thickness through update-wall", () => {
-    const project = projectReducer(createSampleProject(), {
+    const project = projectReducer(createBasicProject(), {
       type: "update-wall",
       wallId: "wall-front-1f",
       patch: { thickness: 0.3 },
@@ -49,7 +49,7 @@ describe("project reducer", () => {
   });
 
   it("updates a balcony depth through update-balcony", () => {
-    const project = projectReducer(createSampleProject(), {
+    const project = projectReducer(createBasicProject(), {
       type: "update-balcony",
       balconyId: "balcony-front-2f",
       patch: { depth: 1.5 },
@@ -59,7 +59,7 @@ describe("project reducer", () => {
   });
 
   it("updates a storey height through update-storey and renormalizes elevations", () => {
-    const project = projectReducer(createSampleProject(), {
+    const project = projectReducer(createBasicProject(), {
       type: "update-storey",
       storeyId: "1f",
       patch: { height: 3.5 },
@@ -69,7 +69,7 @@ describe("project reducer", () => {
   });
 
   it("add-stair action creates a stair on the targeted storey", () => {
-    const project = createSampleProject();
+    const project = createBasicProject();
     // sample already has stair on 2f; clear it first
     const cleared = projectReducer(project, { type: "remove-stair", storeyId: "2f" });
     const stair = {

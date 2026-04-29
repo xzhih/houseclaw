@@ -25,14 +25,14 @@ vi.mock("../rendering/threeScene", () => ({
 }));
 
 import { Preview3D } from "../components/Preview3D";
-import { createSampleProject } from "../domain/sampleProject";
+import { createBasicProject } from "../domain/sampleProject";
 import { mountHouseScene } from "../rendering/threeScene";
 
 describe("Preview3D camera-mode wiring", () => {
   it("renders the mode toggle and forwards clicks to the scene", async () => {
     setCameraMode.mockReset();
     const user = userEvent.setup();
-    render(<Preview3D project={createSampleProject()} />);
+    render(<Preview3D project={createBasicProject()} />);
 
     const walkButton = screen.getByRole("button", { name: "漫游" });
     await user.click(walkButton);
@@ -43,7 +43,7 @@ describe("Preview3D camera-mode wiring", () => {
   it("forwards floor-button clicks to teleportToStorey while in walk mode", async () => {
     teleportToStorey.mockReset();
     const user = userEvent.setup();
-    render(<Preview3D project={createSampleProject()} />);
+    render(<Preview3D project={createBasicProject()} />);
 
     await user.click(screen.getByRole("button", { name: "漫游" }));
     await user.click(screen.getByRole("button", { name: "2F" }));
@@ -66,7 +66,7 @@ describe("Preview3D camera-mode wiring", () => {
     mountSpy.mockClear();
 
     const user = userEvent.setup();
-    render(<Preview3D project={createSampleProject()} />);
+    render(<Preview3D project={createBasicProject()} />);
     await user.click(screen.getByRole("button", { name: "漫游" }));
 
     const options = mountSpy.mock.calls[0][2];
@@ -83,7 +83,7 @@ describe("Preview3D camera-mode wiring", () => {
   });
 
   it("hides floor buttons in orbit mode", () => {
-    render(<Preview3D project={createSampleProject()} />);
+    render(<Preview3D project={createBasicProject()} />);
     expect(screen.queryByRole("group", { name: "楼层切换" })).toBeNull();
   });
 });

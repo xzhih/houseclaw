@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { exportProjectJson, importProjectJson } from "../app/persistence";
 import { createSampleProject } from "../domain/sampleProject";
 
 describe("createSampleProject", () => {
@@ -14,5 +15,17 @@ describe("createSampleProject", () => {
     expect(project.roof!.overhang).toBeCloseTo(0.6);
     const material = project.materials.find((m) => m.id === project.roof!.materialId);
     expect(material?.kind).toBe("roof");
+  });
+
+  it("passes assertValidProject (round-trips through persistence)", () => {
+    // 序列化 + 反序列化跑一遍 importProjectJson，能进 assertValidProject 全套校验。
+    const project = createSampleProject();
+    const json = exportProjectJson(project);
+    expect(() => importProjectJson(json)).not.toThrow();
+  });
+
+  it("uses skirts (披檐) — showcase houses must demo this feature", () => {
+    const project = createSampleProject();
+    expect(project.skirts.length).toBeGreaterThan(0);
   });
 });

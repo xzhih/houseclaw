@@ -3,10 +3,10 @@ import type { HouseProject, Wall } from "../domain/types";
 import { addSkirt } from "../domain/mutations";
 import { projectElevationView } from "../projection/elevation";
 import { projectPlanView } from "../projection/plan";
-import { createSampleProject } from "../domain/sampleProject";
+import { createBasicProject } from "../domain/sampleProject";
 
 function createSetbackSecondFloorProject(): HouseProject {
-  const project = createSampleProject();
+  const project = createBasicProject();
   const secondFloorWalls = new Map<string, Wall>(
     [
     {
@@ -76,7 +76,7 @@ function createSetbackSecondFloorProject(): HouseProject {
 
 describe("2D projections", () => {
   it("projects first-floor walls into plan space", () => {
-    const projection = projectPlanView(createSampleProject(), "1f");
+    const projection = projectPlanView(createBasicProject(), "1f");
 
     expect(projection.viewId).toBe("plan-1f");
     expect(projection.wallSegments).toHaveLength(4);
@@ -88,7 +88,7 @@ describe("2D projections", () => {
   });
 
   it("projects front elevation openings from the same wall model", () => {
-    const projection = projectElevationView(createSampleProject(), "front");
+    const projection = projectElevationView(createBasicProject(), "front");
 
     expect(projection.viewId).toBe("elevation-front");
     expect(projection.wallBands.map((band) => band.wallId)).toEqual([
@@ -109,7 +109,7 @@ describe("2D projections", () => {
   });
 
   it("projects balconies into plan and elevation space", () => {
-    const project = createSampleProject();
+    const project = createBasicProject();
     const plan = projectPlanView(project, "2f");
     const elevation = projectElevationView(project, "front");
 
@@ -135,7 +135,7 @@ describe("2D projections", () => {
   });
 
   it("clones projected plan points away from the source project", () => {
-    const project = createSampleProject();
+    const project = createBasicProject();
     const projection = projectPlanView(project, "1f");
 
     projection.wallSegments[0].start.x = 99;
@@ -182,7 +182,7 @@ describe("2D projections", () => {
   });
 
   it("includes roof silhouette polygons in elevation projection", () => {
-    const project = createSampleProject();
+    const project = createBasicProject();
     const front = projectElevationView(project, "front");
     const left = projectElevationView(project, "left");
 
@@ -206,7 +206,7 @@ describe("2D projections", () => {
     // 1F has a stair (1F→2F), 2F has a stair (2F→3F), 3F has none (top).
     // Each plan view shows ONLY the storey's own up-stair — the DN hole
     // from the lower neighbor is intentionally not projected.
-    const project = createSampleProject();
+    const project = createBasicProject();
 
     const planFor1F = projectPlanView(project, "1f");
     expect(planFor1F.stairs).toHaveLength(1);
@@ -222,7 +222,7 @@ describe("2D projections", () => {
 
   it("populates rotation and center on PlanStairSymbol", () => {
     // stair on 2F is the 2F→3F stair; appears as 2F's own up-stair on 2F's plan
-    const project = createSampleProject();
+    const project = createBasicProject();
     const planFor2F = projectPlanView(project, "2f");
     const symbol = planFor2F.stairs.find((s) => s.storeyId === "2f");
     expect(symbol).toBeDefined();
@@ -238,7 +238,7 @@ describe("2D projections", () => {
   });
 
   it("propagates a non-zero rotation from the Stair data model into PlanStairSymbol", () => {
-    const project = createSampleProject();
+    const project = createBasicProject();
     const twoF = project.storeys.find((s) => s.id === "2f")!;
     const stairWithRot = { ...twoF.stair!, rotation: Math.PI / 6 };
     const modifiedProject = {
@@ -254,7 +254,7 @@ describe("2D projections", () => {
 
   describe("elevation — skirts", () => {
     it("includes skirt polygons in front elevation when skirt is on a front wall", () => {
-      let project = createSampleProject();
+      let project = createBasicProject();
       project = addSkirt(project, "wall-front-2f");
       const front = projectElevationView(project, "front");
       expect(front.skirts).toBeDefined();
@@ -264,7 +264,7 @@ describe("2D projections", () => {
 
   describe("plan view — skirts", () => {
     it("includes skirts for the queried storey only", () => {
-      let project = createSampleProject();
+      let project = createBasicProject();
       project = addSkirt(project, "wall-front-2f");
       const plan2f = projectPlanView(project, "2f");
       expect(plan2f.skirts).toHaveLength(1);
@@ -278,7 +278,7 @@ describe("2D projections", () => {
     // Front and back of the same symmetric box; place identical-shape openings on both walls
     // at offsets that place them at the same *world* x. From outside, the back view should
     // show the opening on the opposite side of the view from the front view.
-    const project = createSampleProject();
+    const project = createBasicProject();
     const projectWithBack: HouseProject = {
       ...project,
       openings: [

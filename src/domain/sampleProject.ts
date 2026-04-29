@@ -1,56 +1,59 @@
 import { materialCatalog } from "../materials/catalog";
-import type { Balcony, HouseProject, Opening, Storey, Wall } from "./types";
+import type {
+  Balcony,
+  HouseProject,
+  Opening,
+  SkirtRoof,
+  Storey,
+  Wall,
+} from "./types";
 
-const DEFAULT_STOREY_HEIGHT = 3.2;
-const DEFAULT_WALL_THICKNESS = 0.24;
-const DEFAULT_SLAB_THICKNESS = DEFAULT_WALL_THICKNESS; // 楼板厚度与墙体一致
+// 中式现代三层别墅 showcase 样板：层层退台 + 2F 披檐绕南 + 多阳台 + 3F 灰瓦坡屋顶。
+// 1F/2F 同 footprint（12×7，前墙在 y=2），2F 前出双阳台经悬挑覆盖 y=0..2 的入户庭院；
+// 3F 收进（9×5.5），坐在 2F 后部，前侧让出阳台。
+
+const WALL_THICKNESS = 0.24;
+const SLAB_THICKNESS = 0.24;
+const STOREY_HEIGHT = 3.2;
+const TOP_STOREY_HEIGHT = 3.0;
+
 const WALL_MATERIAL_ID = "mat-white-render";
-const BALCONY_MATERIAL_ID = "mat-gray-stone";
+const SLAB_MATERIAL_ID = "mat-gray-stone";
+const ROOF_MATERIAL_ID = "mat-gray-tile";
 const FRAME_MATERIAL_ID = "mat-dark-frame";
-const STAIR_MATERIAL_ID = WALL_MATERIAL_ID;
+const DECOR_MATERIAL_ID = "mat-warm-wood";
 
-function createStoreyWalls(storeyId: string): Wall[] {
+// 1F + 2F 共用占地：x ∈ [0, 12]，y ∈ [2, 9]
+// 3F 内收：x ∈ [1.5, 10.5]，y ∈ [3.5, 9]
+const FOOT_X0 = 0;
+const FOOT_X1 = 12;
+const FOOT_Y0 = 2;
+const FOOT_Y1 = 9;
+const TOP_X0 = 1.5;
+const TOP_X1 = 10.5;
+const TOP_Y0 = 3.5;
+const TOP_Y1 = 9;
+
+function rectWalls(
+  storeyId: string,
+  x0: number,
+  y0: number,
+  x1: number,
+  y1: number,
+  height: number,
+): Wall[] {
+  const common = {
+    storeyId,
+    thickness: WALL_THICKNESS,
+    height,
+    exterior: true,
+    materialId: WALL_MATERIAL_ID,
+  } as const;
   return [
-    {
-      id: `wall-front-${storeyId}`,
-      storeyId,
-      start: { x: 0, y: 0 },
-      end: { x: 10, y: 0 },
-      thickness: DEFAULT_WALL_THICKNESS,
-      height: DEFAULT_STOREY_HEIGHT,
-      exterior: true,
-      materialId: WALL_MATERIAL_ID,
-    },
-    {
-      id: `wall-right-${storeyId}`,
-      storeyId,
-      start: { x: 10, y: 0 },
-      end: { x: 10, y: 8 },
-      thickness: DEFAULT_WALL_THICKNESS,
-      height: DEFAULT_STOREY_HEIGHT,
-      exterior: true,
-      materialId: WALL_MATERIAL_ID,
-    },
-    {
-      id: `wall-back-${storeyId}`,
-      storeyId,
-      start: { x: 10, y: 8 },
-      end: { x: 0, y: 8 },
-      thickness: DEFAULT_WALL_THICKNESS,
-      height: DEFAULT_STOREY_HEIGHT,
-      exterior: true,
-      materialId: WALL_MATERIAL_ID,
-    },
-    {
-      id: `wall-left-${storeyId}`,
-      storeyId,
-      start: { x: 0, y: 8 },
-      end: { x: 0, y: 0 },
-      thickness: DEFAULT_WALL_THICKNESS,
-      height: DEFAULT_STOREY_HEIGHT,
-      exterior: true,
-      materialId: WALL_MATERIAL_ID,
-    },
+    { id: `wall-front-${storeyId}`, ...common, start: { x: x0, y: y0 }, end: { x: x1, y: y0 } },
+    { id: `wall-right-${storeyId}`, ...common, start: { x: x1, y: y0 }, end: { x: x1, y: y1 } },
+    { id: `wall-back-${storeyId}`,  ...common, start: { x: x1, y: y1 }, end: { x: x0, y: y1 } },
+    { id: `wall-left-${storeyId}`,  ...common, start: { x: x0, y: y1 }, end: { x: x0, y: y0 } },
   ];
 }
 
@@ -65,127 +68,385 @@ export function createSampleProject(): HouseProject {
       id: "1f",
       label: "1F",
       elevation: 0,
-      height: DEFAULT_STOREY_HEIGHT,
-      slabThickness: DEFAULT_SLAB_THICKNESS,
+      height: STOREY_HEIGHT,
+      slabThickness: SLAB_THICKNESS,
+      // 直跑楼梯，靠左后内置（不与门窗冲突）
       stair: {
-        x: 0.6,
-        y: 5.0,
-        width: 1.2,
-        depth: 2.5,
+        x: 0.5,
+        y: 4.4,
+        width: 1.4,
+        depth: 3.2,
         shape: "straight",
         treadDepth: 0.27,
         bottomEdge: "+y",
-        materialId: STAIR_MATERIAL_ID,
+        materialId: DECOR_MATERIAL_ID,
       },
     },
     {
       id: "2f",
       label: "2F",
-      elevation: 3.2,
-      height: DEFAULT_STOREY_HEIGHT,
-      slabThickness: DEFAULT_SLAB_THICKNESS,
+      elevation: STOREY_HEIGHT,
+      height: STOREY_HEIGHT,
+      slabThickness: SLAB_THICKNESS,
       stair: {
-        x: 0.6,
-        y: 5.0,
-        width: 1.2,
-        depth: 2.5,
+        x: 0.5,
+        y: 4.4,
+        width: 1.4,
+        depth: 3.2,
         shape: "straight",
         treadDepth: 0.27,
         bottomEdge: "+y",
-        materialId: STAIR_MATERIAL_ID,
+        materialId: DECOR_MATERIAL_ID,
       },
     },
     {
       id: "3f",
       label: "3F",
-      elevation: 6.4,
-      height: DEFAULT_STOREY_HEIGHT,
-      slabThickness: DEFAULT_SLAB_THICKNESS,
+      elevation: STOREY_HEIGHT * 2,
+      height: TOP_STOREY_HEIGHT,
+      slabThickness: SLAB_THICKNESS,
     },
   ];
 
-  const walls: Wall[] = storeys.flatMap((storey) => createStoreyWalls(storey.id));
+  const walls: Wall[] = [
+    ...rectWalls("1f", FOOT_X0, FOOT_Y0, FOOT_X1, FOOT_Y1, STOREY_HEIGHT),
+    ...rectWalls("2f", FOOT_X0, FOOT_Y0, FOOT_X1, FOOT_Y1, STOREY_HEIGHT),
+    ...rectWalls("3f", TOP_X0, TOP_Y0, TOP_X1, TOP_Y1, TOP_STOREY_HEIGHT),
+  ];
 
+  // 1F：中式入户——居中木门 + 两侧落地窗 + 两侧窗
+  // 2F：客厅大面落地窗（朝阳台），立面分两段
+  // 3F：两扇大窗
   const openings: Opening[] = [
+    // 1F 前面：左落地窗 + 居中入户门 + 右落地窗
     {
-      id: "window-front-1f",
+      id: "win-front-1f-l",
       wallId: "wall-front-1f",
       type: "window",
-      offset: 3,
-      sillHeight: 0.9,
-      width: 1.6,
-      height: 1.3,
-      frameMaterialId: FRAME_MATERIAL_ID,
-    },
-    {
-      id: "window-front-2f",
-      wallId: "wall-front-2f",
-      type: "window",
-      offset: 3.8,
-      sillHeight: 0.9,
-      width: 0.8,
-      height: 1.4,
-      frameMaterialId: FRAME_MATERIAL_ID,
-    },
-    {
-      id: "window-front-3f",
-      wallId: "wall-front-3f",
-      type: "window",
-      offset: 4.1,
-      sillHeight: 0.9,
-      width: 1.5,
-      height: 1.2,
+      offset: 1.4,
+      sillHeight: 0.0,
+      width: 2.6,
+      height: 2.4,
       frameMaterialId: FRAME_MATERIAL_ID,
     },
     {
       id: "door-front-1f",
       wallId: "wall-front-1f",
       type: "door",
-      offset: 6.0,
-      sillHeight: 0,
-      width: 1.0,
-      height: 2.1,
+      offset: 5.4,
+      sillHeight: 0.0,
+      width: 1.2,
+      height: 2.3,
       frameMaterialId: FRAME_MATERIAL_ID,
     },
     {
-      id: "door-front-2f",
+      id: "win-front-1f-r",
+      wallId: "wall-front-1f",
+      type: "window",
+      offset: 8.0,
+      sillHeight: 0.0,
+      width: 2.6,
+      height: 2.4,
+      frameMaterialId: FRAME_MATERIAL_ID,
+    },
+    // 1F 侧窗
+    {
+      id: "win-right-1f",
+      wallId: "wall-right-1f",
+      type: "window",
+      offset: 2.5,
+      sillHeight: 0.9,
+      width: 1.4,
+      height: 1.4,
+      frameMaterialId: FRAME_MATERIAL_ID,
+    },
+    {
+      id: "win-left-1f",
+      wallId: "wall-left-1f",
+      type: "window",
+      offset: 2.5,
+      sillHeight: 0.9,
+      width: 1.4,
+      height: 1.4,
+      frameMaterialId: FRAME_MATERIAL_ID,
+    },
+    // 2F 前面：双联落地推拉门，留中柱
+    {
+      id: "win-front-2f-l",
       wallId: "wall-front-2f",
-      type: "door",
-      offset: 5.0,
-      sillHeight: 0,
+      type: "window",
+      offset: 0.6,
+      sillHeight: 0.0,
+      width: 4.6,
+      height: 2.5,
+      frameMaterialId: FRAME_MATERIAL_ID,
+    },
+    {
+      id: "win-front-2f-r",
+      wallId: "wall-front-2f",
+      type: "window",
+      offset: 6.8,
+      sillHeight: 0.0,
+      width: 4.6,
+      height: 2.5,
+      frameMaterialId: FRAME_MATERIAL_ID,
+    },
+    // 2F 侧窗
+    {
+      id: "win-right-2f",
+      wallId: "wall-right-2f",
+      type: "window",
+      offset: 2.5,
+      sillHeight: 0.9,
+      width: 1.4,
+      height: 1.6,
+      frameMaterialId: FRAME_MATERIAL_ID,
+    },
+    {
+      id: "win-left-2f",
+      wallId: "wall-left-2f",
+      type: "window",
+      offset: 2.5,
+      sillHeight: 0.9,
+      width: 1.4,
+      height: 1.6,
+      frameMaterialId: FRAME_MATERIAL_ID,
+    },
+    // 3F 前面：两扇大窗（中式立面对称）
+    {
+      id: "win-front-3f-l",
+      wallId: "wall-front-3f",
+      type: "window",
+      offset: 0.8,
+      sillHeight: 0.5,
+      width: 2.6,
+      height: 2.0,
+      frameMaterialId: FRAME_MATERIAL_ID,
+    },
+    {
+      id: "win-front-3f-r",
+      wallId: "wall-front-3f",
+      type: "window",
+      offset: 5.6,
+      sillHeight: 0.5,
+      width: 2.6,
+      height: 2.0,
+      frameMaterialId: FRAME_MATERIAL_ID,
+    },
+    // 3F 山墙小窗
+    {
+      id: "win-right-3f",
+      wallId: "wall-right-3f",
+      type: "window",
+      offset: 2.0,
+      sillHeight: 1.0,
       width: 1.0,
-      height: 2.2,
+      height: 1.2,
+      frameMaterialId: FRAME_MATERIAL_ID,
+    },
+    {
+      id: "win-left-3f",
+      wallId: "wall-left-3f",
+      type: "window",
+      offset: 2.0,
+      sillHeight: 1.0,
+      width: 1.0,
+      height: 1.2,
       frameMaterialId: FRAME_MATERIAL_ID,
     },
   ];
 
+  // 2F 前阳台：附 2F 前墙，外挑 2m 至 y=0，覆盖 1F 入户庭院上方
+  // 3F 前阳台：附 3F 前墙，外挑 1.5m 至 y=2，坐在 2F 阳台屋面之上
   const balconies: Balcony[] = [
     {
       id: "balcony-front-2f",
       storeyId: "2f",
       attachedWallId: "wall-front-2f",
-      offset: 3.1,
-      width: 3.2,
-      depth: 1.25,
-      slabThickness: DEFAULT_SLAB_THICKNESS,
+      offset: 0,
+      width: 12,
+      depth: 2.0,
+      slabThickness: SLAB_THICKNESS,
       railingHeight: 1.05,
-      materialId: BALCONY_MATERIAL_ID,
-      railingMaterialId: FRAME_MATERIAL_ID,
+      materialId: SLAB_MATERIAL_ID,
+      railingMaterialId: WALL_MATERIAL_ID,
+    },
+    {
+      id: "balcony-front-3f",
+      storeyId: "3f",
+      attachedWallId: "wall-front-3f",
+      offset: 0,
+      width: 9,
+      depth: 1.5,
+      slabThickness: SLAB_THICKNESS,
+      railingHeight: 1.05,
+      materialId: SLAB_MATERIAL_ID,
+      railingMaterialId: WALL_MATERIAL_ID,
     },
   ];
 
-  const topStorey = storeys[storeys.length - 1];
-  const roofMaterial = materials.find((m) => m.kind === "roof") ?? materials[0];
+  // 2F 三段披檐 wraparound：前墙长披檐 + 左右两侧短披檐（中式坡屋面绕角入侧）
+  // elevation 必须 > 2F 楼面（3.2m），略高一点 3.4m 让出檐离 1F 顶部留呼吸；30° 坡。
+  const SKIRT_ELEVATION = STOREY_HEIGHT + 0.2;
+  const skirts: SkirtRoof[] = [
+    {
+      id: "skirt-front-2f",
+      hostWallId: "wall-front-2f",
+      offset: 0,
+      width: 12,
+      depth: 2.4,
+      elevation: SKIRT_ELEVATION,
+      pitch: Math.PI / 6,
+      overhang: 0.4,
+      materialId: ROOF_MATERIAL_ID,
+    },
+    {
+      id: "skirt-right-2f",
+      hostWallId: "wall-right-2f",
+      offset: 0,
+      width: 2.0,
+      depth: 1.6,
+      elevation: SKIRT_ELEVATION,
+      pitch: Math.PI / 6,
+      overhang: 0.4,
+      materialId: ROOF_MATERIAL_ID,
+    },
+    {
+      id: "skirt-left-2f",
+      hostWallId: "wall-left-2f",
+      offset: 5.0,
+      width: 2.0,
+      depth: 1.6,
+      elevation: SKIRT_ELEVATION,
+      pitch: Math.PI / 6,
+      overhang: 0.4,
+      materialId: ROOF_MATERIAL_ID,
+    },
+  ];
+
+  // 3F 主屋面：南北 eave / 东西 gable，30° 坡，60cm 出挑，灰瓦
   const roof = {
     edges: {
-      [`wall-front-${topStorey.id}`]: "eave" as const,
-      [`wall-back-${topStorey.id}`]: "eave" as const,
-      [`wall-left-${topStorey.id}`]: "gable" as const,
-      [`wall-right-${topStorey.id}`]: "gable" as const,
+      "wall-front-3f": "eave" as const,
+      "wall-back-3f": "eave" as const,
+      "wall-left-3f": "gable" as const,
+      "wall-right-3f": "gable" as const,
     },
     pitch: Math.PI / 6,
     overhang: 0.6,
-    materialId: roofMaterial.id,
+    materialId: ROOF_MATERIAL_ID,
+  };
+
+  return {
+    schemaVersion: 1,
+    id: "sample-house",
+    name: "中式三层别墅",
+    unitSystem: "metric",
+    defaultWallThickness: WALL_THICKNESS,
+    defaultStoreyHeight: STOREY_HEIGHT,
+    mode: "2d",
+    activeView: "plan-1f",
+    activeTool: "select",
+    selection: { kind: "storey", id: "1f" },
+    storeys,
+    materials,
+    walls,
+    openings,
+    balconies,
+    roof,
+    skirts,
+  };
+}
+
+// ───────────────────────────────────────────────────────────────────────────
+// createBasicProject —— 测试 fixture 用的最小有效项目（10×8 三层方盒子）。
+// 不进入 UI 流程，仅给单测做"已知形态"参照。修改任何字段会同步影响
+// constraints / projection / geometry / persistence 等多份测试，谨慎调整。
+// ───────────────────────────────────────────────────────────────────────────
+
+const BASIC_STOREY_HEIGHT = 3.2;
+const BASIC_WALL_THICKNESS = 0.24;
+const BASIC_SLAB_THICKNESS = BASIC_WALL_THICKNESS;
+
+function basicStoreyWalls(storeyId: string): Wall[] {
+  const common = {
+    storeyId,
+    thickness: BASIC_WALL_THICKNESS,
+    height: BASIC_STOREY_HEIGHT,
+    exterior: true,
+    materialId: WALL_MATERIAL_ID,
+  } as const;
+  return [
+    { id: `wall-front-${storeyId}`, ...common, start: { x: 0, y: 0 },  end: { x: 10, y: 0 } },
+    { id: `wall-right-${storeyId}`, ...common, start: { x: 10, y: 0 }, end: { x: 10, y: 8 } },
+    { id: `wall-back-${storeyId}`,  ...common, start: { x: 10, y: 8 }, end: { x: 0, y: 8 } },
+    { id: `wall-left-${storeyId}`,  ...common, start: { x: 0, y: 8 },  end: { x: 0, y: 0 } },
+  ];
+}
+
+export function createBasicProject(): HouseProject {
+  const materials = materialCatalog.map((material) => ({
+    ...material,
+    ...(material.repeat ? { repeat: { ...material.repeat } } : {}),
+  }));
+
+  const storeys: Storey[] = [
+    {
+      id: "1f", label: "1F", elevation: 0,
+      height: BASIC_STOREY_HEIGHT, slabThickness: BASIC_SLAB_THICKNESS,
+      stair: {
+        x: 0.6, y: 5.0, width: 1.2, depth: 2.5, shape: "straight",
+        treadDepth: 0.27, bottomEdge: "+y", materialId: WALL_MATERIAL_ID,
+      },
+    },
+    {
+      id: "2f", label: "2F", elevation: 3.2,
+      height: BASIC_STOREY_HEIGHT, slabThickness: BASIC_SLAB_THICKNESS,
+      stair: {
+        x: 0.6, y: 5.0, width: 1.2, depth: 2.5, shape: "straight",
+        treadDepth: 0.27, bottomEdge: "+y", materialId: WALL_MATERIAL_ID,
+      },
+    },
+    {
+      id: "3f", label: "3F", elevation: 6.4,
+      height: BASIC_STOREY_HEIGHT, slabThickness: BASIC_SLAB_THICKNESS,
+    },
+  ];
+
+  const walls: Wall[] = storeys.flatMap((storey) => basicStoreyWalls(storey.id));
+
+  const openings: Opening[] = [
+    { id: "window-front-1f", wallId: "wall-front-1f", type: "window",
+      offset: 3,   sillHeight: 0.9, width: 1.6, height: 1.3, frameMaterialId: FRAME_MATERIAL_ID },
+    { id: "window-front-2f", wallId: "wall-front-2f", type: "window",
+      offset: 3.8, sillHeight: 0.9, width: 0.8, height: 1.4, frameMaterialId: FRAME_MATERIAL_ID },
+    { id: "window-front-3f", wallId: "wall-front-3f", type: "window",
+      offset: 4.1, sillHeight: 0.9, width: 1.5, height: 1.2, frameMaterialId: FRAME_MATERIAL_ID },
+    { id: "door-front-1f",   wallId: "wall-front-1f", type: "door",
+      offset: 6.0, sillHeight: 0,   width: 1.0, height: 2.1, frameMaterialId: FRAME_MATERIAL_ID },
+    { id: "door-front-2f",   wallId: "wall-front-2f", type: "door",
+      offset: 5.0, sillHeight: 0,   width: 1.0, height: 2.2, frameMaterialId: FRAME_MATERIAL_ID },
+  ];
+
+  const balconies: Balcony[] = [
+    {
+      id: "balcony-front-2f", storeyId: "2f", attachedWallId: "wall-front-2f",
+      offset: 3.1, width: 3.2, depth: 1.25,
+      slabThickness: BASIC_SLAB_THICKNESS, railingHeight: 1.05,
+      materialId: SLAB_MATERIAL_ID, railingMaterialId: FRAME_MATERIAL_ID,
+    },
+  ];
+
+  const roof = {
+    edges: {
+      "wall-front-3f": "eave"  as const,
+      "wall-back-3f":  "eave"  as const,
+      "wall-left-3f":  "gable" as const,
+      "wall-right-3f": "gable" as const,
+    },
+    pitch: Math.PI / 6,
+    overhang: 0.6,
+    materialId: "mat-clay-tile",
   };
 
   return {
@@ -193,12 +454,12 @@ export function createSampleProject(): HouseProject {
     id: "sample-house",
     name: "三层别墅草案",
     unitSystem: "metric",
-    defaultWallThickness: DEFAULT_WALL_THICKNESS,
-    defaultStoreyHeight: DEFAULT_STOREY_HEIGHT,
+    defaultWallThickness: BASIC_WALL_THICKNESS,
+    defaultStoreyHeight: BASIC_STOREY_HEIGHT,
     mode: "2d",
     activeView: "plan-1f",
     activeTool: "select",
-    selection: { kind: "storey", id: storeys[0].id },
+    selection: { kind: "storey", id: "1f" },
     storeys,
     materials,
     walls,

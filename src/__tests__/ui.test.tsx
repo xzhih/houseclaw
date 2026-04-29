@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { exportProjectJson } from "../app/persistence";
 import App from "../App";
-import { createSampleProject } from "../domain/sampleProject";
+import { createBasicProject } from "../domain/sampleProject";
 
 function restoreUrlProperty(name: "createObjectURL" | "revokeObjectURL", descriptor?: PropertyDescriptor): void {
   if (descriptor) {
@@ -61,7 +61,7 @@ describe("HouseClaw UI", () => {
 
   it("imports valid project JSON from a file", async () => {
     const user = userEvent.setup();
-    const sample = createSampleProject();
+    const sample = createBasicProject();
     const importedProject = {
       ...sample,
       storeys: sample.storeys.map((storey) =>
@@ -96,7 +96,7 @@ describe("HouseClaw UI", () => {
     const invalidFile = new File([JSON.stringify({ mode: "bad" })], "bad-project.json", {
       type: "application/json",
     });
-    const sample = createSampleProject();
+    const sample = createBasicProject();
     const validProject = {
       ...sample,
       storeys: sample.storeys.map((storey) =>
@@ -137,7 +137,7 @@ describe("HouseClaw UI", () => {
     await user.click(screen.getByRole("button", { name: "正视" }));
 
     expect(screen.getByRole("group", { name: "当前 2D 结构视图" })).toBeInTheDocument();
-    const opening = screen.getByRole("button", { name: "选择开孔 window-front-1f" });
+    const opening = screen.getByRole("button", { name: "选择开孔 win-front-1f-l" });
     expect(opening).toHaveAttribute("aria-pressed", "false");
 
     opening.focus();
@@ -153,7 +153,7 @@ describe("HouseClaw UI", () => {
     render(<App />);
 
     await user.click(screen.getByRole("button", { name: "正视" }));
-    const opening = screen.getByRole("button", { name: "选择开孔 window-front-1f" });
+    const opening = screen.getByRole("button", { name: "选择开孔 win-front-1f-l" });
     opening.focus();
     await user.keyboard("{Enter}");
 
@@ -161,7 +161,7 @@ describe("HouseClaw UI", () => {
 
     await user.keyboard("{Escape}");
 
-    expect(screen.getByRole("button", { name: "选择开孔 window-front-1f" })).toHaveAttribute(
+    expect(screen.getByRole("button", { name: "选择开孔 win-front-1f-l" })).toHaveAttribute(
       "aria-pressed",
       "false",
     );
@@ -372,9 +372,9 @@ describe("roof view", () => {
     render(<App />);
     await user.click(screen.getByRole("button", { name: "屋顶" }));
     await user.click(screen.getByTestId("roof-body"));
-    // Sample default roof material is 陶瓦 — must surface as a pressed swatch
+    // Sample default roof material is 灰瓦 — must surface as a pressed swatch
     // button, mirroring the wall/stair material-catalog pattern.
-    const tile = await screen.findByRole("button", { name: "陶瓦" });
+    const tile = await screen.findByRole("button", { name: "灰瓦" });
     expect(tile).toHaveAttribute("aria-pressed", "true");
     // No native select dropdown allowed — keeps roof consistent with siblings.
     expect(screen.queryByRole("combobox")).toBeNull();

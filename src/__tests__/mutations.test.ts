@@ -14,11 +14,11 @@ import {
   removeSkirt,
   removeWall,
 } from "../domain/mutations";
-import { createSampleProject } from "../domain/sampleProject";
+import { createBasicProject } from "../domain/sampleProject";
 
 describe("translateStorey", () => {
   it("shifts every wall on the target storey and leaves others alone", () => {
-    const project = createSampleProject();
+    const project = createBasicProject();
     const dx = 1.5;
     const dy = -0.25;
 
@@ -38,7 +38,7 @@ describe("translateStorey", () => {
   });
 
   it("shifts the stair opening on the target storey along with its walls", () => {
-    const project = createSampleProject();
+    const project = createBasicProject();
     const original = project.storeys.find((storey) => storey.id === "2f")!;
     expect(original.stair).toBeDefined();
 
@@ -53,7 +53,7 @@ describe("translateStorey", () => {
   });
 
   it("does not touch stair openings on other storeys", () => {
-    const project = createSampleProject();
+    const project = createBasicProject();
     const next = translateStorey(project, "2f", 5, 0);
     const other = next.storeys.find((storey) => storey.id === "3f")!;
     const original = project.storeys.find((storey) => storey.id === "3f")!;
@@ -61,14 +61,14 @@ describe("translateStorey", () => {
   });
 
   it("returns the same project when delta is zero", () => {
-    const project = createSampleProject();
+    const project = createBasicProject();
     expect(translateStorey(project, "2f", 0, 0)).toBe(project);
   });
 });
 
 describe("resizeStoreyExtent", () => {
   it("scales walls along the X axis about the storey's left edge", () => {
-    const project = createSampleProject();
+    const project = createBasicProject();
     const storeyId = "1f";
     const before = project.walls.filter((wall) => wall.storeyId === storeyId);
     const xs = before.flatMap((wall) => [wall.start.x, wall.end.x]);
@@ -89,7 +89,7 @@ describe("resizeStoreyExtent", () => {
   });
 
   it("does not scale Y when resizing X extent", () => {
-    const project = createSampleProject();
+    const project = createBasicProject();
     const next = resizeStoreyExtent(project, "1f", "x", 20);
     const before = project.walls.filter((wall) => wall.storeyId === "1f");
     const after = next.walls.filter((wall) => wall.storeyId === "1f");
@@ -100,7 +100,7 @@ describe("resizeStoreyExtent", () => {
   });
 
   it("leaves walls on other storeys untouched", () => {
-    const project = createSampleProject();
+    const project = createBasicProject();
     const next = resizeStoreyExtent(project, "1f", "x", 20);
     for (const original of project.walls) {
       if (original.storeyId === "1f") continue;
@@ -111,7 +111,7 @@ describe("resizeStoreyExtent", () => {
   });
 
   it("scales the stair opening along the active axis", () => {
-    const project = createSampleProject();
+    const project = createBasicProject();
     const storey = project.storeys.find((s) => s.id === "2f")!;
     expect(storey.stair).toBeDefined();
     const orig = storey.stair!;
@@ -131,7 +131,7 @@ describe("resizeStoreyExtent", () => {
   });
 
   it("rejects non-positive sizes", () => {
-    const project = createSampleProject();
+    const project = createBasicProject();
     expect(() => resizeStoreyExtent(project, "1f", "x", 0)).toThrow();
     expect(() => resizeStoreyExtent(project, "1f", "x", -1)).toThrow();
   });
@@ -139,7 +139,7 @@ describe("resizeStoreyExtent", () => {
 
 describe("addStorey", () => {
   it("appends an empty storey on top with auto-numbered id and label", () => {
-    const project = createSampleProject();
+    const project = createBasicProject();
     const before = project.storeys.length;
 
     const next = addStorey(project);
@@ -153,7 +153,7 @@ describe("addStorey", () => {
   });
 
   it("inherits height and slabThickness from the previous topmost storey", () => {
-    const project = createSampleProject();
+    const project = createBasicProject();
     const top = project.storeys[project.storeys.length - 1];
 
     const next = addStorey(project);
@@ -166,7 +166,7 @@ describe("addStorey", () => {
 
 describe("duplicateStorey", () => {
   it("clones the source storey's walls, openings, and balconies under fresh ids", () => {
-    const project = createSampleProject();
+    const project = createBasicProject();
     const sourceWalls = project.walls.filter((wall) => wall.storeyId === "2f");
     const sourceOpenings = project.openings.filter((opening) =>
       sourceWalls.some((wall) => wall.id === opening.wallId),
@@ -196,7 +196,7 @@ describe("duplicateStorey", () => {
   });
 
   it("drops the stair on the duplicate (it becomes the new top storey)", () => {
-    const project = createSampleProject();
+    const project = createBasicProject();
     const next = duplicateStorey(project, "2f");
     const clone = next.storeys[next.storeys.length - 1];
 
@@ -204,7 +204,7 @@ describe("duplicateStorey", () => {
   });
 
   it("preserves wall geometry (start/end points) from the source", () => {
-    const project = createSampleProject();
+    const project = createBasicProject();
     const sourceWall = project.walls.find(
       (wall) => wall.storeyId === "2f" && wall.id === "wall-front-2f",
     );
@@ -221,14 +221,14 @@ describe("duplicateStorey", () => {
   });
 
   it("throws when the source storey does not exist", () => {
-    const project = createSampleProject();
+    const project = createBasicProject();
     expect(() => duplicateStorey(project, "missing")).toThrow();
   });
 });
 
 describe("addRoof", () => {
   it("creates a default roof with the two longest walls as eaves", () => {
-    const project = createSampleProject();
+    const project = createBasicProject();
     const stripped = { ...project, roof: undefined };
     const next = addRoof(stripped);
     expect(next.roof).toBeDefined();
@@ -243,12 +243,12 @@ describe("addRoof", () => {
   });
 
   it("throws when a roof already exists", () => {
-    const project = addRoof({ ...createSampleProject(), roof: undefined });
+    const project = addRoof({ ...createBasicProject(), roof: undefined });
     expect(() => addRoof(project)).toThrow();
   });
 
   it("throws when canBuildRoof is false", () => {
-    const project = createSampleProject();
+    const project = createBasicProject();
     const top = project.storeys[project.storeys.length - 1];
     const walls = project.walls.filter(
       (w) => !(w.storeyId === top.id && w.id === `wall-front-${top.id}`),
@@ -259,26 +259,26 @@ describe("addRoof", () => {
 
 describe("removeRoof", () => {
   it("clears project.roof", () => {
-    const project = createSampleProject();
+    const project = createBasicProject();
     const next = removeRoof(project);
     expect(next.roof).toBeUndefined();
   });
   it("is a no-op when no roof exists", () => {
-    const project = { ...createSampleProject(), roof: undefined };
+    const project = { ...createBasicProject(), roof: undefined };
     expect(removeRoof(project)).toBe(project);
   });
 });
 
 describe("updateRoof", () => {
   it("clamps pitch into [π/36, π/3]", () => {
-    const project = createSampleProject();
+    const project = createBasicProject();
     const upper = updateRoof(project, { pitch: Math.PI }); // 180° → clamp
     expect(upper.roof!.pitch).toBeCloseTo(Math.PI / 3);
     const lower = updateRoof(project, { pitch: 0 });
     expect(lower.roof!.pitch).toBeCloseTo(Math.PI / 36);
   });
   it("clamps overhang into [0, 2]", () => {
-    const project = createSampleProject();
+    const project = createBasicProject();
     expect(updateRoof(project, { overhang: -1 }).roof!.overhang).toBe(0);
     expect(updateRoof(project, { overhang: 5 }).roof!.overhang).toBe(2);
   });
@@ -286,7 +286,7 @@ describe("updateRoof", () => {
 
 describe("toggleRoofEdge", () => {
   it("flips eave ↔ gable", () => {
-    const project = createSampleProject();
+    const project = createBasicProject();
     const top = project.storeys[project.storeys.length - 1];
     const wallId = `wall-front-${top.id}`;
     const before = project.roof!.edges[wallId];
@@ -295,7 +295,7 @@ describe("toggleRoofEdge", () => {
   });
 
   it("throws when flipping the last eave to gable", () => {
-    const project = createSampleProject();
+    const project = createBasicProject();
     const top = project.storeys[project.storeys.length - 1];
     // Force only one eave on front:
     const front = `wall-front-${top.id}`;
@@ -317,25 +317,25 @@ describe("toggleRoofEdge", () => {
 
 describe("storey mutations clear roof", () => {
   it("addStorey clears project.roof", () => {
-    const project = createSampleProject();
+    const project = createBasicProject();
     expect(project.roof).toBeDefined();
     const next = addStorey(project);
     expect(next.roof).toBeUndefined();
   });
   it("duplicateStorey clears project.roof", () => {
-    const project = createSampleProject();
+    const project = createBasicProject();
     const next = duplicateStorey(project, "2f");
     expect(next.roof).toBeUndefined();
   });
   it("removeStorey clears project.roof", () => {
-    const project = createSampleProject();
+    const project = createBasicProject();
     // Top storey is 3f; remove a different storey to ensure project still has a roof-eligible top.
     // Sample has 1f, 2f, 3f — remove 2f.
     const next = removeStorey(project, "2f");
     expect(next.roof).toBeUndefined();
   });
   it("removeStorey strips stair on the new top storey", () => {
-    const project = createSampleProject();
+    const project = createBasicProject();
     // sample tops: 1F has stair, 2F has stair, 3F has no stair (top).
     // Removing 3F makes 2F the new top → its stair must be stripped.
     const next = removeStorey(project, "3f");
@@ -347,7 +347,7 @@ describe("storey mutations clear roof", () => {
 
 describe("updateSkirt", () => {
   it("applies a patch and validates ranges", () => {
-    let project = createSampleProject();
+    let project = createBasicProject();
     project = addSkirt(project, "wall-front-2f");
     const id = project.skirts[0].id;
     const next = updateSkirt(project, id, { depth: 1.5, pitch: Math.PI / 4 });
@@ -356,14 +356,14 @@ describe("updateSkirt", () => {
   });
 
   it("rejects pitch out of range", () => {
-    let project = createSampleProject();
+    let project = createBasicProject();
     project = addSkirt(project, "wall-front-2f");
     const id = project.skirts[0].id;
     expect(() => updateSkirt(project, id, { pitch: Math.PI })).toThrow();
   });
 
   it("rejects offset+width exceeding wall length", () => {
-    let project = createSampleProject();
+    let project = createBasicProject();
     project = addSkirt(project, "wall-front-2f");
     const id = project.skirts[0].id;
     expect(() => updateSkirt(project, id, { offset: 8, width: 5 })).toThrow();
@@ -372,7 +372,7 @@ describe("updateSkirt", () => {
 
 describe("addSkirt", () => {
   it("adds a skirt to the given wall with default geometry", () => {
-    const project = createSampleProject();
+    const project = createBasicProject();
     const wall = project.walls.find((w) => w.id === "wall-front-2f")!;
     const next = addSkirt(project, wall.id);
     expect(next.skirts).toHaveLength(1);
@@ -385,14 +385,14 @@ describe("addSkirt", () => {
   });
 
   it("rejects when hostWallId does not exist", () => {
-    const project = createSampleProject();
+    const project = createBasicProject();
     expect(() => addSkirt(project, "wall-nonexistent")).toThrow();
   });
 });
 
 describe("removeSkirt", () => {
   it("preserves other selections", () => {
-    let project = createSampleProject();
+    let project = createBasicProject();
     project = addSkirt(project, "wall-front-2f");
     const id = project.skirts[0].id;
     project = { ...project, selection: { kind: "wall", id: "wall-front-1f" } };
@@ -403,7 +403,7 @@ describe("removeSkirt", () => {
 
 describe("removeWall cascade", () => {
   it("removes skirts attached to the wall", () => {
-    let project = createSampleProject();
+    let project = createBasicProject();
     project = addSkirt(project, "wall-front-2f");
     expect(project.skirts.length).toBeGreaterThan(0);
     const wallSkirt = project.skirts.find((s) => s.hostWallId === "wall-front-2f");

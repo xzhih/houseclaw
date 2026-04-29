@@ -9,7 +9,7 @@ describe("PropertyPanel editing", () => {
     render(<App />);
 
     await user.click(screen.getByRole("button", { name: "正视" }));
-    const opening = screen.getByRole("button", { name: "选择开孔 window-front-1f" });
+    const opening = screen.getByRole("button", { name: "选择开孔 win-front-1f-l" });
     opening.focus();
     await user.keyboard("{Enter}");
 
@@ -27,7 +27,7 @@ describe("PropertyPanel editing", () => {
     render(<App />);
 
     await user.click(screen.getByRole("button", { name: "正视" }));
-    const opening = screen.getByRole("button", { name: "选择开孔 window-front-1f" });
+    const opening = screen.getByRole("button", { name: "选择开孔 win-front-1f-l" });
     opening.focus();
     await user.keyboard("{Enter}");
 

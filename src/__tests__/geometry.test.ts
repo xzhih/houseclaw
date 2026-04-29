@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { createSampleProject } from "../domain/sampleProject";
+import { createBasicProject } from "../domain/sampleProject";
 import type { Opening } from "../domain/types";
 import { buildHouseGeometry } from "../geometry/houseGeometry";
 import { buildWallPanels } from "../geometry/wallPanels";
 
 describe("house geometry descriptors", () => {
   it("splits a wall face around a single opening", () => {
-    const project = createSampleProject();
+    const project = createBasicProject();
     const wall = project.walls.find((candidate) => candidate.id === "wall-front-1f")!;
     const opening = project.openings.find(
       (candidate) => candidate.id === "window-front-1f",
@@ -30,7 +30,7 @@ describe("house geometry descriptors", () => {
   });
 
   it("returns one full panel when a wall has no openings", () => {
-    const project = createSampleProject();
+    const project = createBasicProject();
     const wall = project.walls.find((candidate) => candidate.id === "wall-right-1f")!;
 
     expect(buildWallPanels(wall, [])).toEqual([
@@ -45,7 +45,7 @@ describe("house geometry descriptors", () => {
   });
 
   it("filters zero-width side panels for a boundary opening", () => {
-    const project = createSampleProject();
+    const project = createBasicProject();
     const wall = project.walls.find((candidate) => candidate.id === "wall-front-1f")!;
     const opening = project.openings.find(
       (candidate) => candidate.id === "window-front-1f",
@@ -69,7 +69,7 @@ describe("house geometry descriptors", () => {
   });
 
   it("splits a wall around multiple non-overlapping openings", () => {
-    const project = createSampleProject();
+    const project = createBasicProject();
     const wall = project.walls.find((candidate) => candidate.id === "wall-front-1f")!;
     const firstOpening = project.openings.find(
       (candidate) => candidate.id === "window-front-1f",
@@ -122,7 +122,7 @@ describe("house geometry descriptors", () => {
   });
 
   it("treats touching openings as a single between-gap collapse", () => {
-    const project = createSampleProject();
+    const project = createBasicProject();
     const wall = project.walls.find((candidate) => candidate.id === "wall-front-1f")!;
     const firstOpening = project.openings.find(
       (candidate) => candidate.id === "window-front-1f",
@@ -147,7 +147,7 @@ describe("house geometry descriptors", () => {
   });
 
   it("filters non-finite and rounded-zero panel descriptors", () => {
-    const project = createSampleProject();
+    const project = createBasicProject();
     const wall = project.walls.find((candidate) => candidate.id === "wall-front-1f")!;
     const opening = project.openings.find(
       (candidate) => candidate.id === "window-front-1f",
@@ -173,7 +173,7 @@ describe("house geometry descriptors", () => {
   });
 
   it("builds house geometry from the authoritative project", () => {
-    const geometry = buildHouseGeometry(createSampleProject());
+    const geometry = buildHouseGeometry(createBasicProject());
 
     expect(geometry.walls).toHaveLength(12);
     expect(geometry.balconies).toEqual([
@@ -190,7 +190,7 @@ describe("house geometry descriptors", () => {
   });
 
   it("attaches a mitered footprint per wall, computed independently per storey", () => {
-    const geometry = buildHouseGeometry(createSampleProject());
+    const geometry = buildHouseGeometry(createBasicProject());
     const front1f = geometry.walls.find((wall) => wall.wallId === "wall-front-1f");
     const front2f = geometry.walls.find((wall) => wall.wallId === "wall-front-2f");
 
@@ -212,7 +212,7 @@ describe("house geometry descriptors", () => {
   });
 
   it("emits a floor slab per storey and no roof slab", () => {
-    const geometry = buildHouseGeometry(createSampleProject());
+    const geometry = buildHouseGeometry(createBasicProject());
 
     const floors = geometry.slabs.filter((slab) => slab.kind === "floor");
 
@@ -229,7 +229,7 @@ describe("house geometry descriptors", () => {
   });
 
   it("clones geometry points away from the source project", () => {
-    const project = createSampleProject();
+    const project = createBasicProject();
     const geometry = buildHouseGeometry(project);
 
     geometry.walls[0].start.x = 99;
@@ -242,7 +242,7 @@ describe("house geometry descriptors", () => {
 
 describe("buildHouseGeometry — stairs", () => {
   it("emits a stairs entry per storey with a stair", () => {
-    const project = createSampleProject();
+    const project = createBasicProject();
     const house = buildHouseGeometry(project);
     // sample now owns stairs on 1f / 2f (3f is top, no stair)
     const storeyIds = house.stairs.map((s) => s.storeyId).sort();
@@ -250,7 +250,7 @@ describe("buildHouseGeometry — stairs", () => {
   });
 
   it("each stair entry has tread and landing arrays + materialId", () => {
-    const project = createSampleProject();
+    const project = createBasicProject();
     const house = buildHouseGeometry(project);
     expect(house.stairs.length).toBe(2);
     for (const stair of house.stairs) {

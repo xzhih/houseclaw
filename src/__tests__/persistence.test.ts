@@ -6,7 +6,7 @@ import {
   saveProjectToLocalStorage,
 } from "../app/persistence";
 import { addSkirt } from "../domain/mutations";
-import { createSampleProject } from "../domain/sampleProject";
+import { createBasicProject } from "../domain/sampleProject";
 
 function expectInvalidProjectJson(value: unknown): void {
   expect(() => importProjectJson(JSON.stringify(value))).toThrow(/^Invalid project JSON:/);
@@ -34,7 +34,7 @@ describe("project persistence", () => {
   });
 
   it("round-trips project JSON", () => {
-    const project = createSampleProject();
+    const project = createBasicProject();
     const json = exportProjectJson(project);
     const restored = importProjectJson(json);
 
@@ -45,7 +45,7 @@ describe("project persistence", () => {
   });
 
   it("imports older project JSON without balcony data", () => {
-    const project = createSampleProject();
+    const project = createBasicProject();
     const { balconies: _balconies, schemaVersion: _v, ...legacyProject } = project;
     const restored = importProjectJson(JSON.stringify(legacyProject));
 
@@ -53,7 +53,7 @@ describe("project persistence", () => {
   });
 
   it("rejects invalid top-level enum values", () => {
-    const json = exportProjectJson({ ...createSampleProject(), mode: "bad" as never });
+    const json = exportProjectJson({ ...createBasicProject(), mode: "bad" as never });
 
     expect(() => importProjectJson(json)).toThrow(/^Invalid project JSON:/);
   });
@@ -64,7 +64,7 @@ describe("project persistence", () => {
   });
 
   it("ignores legacy selectedObjectId fields on import", () => {
-    const json = JSON.stringify({ ...createSampleProject(), selectedObjectId: "legacy" });
+    const json = JSON.stringify({ ...createBasicProject(), selectedObjectId: "legacy" });
     const restored = importProjectJson(json);
 
     expect("selectedObjectId" in restored).toBe(false);
@@ -72,22 +72,22 @@ describe("project persistence", () => {
   });
 
   it("strips runtime selection from exported JSON", () => {
-    const project = { ...createSampleProject(), selection: { kind: "wall" as const, id: "wall-front-1f" } };
+    const project = { ...createBasicProject(), selection: { kind: "wall" as const, id: "wall-front-1f" } };
     const json = exportProjectJson(project);
 
     expect(JSON.parse(json).selection).toBeUndefined();
   });
 
   it("rejects invalid nested wall items", () => {
-    expectInvalidProjectJson({ ...createSampleProject(), walls: [null] });
+    expectInvalidProjectJson({ ...createBasicProject(), walls: [null] });
   });
 
   it("rejects invalid nested balcony items", () => {
-    expectInvalidProjectJson({ ...createSampleProject(), balconies: [null] });
+    expectInvalidProjectJson({ ...createBasicProject(), balconies: [null] });
   });
 
   it("rejects invalid material kinds", () => {
-    const project = createSampleProject();
+    const project = createBasicProject();
 
     expectInvalidProjectJson({
       ...project,
@@ -98,17 +98,17 @@ describe("project persistence", () => {
   });
 
   it("rejects invalid opening types", () => {
-    const project = createSampleProject();
+    const project = createBasicProject();
 
     expectInvalidProjectJson({ ...project, openings: [{ ...project.openings[0], type: "skylight" }] });
   });
 
   it("rejects non-positive top-level dimensions", () => {
-    expectInvalidProjectJson({ ...createSampleProject(), defaultWallThickness: -0.1 });
+    expectInvalidProjectJson({ ...createBasicProject(), defaultWallThickness: -0.1 });
   });
 
   it("rejects non-positive storey heights", () => {
-    const project = createSampleProject();
+    const project = createBasicProject();
 
     expectInvalidProjectJson({
       ...project,
@@ -117,13 +117,13 @@ describe("project persistence", () => {
   });
 
   it("rejects invalid wall exterior values", () => {
-    const project = createSampleProject();
+    const project = createBasicProject();
 
     expectInvalidProjectJson({ ...project, walls: [{ ...project.walls[0], exterior: "yes" }] });
   });
 
   it("wraps domain invariant errors from imported JSON", () => {
-    const project = createSampleProject();
+    const project = createBasicProject();
     const json = exportProjectJson({
       ...project,
       openings: [{ ...project.openings[0], wallId: "missing-wall" }],
@@ -135,7 +135,7 @@ describe("project persistence", () => {
   });
 
   it("wraps balcony invariant errors from imported JSON", () => {
-    const project = createSampleProject();
+    const project = createBasicProject();
     const json = exportProjectJson({
       ...project,
       balconies: [{ ...project.balconies[0], attachedWallId: "missing-wall" }],
@@ -147,7 +147,7 @@ describe("project persistence", () => {
   });
 
   it("saves and loads project JSON from localStorage", () => {
-    const project = createSampleProject();
+    const project = createBasicProject();
 
     saveProjectToLocalStorage(project, "test.project");
 
@@ -161,7 +161,7 @@ describe("project persistence", () => {
 
 describe("skirts persistence", () => {
   it("round-trips skirts through export → import", () => {
-    let project = createSampleProject();
+    let project = createBasicProject();
     project = addSkirt(project, "wall-front-2f");
     const json = exportProjectJson(project);
     const restored = importProjectJson(json);
@@ -170,7 +170,7 @@ describe("skirts persistence", () => {
   });
 
   it("defaults skirts to [] when missing in legacy projects", () => {
-    const project = createSampleProject();
+    const project = createBasicProject();
     const json = exportProjectJson(project);
     const parsed = JSON.parse(json);
     delete parsed.skirts;
@@ -179,7 +179,7 @@ describe("skirts persistence", () => {
   });
 
   it("drops skirts pointing at non-existent walls", () => {
-    let project = createSampleProject();
+    let project = createBasicProject();
     project = addSkirt(project, "wall-front-2f");
     const json = exportProjectJson(project);
     const parsed = JSON.parse(json);
@@ -191,7 +191,7 @@ describe("skirts persistence", () => {
 
 describe("roof persistence", () => {
   it("round-trips the roof field through JSON", () => {
-    const project = createSampleProject();
+    const project = createBasicProject();
     const reloaded = importProjectJson(exportProjectJson(project));
     expect(reloaded.roof).toEqual(project.roof);
   });
@@ -240,7 +240,7 @@ describe("schema migration", () => {
   });
 
   it("v1 round-trip preserves schemaVersion", () => {
-    const project = createSampleProject();
+    const project = createBasicProject();
     const json = exportProjectJson(project);
     expect(JSON.parse(json).schemaVersion).toBe(1);
     const restored = importProjectJson(json);
@@ -248,7 +248,7 @@ describe("schema migration", () => {
   });
 
   it("export always writes schemaVersion: 1 even if memory copy differs", () => {
-    const project = { ...createSampleProject(), schemaVersion: 0 as unknown as 1 };
+    const project = { ...createBasicProject(), schemaVersion: 0 as unknown as 1 };
     const json = exportProjectJson(project);
     expect(JSON.parse(json).schemaVersion).toBe(1);
   });

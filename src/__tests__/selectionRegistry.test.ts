@@ -4,7 +4,7 @@ import {
   isSelectionDeletable,
   selectionRegistry,
 } from "../components/selectionRegistry";
-import { createSampleProject } from "../domain/sampleProject";
+import { createBasicProject } from "../domain/sampleProject";
 import type { ObjectSelection, ObjectSelectionKind } from "../domain/selection";
 import type { HouseProject, ViewId } from "../domain/types";
 
@@ -55,7 +55,7 @@ describe("selectionRegistry", () => {
   });
 
   describe("isSelectionDeletable", () => {
-    const project = createSampleProject();
+    const project = createBasicProject();
     const wallId = project.walls[0].id;
     const storeyId = project.storeys[0].id;
 
@@ -96,7 +96,7 @@ describe("selectionRegistry", () => {
 
   describe("deleteSelection", () => {
     it("removeStorey resets activeView when deleting current view's storey", () => {
-      const project = createSampleProject();
+      const project = createBasicProject();
       const targetId = project.storeys[1].id;
       const remainingFirst = project.storeys.find((s) => s.id !== targetId)!.id;
       const start: HouseProject = { ...project, activeView: `plan-${targetId}` as ViewId };
@@ -108,7 +108,7 @@ describe("selectionRegistry", () => {
     });
 
     it("removeStorey preserves activeView when deleting other storey", () => {
-      const project = createSampleProject();
+      const project = createBasicProject();
       const keepId = project.storeys[0].id;
       const removeId = project.storeys[1].id;
       const start: HouseProject = { ...project, activeView: `plan-${keepId}` as ViewId };
@@ -119,7 +119,7 @@ describe("selectionRegistry", () => {
     });
 
     it("removeWall does not touch activeView", () => {
-      const project = createSampleProject();
+      const project = createBasicProject();
       const wallId = project.walls[0].id;
 
       const next = deleteSelection(project, { kind: "wall", id: wallId });
@@ -129,7 +129,7 @@ describe("selectionRegistry", () => {
     });
 
     it("throws for non-deletable kinds", () => {
-      const project = createSampleProject();
+      const project = createBasicProject();
       expect(() => deleteSelection(project, { kind: "roof" })).toThrow();
     });
   });

@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { wallLength } from "../domain/measurements";
-import { createSampleProject } from "../domain/sampleProject";
+import { createBasicProject } from "../domain/sampleProject";
 
 describe("house domain model", () => {
   it("creates a three-storey sample project with deterministic elevations", () => {
-    const project = createSampleProject();
+    const project = createBasicProject();
 
     expect(project.id).toBe("sample-house");
     expect(project.name).toBe("三层别墅草案");
@@ -14,7 +14,7 @@ describe("house domain model", () => {
   });
 
   it("keeps walls as structured objects with measurable length", () => {
-    const project = createSampleProject();
+    const project = createBasicProject();
     const frontWall = project.walls.find((wall) => wall.id === "wall-front-1f");
 
     expect(project.storeys.map((storey) => project.walls.filter((wall) => wall.storeyId === storey.id).length)).toEqual([
@@ -27,7 +27,7 @@ describe("house domain model", () => {
   });
 
   it("includes a simple balcony attached to an upper exterior wall", () => {
-    const project = createSampleProject();
+    const project = createBasicProject();
 
     expect(project.balconies).toEqual([
       expect.objectContaining({
@@ -41,7 +41,7 @@ describe("house domain model", () => {
   });
 
   it("uses the planned sample material definitions", () => {
-    const project = createSampleProject();
+    const project = createBasicProject();
     const wallMaterial = project.materials.find((material) => material.id === "mat-white-render");
     const frameMaterial = project.materials.find((material) => material.id === "mat-dark-frame");
 

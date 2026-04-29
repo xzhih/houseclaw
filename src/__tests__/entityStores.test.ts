@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createSampleProject } from "../domain/sampleProject";
+import { createBasicProject } from "../domain/sampleProject";
 import { createCrudStore } from "../domain/mutations/crudStore";
 import {
   EntityNotFoundError,
@@ -27,7 +27,7 @@ describe("createCrudStore", () => {
 
   describe("add", () => {
     it("appends to array", () => {
-      const project = createSampleProject();
+      const project = createBasicProject();
       const draft: Wall = { ...project.walls[0], id: "test-wall-x" };
       const next = testWallStore.add(project, draft);
       expect(next.walls.length).toBe(project.walls.length + 1);
@@ -37,14 +37,14 @@ describe("createCrudStore", () => {
 
   describe("update", () => {
     it("throws EntityNotFoundError when id missing", () => {
-      const project = createSampleProject();
+      const project = createBasicProject();
       expect(() => testWallStore.update(project, "ghost-id", { thickness: 0.3 })).toThrow(
         EntityNotFoundError,
       );
     });
 
     it("applies patch via default spread", () => {
-      const project = createSampleProject();
+      const project = createBasicProject();
       const id = project.walls[0].id;
       const next = testWallStore.update(project, id, { thickness: 0.42 });
       expect(next.walls.find((w) => w.id === id)!.thickness).toBe(0.42);
@@ -53,20 +53,20 @@ describe("createCrudStore", () => {
 
   describe("remove", () => {
     it("filters target entity", () => {
-      const project = createSampleProject();
+      const project = createBasicProject();
       const id = project.walls[0].id;
       const next = testWallStore.remove(project, id);
       expect(next.walls.find((w) => w.id === id)).toBeUndefined();
     });
 
     it("returns same project when id missing (no throw)", () => {
-      const project = createSampleProject();
+      const project = createBasicProject();
       const next = testWallStore.remove(project, "ghost-id");
       expect(next).toBe(project);
     });
 
     it("invokes cascade and shallow-merges result", () => {
-      const project = createSampleProject();
+      const project = createBasicProject();
       const wallId = project.walls[0].id;
       const cascadeStore = createCrudStore<Wall, never>({
         arrayKey: "walls",
@@ -83,7 +83,7 @@ describe("createCrudStore", () => {
 
   describe("validate hook", () => {
     it("runs on add and rejects with custom error", () => {
-      const project = createSampleProject();
+      const project = createBasicProject();
       const validatedStore = createCrudStore<Wall, never>({
         arrayKey: "walls",
         entityKind: "wall",
@@ -98,7 +98,7 @@ describe("createCrudStore", () => {
     });
 
     it("runs on update", () => {
-      const project = createSampleProject();
+      const project = createBasicProject();
       const id = project.walls[0].id;
       const validatedStore = createCrudStore<Wall, { thickness?: number }>({
         arrayKey: "walls",
@@ -127,14 +127,14 @@ describe("createAttachStore (stair)", () => {
   }
 
   function projectWithStair(): { project: HouseProject; storeyId: string; stair: Stair } {
-    const project = createSampleProject();
+    const project = createBasicProject();
     const storeyId = project.storeys.find((s) => s.stair)!.id;
     return { project, storeyId, stair: project.storeys.find((s) => s.id === storeyId)!.stair! };
   }
 
   describe("attach", () => {
     it("writes to host.field", () => {
-      const project = createSampleProject();
+      const project = createBasicProject();
       const sample = projectWithStair();
       // Detach 1f's existing stair to free up a non-top storey for attach
       const cleared = stairStore.detach(project, sample.storeyId);
@@ -165,14 +165,14 @@ describe("createAttachStore (stair)", () => {
     });
 
     it("silent no-op if host has no entity", () => {
-      const project = createSampleProject();
+      const project = createBasicProject();
       const noStairStorey = project.storeys.find((s) => !s.stair)!;
       const next = stairStore.update(project, noStairStorey.id, { width: 1.5 });
       expect(next).toBe(project);
     });
 
     it("silent no-op if host id missing", () => {
-      const project = createSampleProject();
+      const project = createBasicProject();
       const next = stairStore.update(project, "ghost-storey", { width: 1.5 });
       expect(next).toBe(project);
     });
@@ -186,13 +186,13 @@ describe("createAttachStore (stair)", () => {
     });
 
     it("silent no-op if host id missing", () => {
-      const project = createSampleProject();
+      const project = createBasicProject();
       const next = stairStore.detach(project, "ghost-storey");
       expect(next).toBe(project);
     });
 
     it("silent no-op if host has no entity", () => {
-      const project = createSampleProject();
+      const project = createBasicProject();
       const noStairStorey = project.storeys.find((s) => !s.stair)!;
       const next = stairStore.detach(project, noStairStorey.id);
       expect(next).toBe(project);
@@ -204,12 +204,12 @@ describe("createSingletonStore (roof)", () => {
   const PI3 = Math.PI / 3;
 
   function projectWithRoof(): HouseProject {
-    const p = createSampleProject();
+    const p = createBasicProject();
     return p.roof ? p : addRoof(p);
   }
 
   function projectWithoutRoof(): HouseProject {
-    const p = createSampleProject();
+    const p = createBasicProject();
     return p.roof ? removeRoof(p) : p;
   }
 

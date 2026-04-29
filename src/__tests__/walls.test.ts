@@ -1,14 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { createSampleProject } from "../domain/sampleProject";
+import { createBasicProject } from "../domain/sampleProject";
 import { createWallDraft, nextWallId } from "../domain/walls";
 
 describe("wall identifiers", () => {
   it("returns wall-{storeyId}-1 when no slots are used", () => {
-    expect(nextWallId(createSampleProject(), "1f")).toBe("wall-1f-1");
+    expect(nextWallId(createBasicProject(), "1f")).toBe("wall-1f-1");
   });
 
   it("returns the lowest unused slot when other walls follow the pattern", () => {
-    const project = createSampleProject();
+    const project = createBasicProject();
     const seeded = {
       ...project,
       walls: [
@@ -22,7 +22,7 @@ describe("wall identifiers", () => {
   });
 
   it("ignores walls on other storeys when picking a slot", () => {
-    const project = createSampleProject();
+    const project = createBasicProject();
     const seeded = {
       ...project,
       walls: [...project.walls, { ...project.walls[0], id: "wall-2f-1", storeyId: "2f" }],
@@ -34,7 +34,7 @@ describe("wall identifiers", () => {
 
 describe("wall draft", () => {
   it("builds a wall pinned to the storey height with the project default thickness and the first wall material", () => {
-    const project = createSampleProject();
+    const project = createBasicProject();
     const draft = createWallDraft(project, "1f", { x: 0, y: 0 }, { x: 4, y: 0 });
 
     expect(draft).toEqual({
@@ -50,7 +50,7 @@ describe("wall draft", () => {
   });
 
   it("falls back to defaultStoreyHeight when the storey is missing", () => {
-    const project = createSampleProject();
+    const project = createBasicProject();
     const broken = { ...project, storeys: [] };
     const draft = createWallDraft(broken, "1f", { x: 0, y: 0 }, { x: 1, y: 0 });
 
@@ -58,7 +58,7 @@ describe("wall draft", () => {
   });
 
   it("throws when the project has no materials at all", () => {
-    const project = createSampleProject();
+    const project = createBasicProject();
     const broken = { ...project, materials: [] };
 
     expect(() => createWallDraft(broken, "1f", { x: 0, y: 0 }, { x: 1, y: 0 })).toThrow(
