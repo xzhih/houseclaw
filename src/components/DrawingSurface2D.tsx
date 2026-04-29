@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
+import { useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
 import type { ObjectSelection } from "../domain/selection";
 import { wallLength } from "../domain/measurements";
 import { moveWall, translateStorey, updateBalcony, updateOpening, updateStair } from "../domain/mutations";
@@ -15,7 +15,7 @@ import { ScaleRuler } from "./canvas/ScaleRuler";
 import { SmartGuides } from "./canvas/SmartGuides";
 import { StatusReadout } from "./canvas/StatusReadout";
 import { ZoomControls } from "./canvas/ZoomControls";
-import type { DragReadout, Point2D, PointMapping, Viewport } from "./canvas/types";
+import type { DragReadout, Point2D, PointMapping } from "./canvas/types";
 import type {
   DragState,
   ElevationDragHandlers,
@@ -36,6 +36,7 @@ import {
 import { renderPlan } from "./canvas/renderPlan";
 import { renderElevation } from "./canvas/renderElevation";
 import { renderRoofView } from "./canvas/renderRoofView";
+import { DEFAULT_VIEWPORT, useViewport } from "./canvas/useViewport";
 
 const PLAN_GRID_SIZE = 0.1;
 const PLAN_ENDPOINT_THRESHOLD = 0.2;
@@ -47,10 +48,6 @@ type DrawingSurface2DProps = {
   onProjectChange: (project: HouseProject) => void;
 };
 
-const DEFAULT_VIEWPORT: Viewport = { zoom: 1, panX: 0, panY: 0 };
-const ZOOM_MIN = 0.4;
-const ZOOM_MAX = 8;
-
 export function DrawingSurface2D({
   project,
   onSelect,
@@ -60,61 +57,16 @@ export function DrawingSurface2D({
   const elevationSide = ELEVATION_SIDE_BY_VIEW[project.activeView];
 
   const svgRef = useRef<SVGSVGElement | null>(null);
-  const [viewport, setViewport] = useState<Viewport>(DEFAULT_VIEWPORT);
-  const [isPanning, setIsPanning] = useState(false);
-  const panLastPos = useRef({ x: 0, y: 0 });
-  const panPointerId = useRef<number | null>(null);
+  const { viewport, setViewport, isPanning, panHandlers } = useViewport(
+    svgRef,
+    `${project.id}|${project.activeView}`,
+  );
   const [dragState, setDragState] = useState<DragState | undefined>(undefined);
   const [activeSnap, setActiveSnap] = useState<Point2D | null>(null);
   const [cursorWorld, setCursorWorld] = useState<Point2D | null>(null);
   const [gridVisible, setGridVisible] = useState(true);
   const [dragReadout, setDragReadout] = useState<DragReadout | null>(null);
   const [guideMatches, setGuideMatches] = useState<GuideMatch[]>([]);
-
-  useEffect(() => {
-    setViewport(DEFAULT_VIEWPORT);
-  }, [project.id, project.activeView]);
-
-  useEffect(() => {
-    const svg = svgRef.current;
-    if (!svg) return undefined;
-
-    const handleWheel = (event: WheelEvent) => {
-      event.preventDefault();
-      const rect = svg.getBoundingClientRect();
-      if (rect.width === 0 || rect.height === 0) return;
-      const ratioX = (event.clientX - rect.left) / rect.width;
-      const ratioY = (event.clientY - rect.top) / rect.height;
-
-      if (event.ctrlKey || event.metaKey) {
-        const factor = Math.exp(-event.deltaY * 0.005);
-        setViewport((current) => {
-          const newZoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, current.zoom * factor));
-          const oldVbW = SURFACE_WIDTH / current.zoom;
-          const oldVbH = SURFACE_HEIGHT / current.zoom;
-          const cursorVbX = current.panX + ratioX * oldVbW;
-          const cursorVbY = current.panY + ratioY * oldVbH;
-          const newVbW = SURFACE_WIDTH / newZoom;
-          const newVbH = SURFACE_HEIGHT / newZoom;
-          return {
-            zoom: newZoom,
-            panX: cursorVbX - ratioX * newVbW,
-            panY: cursorVbY - ratioY * newVbH,
-          };
-        });
-        return;
-      }
-
-      setViewport((current) => ({
-        zoom: current.zoom,
-        panX: current.panX + event.deltaX / current.zoom,
-        panY: current.panY + event.deltaY / current.zoom,
-      }));
-    };
-
-    svg.addEventListener("wheel", handleWheel, { passive: false });
-    return () => svg.removeEventListener("wheel", handleWheel);
-  }, []);
 
   const planSegments = storeyId
     ? project.walls
@@ -156,14 +108,7 @@ export function DrawingSurface2D({
     : undefined;
 
   const handlePointerDown = (event: PointerEvent<SVGSVGElement>) => {
-    if (event.button === 1 && svgRef.current) {
-      event.preventDefault();
-      event.stopPropagation();
-      setIsPanning(true);
-      panLastPos.current = { x: event.clientX, y: event.clientY };
-      panPointerId.current = event.pointerId;
-      svgRef.current.setPointerCapture(event.pointerId);
-    }
+    panHandlers.onPointerDown(event);
   };
 
   const eventToWorldWith = (
@@ -960,15 +905,8 @@ export function DrawingSurface2D({
       return;
     }
 
-    if (isPanning && event.pointerId === panPointerId.current && svgRef.current) {
-      const rect = svgRef.current.getBoundingClientRect();
-      if (rect.width === 0 || rect.height === 0) return;
-      const dx = ((event.clientX - panLastPos.current.x) * SURFACE_WIDTH) / (rect.width * viewport.zoom);
-      const dy = ((event.clientY - panLastPos.current.y) * SURFACE_HEIGHT) / (rect.height * viewport.zoom);
-      panLastPos.current = { x: event.clientX, y: event.clientY };
-      setViewport((current) => ({ ...current, panX: current.panX - dx, panY: current.panY - dy }));
-      return;
-    }
+    panHandlers.onPointerMove(event);
+    if (isPanning) return;
 
     // hover: 更新 cursorWorld（plan 或 elevation 视图）
     const activeMapping = planMapping ?? elevationMapping;
@@ -1016,12 +954,7 @@ export function DrawingSurface2D({
       return;
     }
 
-    if (event.pointerId !== panPointerId.current) return;
-    setIsPanning(false);
-    panPointerId.current = null;
-    if (svgRef.current?.hasPointerCapture(event.pointerId)) {
-      svgRef.current.releasePointerCapture(event.pointerId);
-    }
+    panHandlers.onPointerUp(event);
   };
 
   const ambientSelect = () => {
