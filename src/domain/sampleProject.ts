@@ -324,7 +324,7 @@ export function createSampleProject(): HouseProject {
     },
   ];
 
-  // 3F 主屋面：南北 eave / 东西 gable，30° 坡，60cm 出挑，灰瓦
+  // 3F 主屋面：南北 eave / 东西 gable，30° 坡，40cm 出挑，灰瓦
   const roof = {
     edges: {
       "wall-front-3f": "eave" as const,
@@ -333,7 +333,7 @@ export function createSampleProject(): HouseProject {
       "wall-right-3f": "gable" as const,
     },
     pitch: Math.PI / 6,
-    overhang: 0.6,
+    overhang: 0.4,
     materialId: ROOF_MATERIAL_ID,
   };
 
