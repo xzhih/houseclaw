@@ -14,17 +14,17 @@ export const DRAG_MOVE_THRESHOLD_WORLD = 0.04;
 
 export type WallSegment = { start: Point2D; end: Point2D };
 
-export type DragMachineSinks = {
-  onProjectChange: (project: HouseProject) => void;
-  setActiveSnap: (snap: Point2D | null) => void;
-  setGuideMatches: (matches: GuideMatch[]) => void;
-  setDragReadout: (readout: DragReadout | null) => void;
-};
-
 export type DragContext = {
   project: HouseProject;
   planProjection?: PlanProjection;
   otherWallSegmentsExclude: (excludeWallId?: string) => WallSegment[];
+};
+
+export type DragOutcome = {
+  project: HouseProject;
+  activeSnap: Point2D | null;
+  guideMatches: GuideMatch[];
+  dragReadout: DragReadout | null;
 };
 
 const snapToGrid = (value: number) => Math.round(value / PLAN_GRID_SIZE) * PLAN_GRID_SIZE;
@@ -36,23 +36,22 @@ const roundPointToMm = (point: Point2D): Point2D => ({
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 
 /**
- * Stage 1: sinks-injection form. Behavior 1:1 with original applyDrag inside DrawingSurface2D.
- * Stage 2 (next task) will refactor to return DragOutcome.
+ * Stage 2: pure-function form. Returns DragOutcome describing all side effects,
+ * or null when the drag should be silently rejected (min-size / degenerate wall).
  */
 export function applyDrag(
   state: DragState,
   currentWorld: Point2D,
   ctx: DragContext,
-  sinks: DragMachineSinks,
-): void {
+): DragOutcome | null {
   const { project, planProjection, otherWallSegmentsExclude } = ctx;
-  const { onProjectChange, setActiveSnap, setGuideMatches, setDragReadout } = sinks;
   const dx = currentWorld.x - state.startWorld.x;
   const dy = currentWorld.y - state.startWorld.y;
 
-  if (state.kind !== "wall-endpoint" && state.kind !== "stair-resize") {
-    setGuideMatches([]);
-  }
+  let nextProject = project;
+  let activeSnap: Point2D | null = null;
+  let guideMatches: GuideMatch[] = [];
+  let dragReadout: DragReadout | null = null;
 
   try {
     switch (state.kind) {
@@ -81,31 +80,31 @@ export function applyDrag(
           finalDx = snapToGrid(dx);
           finalDy = snapToGrid(dy);
         }
-        setActiveSnap(snapHit);
+        activeSnap = snapHit;
 
         const newStart = roundPointToMm({ x: state.origStart.x + finalDx, y: state.origStart.y + finalDy });
         const newEnd = roundPointToMm({ x: state.origEnd.x + finalDx, y: state.origEnd.y + finalDy });
-        onProjectChange(moveWall(project, state.wallId, newStart, newEnd));
-        setDragReadout({ kind: "wall-translate", dx: roundToMm(finalDx), dy: roundToMm(finalDy) });
+        nextProject = moveWall(project, state.wallId, newStart, newEnd);
+        dragReadout = { kind: "wall-translate", dx: roundToMm(finalDx), dy: roundToMm(finalDy) };
         break;
       }
       case "wall-endpoint": {
         const others = otherWallSegmentsExclude(state.wallId);
         const candidate = { x: state.origPoint.x + dx, y: state.origPoint.y + dy };
         const endpointSnap = snapToEndpoint(candidate, others, PLAN_ENDPOINT_THRESHOLD);
-        setActiveSnap(endpointSnap ?? null);
+        activeSnap = endpointSnap ?? null;
 
         let resolved: Point2D;
         if (endpointSnap) {
           resolved = endpointSnap;
-          setGuideMatches([]);
+          guideMatches = [];
         } else if (planProjection) {
           const anchors = collectPlanAnchors(
             planProjection,
             new Set([`wall:${state.wallId}`]),
           );
           const matches = findAxisAlignedGuides(candidate, anchors, PLAN_ENDPOINT_THRESHOLD);
-          setGuideMatches(matches);
+          guideMatches = matches;
           if (matches.length > 0) {
             let x = candidate.x;
             let y = candidate.y;
@@ -121,7 +120,7 @@ export function applyDrag(
             });
           }
         } else {
-          setGuideMatches([]);
+          guideMatches = [];
           resolved = snapPlanPoint(candidate, others, {
             gridSize: PLAN_GRID_SIZE,
             endpointThreshold: PLAN_ENDPOINT_THRESHOLD,
@@ -131,10 +130,10 @@ export function applyDrag(
         const newPt = roundPointToMm(resolved);
         const newStart = state.endpoint === "start" ? newPt : roundPointToMm(state.fixedPoint);
         const newEnd = state.endpoint === "end" ? newPt : roundPointToMm(state.fixedPoint);
-        onProjectChange(moveWall(project, state.wallId, newStart, newEnd));
+        nextProject = moveWall(project, state.wallId, newStart, newEnd);
 
         const endpointLen = Math.hypot(newPt.x - state.fixedPoint.x, newPt.y - state.fixedPoint.y);
-        setDragReadout({ kind: "wall-endpoint", length: roundToMm(endpointLen) });
+        dragReadout = { kind: "wall-endpoint", length: roundToMm(endpointLen) };
         break;
       }
       case "opening":
@@ -142,7 +141,7 @@ export function applyDrag(
         const wx = state.wallEnd.x - state.wallStart.x;
         const wy = state.wallEnd.y - state.wallStart.y;
         const len = Math.hypot(wx, wy);
-        if (len === 0) return;
+        if (len === 0) return null;
         const ux = wx / len;
         const uy = wy / len;
         const offsetDelta = dx * ux + dy * uy;
@@ -151,11 +150,11 @@ export function applyDrag(
         const clamped = Math.max(0, Math.min(Math.max(0, len - width), raw));
         const snapped = roundToMm(snapToGrid(clamped));
         if (state.kind === "opening") {
-          onProjectChange(updateOpening(project, state.openingId, { offset: snapped }));
-          setDragReadout({ kind: "opening", offset: snapped });
+          nextProject = updateOpening(project, state.openingId, { offset: snapped });
+          dragReadout = { kind: "opening", offset: snapped };
         } else {
-          onProjectChange(updateBalcony(project, state.balconyId, { offset: snapped }));
-          setDragReadout({ kind: "balcony", offset: snapped });
+          nextProject = updateBalcony(project, state.balconyId, { offset: snapped });
+          dragReadout = { kind: "balcony", offset: snapped };
         }
         break;
       }
@@ -164,7 +163,7 @@ export function applyDrag(
         const wx = state.wallEnd.x - state.wallStart.x;
         const wy = state.wallEnd.y - state.wallStart.y;
         const len = Math.hypot(wx, wy);
-        if (len === 0) return;
+        if (len === 0) return null;
         const ux = wx / len;
         const uy = wy / len;
         const along = dx * ux + dy * uy;
@@ -186,26 +185,22 @@ export function applyDrag(
         if (newOffset + newWidth > state.wallLen) {
           newWidth = state.wallLen - newOffset;
         }
-        if (newWidth < minSize) return;
+        if (newWidth < minSize) return null;
 
         const snappedOffset = roundToMm(snapToGrid(newOffset));
         const snappedWidth = roundToMm(snapToGrid(newWidth));
         if (state.kind === "plan-opening-resize") {
-          onProjectChange(
-            updateOpening(project, state.openingId, {
-              offset: snappedOffset,
-              width: snappedWidth,
-            }),
-          );
-          setDragReadout({ kind: "plan-opening-resize", width: snappedWidth });
+          nextProject = updateOpening(project, state.openingId, {
+            offset: snappedOffset,
+            width: snappedWidth,
+          });
+          dragReadout = { kind: "plan-opening-resize", width: snappedWidth };
         } else {
-          onProjectChange(
-            updateBalcony(project, state.balconyId, {
-              offset: snappedOffset,
-              width: snappedWidth,
-            }),
-          );
-          setDragReadout({ kind: "plan-balcony-resize", width: snappedWidth });
+          nextProject = updateBalcony(project, state.balconyId, {
+            offset: snappedOffset,
+            width: snappedWidth,
+          });
+          dragReadout = { kind: "plan-balcony-resize", width: snappedWidth };
         }
         break;
       }
@@ -216,8 +211,8 @@ export function applyDrag(
         const newSillRaw = clamp(state.origSill + dy, 0, maxSill);
         const offset = roundToMm(snapToGrid(newOffsetRaw));
         const sill = roundToMm(snapToGrid(newSillRaw));
-        onProjectChange(updateOpening(project, state.openingId, { offset, sillHeight: sill }));
-        setDragReadout({ kind: "elev-opening-move", offset, sill });
+        nextProject = updateOpening(project, state.openingId, { offset, sillHeight: sill });
+        dragReadout = { kind: "elev-opening-move", offset, sill };
         break;
       }
       case "elev-opening-resize": {
@@ -258,29 +253,27 @@ export function applyDrag(
         if (newSill + newHeight > state.storeyHeight) {
           newHeight = state.storeyHeight - newSill;
         }
-        if (newWidth < minSize || newHeight < minSize) return;
+        if (newWidth < minSize || newHeight < minSize) return null;
 
         const offset = roundToMm(snapToGrid(newOffset));
         const sill = roundToMm(snapToGrid(newSill));
         const width = roundToMm(snapToGrid(newWidth));
         const height = roundToMm(snapToGrid(newHeight));
-        onProjectChange(
-          updateOpening(project, state.openingId, {
-            offset,
-            sillHeight: sill,
-            width,
-            height,
-          }),
-        );
-        setDragReadout({ kind: "elev-opening-resize", width, height });
+        nextProject = updateOpening(project, state.openingId, {
+          offset,
+          sillHeight: sill,
+          width,
+          height,
+        });
+        dragReadout = { kind: "elev-opening-resize", width, height };
         break;
       }
       case "elev-balcony-move": {
         const dxOffset = dx * state.projSign;
         const newOffset = clamp(state.origOffset + dxOffset, 0, Math.max(0, state.wallLen - state.width));
         const offset = roundToMm(snapToGrid(newOffset));
-        onProjectChange(updateBalcony(project, state.balconyId, { offset }));
-        setDragReadout({ kind: "elev-balcony-move", offset });
+        nextProject = updateBalcony(project, state.balconyId, { offset });
+        dragReadout = { kind: "elev-balcony-move", offset };
         break;
       }
       case "elev-balcony-resize": {
@@ -302,17 +295,17 @@ export function applyDrag(
         if (newOffset + newWidth > state.wallLen) {
           newWidth = state.wallLen - newOffset;
         }
-        if (newWidth < minSize) return;
+        if (newWidth < minSize) return null;
         const offset = roundToMm(snapToGrid(newOffset));
         const width = roundToMm(snapToGrid(newWidth));
-        onProjectChange(updateBalcony(project, state.balconyId, { offset, width }));
-        setDragReadout({ kind: "elev-balcony-resize", width });
+        nextProject = updateBalcony(project, state.balconyId, { offset, width });
+        dragReadout = { kind: "elev-balcony-resize", width };
         break;
       }
       case "stair-translate": {
         const newX = roundToMm(snapToGrid(state.origX + dx));
         const newY = roundToMm(snapToGrid(state.origY + dy));
-        onProjectChange(updateStair(project, state.storeyId, { x: newX, y: newY }));
+        nextProject = updateStair(project, state.storeyId, { x: newX, y: newY });
         break;
       }
       case "stair-resize": {
@@ -324,7 +317,7 @@ export function applyDrag(
             new Set([`stair:${state.storeyId}`]),
           );
           const matches = findAxisAlignedGuides(currentWorld, anchors, PLAN_ENDPOINT_THRESHOLD);
-          setGuideMatches(matches);
+          guideMatches = matches;
           if (matches.length > 0) {
             let x = currentWorld.x;
             let y = currentWorld.y;
@@ -335,7 +328,7 @@ export function applyDrag(
             adjusted = { x, y };
           }
         } else {
-          setGuideMatches([]);
+          guideMatches = [];
         }
         const mouseWorld = adjusted;
 
@@ -377,8 +370,8 @@ export function applyDrag(
         const newY = roundToMm(newCenter.y - newDepth / 2);
         const w = roundToMm(newWidth);
         const d = roundToMm(newDepth);
-        onProjectChange(updateStair(project, state.storeyId, { x: newX, y: newY, width: w, depth: d }));
-        setDragReadout({ kind: "stair-resize", width: w, depth: d });
+        nextProject = updateStair(project, state.storeyId, { x: newX, y: newY, width: w, depth: d });
+        dragReadout = { kind: "stair-resize", width: w, depth: d };
         break;
       }
       case "stair-rotate": {
@@ -389,23 +382,23 @@ export function applyDrag(
         let newRotation = state.origRotation + (angle - state.initialMouseAngle);
         while (newRotation > Math.PI) newRotation -= 2 * Math.PI;
         while (newRotation <= -Math.PI) newRotation += 2 * Math.PI;
-        onProjectChange(updateStair(project, state.storeyId, { rotation: newRotation }));
-        setDragReadout({ kind: "stair-rotate", angleDeg: (newRotation * 180) / Math.PI });
+        nextProject = updateStair(project, state.storeyId, { rotation: newRotation });
+        dragReadout = { kind: "stair-rotate", angleDeg: (newRotation * 180) / Math.PI };
         break;
       }
       case "elev-storey-translate": {
         const grid = snapToGrid(dx);
         const { dx: dwx, dy: dwy } = elevationAxisToWorld(state.side, grid);
-        onProjectChange(
-          translateStorey(state.origProject, state.storeyId, roundToMm(dwx), roundToMm(dwy)),
-        );
-        setDragReadout({ kind: "elev-storey-translate", dy: roundToMm(grid) });
+        nextProject = translateStorey(state.origProject, state.storeyId, roundToMm(dwx), roundToMm(dwy));
+        dragReadout = { kind: "elev-storey-translate", dy: roundToMm(grid) };
         break;
       }
     }
   } catch {
-    // invalid move — keep last valid state
+    return null;
   }
+
+  return { project: nextProject, activeSnap, guideMatches, dragReadout };
 }
 
 export function selectionOnClick(state: DragState): ObjectSelection | undefined {

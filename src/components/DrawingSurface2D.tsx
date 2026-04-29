@@ -129,12 +129,16 @@ export function DrawingSurface2D({
           : project.walls
               .filter((w) => w.storeyId === storeyId && w.id !== excludeWallId)
               .map((w) => ({ start: w.start, end: w.end }));
-      applyDrag(
+      const outcome = applyDrag(
         dragState,
         currentWorld,
         { project, planProjection, otherWallSegmentsExclude },
-        { onProjectChange, setActiveSnap, setGuideMatches, setDragReadout },
       );
+      if (!outcome) return;
+      onProjectChange(outcome.project);
+      setActiveSnap(outcome.activeSnap);
+      setGuideMatches(outcome.guideMatches);
+      setDragReadout(outcome.dragReadout);
       return;
     }
 
