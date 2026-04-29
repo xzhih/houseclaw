@@ -33,6 +33,9 @@ export function buildOpeningFrameStrips(opening: Opening, wall: Wall): FrameStri
   const len = wallLength(wall);
   if (len === 0) return [];
 
+  // Voids are structural openings (e.g. stairwell holes) — no door/window trim.
+  if (opening.type === "void") return [];
+
   const ux = (wall.end.x - wall.start.x) / len;
   const uy = (wall.end.y - wall.start.y) / len;
   // Outward normal: +90° CW of û (matches balcony/skirt convention).

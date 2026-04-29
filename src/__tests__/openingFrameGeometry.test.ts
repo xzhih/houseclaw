@@ -81,4 +81,9 @@ describe("buildOpeningFrameStrips", () => {
     const rots = stripsY.map((s) => s.rotationY);
     expect(rots.every((r) => Math.abs(r - rots[0]) < 1e-9)).toBe(true);
   });
+
+  it("returns no strips for void openings", () => {
+    const strips = buildOpeningFrameStrips(makeOpening({ type: "void" }), HOST_WALL);
+    expect(strips).toEqual([]);
+  });
 });
