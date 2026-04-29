@@ -149,12 +149,13 @@ export function createSampleProject(): HouseProject {
       height: 1.8,
       frameMaterialId: FRAME_MATERIAL_ID,
     },
-    // 1F 侧窗
+    // 1F 侧窗：左侧避开楼梯（offset 5.0 = wall-local y=4..2.6，在楼梯南侧）
+    // 右侧无楼梯，对称放在 offset 5.0 形成立面对称
     {
       id: "win-right-1f",
       wallId: "wall-right-1f",
       type: "window",
-      offset: 2.5,
+      offset: 5.0,
       sillHeight: 0.9,
       width: 1.4,
       height: 1.4,
@@ -164,7 +165,7 @@ export function createSampleProject(): HouseProject {
       id: "win-left-1f",
       wallId: "wall-left-1f",
       type: "window",
-      offset: 2.5,
+      offset: 5.0,
       sillHeight: 0.9,
       width: 1.4,
       height: 1.4,
@@ -201,12 +202,12 @@ export function createSampleProject(): HouseProject {
       height: 2.0,
       frameMaterialId: FRAME_MATERIAL_ID,
     },
-    // 2F 侧窗
+    // 2F 侧窗：与 1F 侧窗同 offset 立面对齐
     {
       id: "win-right-2f",
       wallId: "wall-right-2f",
       type: "window",
-      offset: 2.5,
+      offset: 5.0,
       sillHeight: 0.9,
       width: 1.4,
       height: 1.6,
@@ -216,7 +217,7 @@ export function createSampleProject(): HouseProject {
       id: "win-left-2f",
       wallId: "wall-left-2f",
       type: "window",
-      offset: 2.5,
+      offset: 5.0,
       sillHeight: 0.9,
       width: 1.4,
       height: 1.6,
