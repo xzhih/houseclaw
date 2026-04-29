@@ -3,11 +3,9 @@ import { buildExteriorRing } from "./footprintRing";
 import type { SlabGeometry } from "./types";
 import type { FootprintQuad } from "./wallNetwork";
 
-// Pull the slab perimeter inside the wall facade so the slab's vertical edge
-// stops being coplanar with the exterior wall face (which causes z-fighting
-// in the 3D preview). 5 mm is invisible against typical 200+ mm walls and
-// well above depth-buffer precision.
-const FACADE_INSET = 0.005;
+// 0 = slab outline coincides with the exterior wall outline (flush facade).
+// A tiny positive value would create a visible seam in three.js renderer.
+const FACADE_INSET = 0;
 
 function insetRing(ring: Point2[], distance: number): Point2[] {
   const n = ring.length;
