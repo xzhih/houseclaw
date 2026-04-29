@@ -24,14 +24,14 @@ const FRAME_MATERIAL_ID = "mat-dark-frame";
 const DECOR_MATERIAL_ID = "mat-warm-wood";
 
 // 1F + 2F 共用占地：x ∈ [0, 12]，y ∈ [2, 9]
-// 3F 内收：x ∈ [1.5, 10.5]，y ∈ [3.5, 9]
+// 3F 内收：x ∈ [1, 11]，y ∈ [3, 9]（每侧收 1m，前收 1m，整体仍显主体）
 const FOOT_X0 = 0;
 const FOOT_X1 = 12;
 const FOOT_Y0 = 2;
 const FOOT_Y1 = 9;
-const TOP_X0 = 1.5;
-const TOP_X1 = 10.5;
-const TOP_Y0 = 3.5;
+const TOP_X0 = 1;
+const TOP_X1 = 11;
+const TOP_Y0 = 3;
 const TOP_Y1 = 9;
 
 function rectWalls(
@@ -118,24 +118,24 @@ export function createSampleProject(): HouseProject {
   // 2F：客厅大面落地窗（朝阳台），立面分两段
   // 3F：两扇大窗
   const openings: Opening[] = [
-    // 1F 前面：左落地窗 + 居中入户门 + 右落地窗
+    // 1F 前面：左落地窗 + 居中入户门 + 右落地窗（窗子收紧，墙面更实）
     {
       id: "win-front-1f-l",
       wallId: "wall-front-1f",
       type: "window",
-      offset: 1.4,
-      sillHeight: 0.0,
-      width: 2.6,
-      height: 2.4,
+      offset: 1.5,
+      sillHeight: 0.6,
+      width: 2.0,
+      height: 1.8,
       frameMaterialId: FRAME_MATERIAL_ID,
     },
     {
       id: "door-front-1f",
       wallId: "wall-front-1f",
       type: "door",
-      offset: 5.4,
+      offset: 5.3,
       sillHeight: 0.0,
-      width: 1.2,
+      width: 1.4,
       height: 2.3,
       frameMaterialId: FRAME_MATERIAL_ID,
     },
@@ -143,10 +143,10 @@ export function createSampleProject(): HouseProject {
       id: "win-front-1f-r",
       wallId: "wall-front-1f",
       type: "window",
-      offset: 8.0,
-      sillHeight: 0.0,
-      width: 2.6,
-      height: 2.4,
+      offset: 8.5,
+      sillHeight: 0.6,
+      width: 2.0,
+      height: 1.8,
       frameMaterialId: FRAME_MATERIAL_ID,
     },
     // 1F 侧窗
@@ -170,25 +170,35 @@ export function createSampleProject(): HouseProject {
       height: 1.4,
       frameMaterialId: FRAME_MATERIAL_ID,
     },
-    // 2F 前面：双联落地推拉门，留中柱
+    // 2F 前面：3 段落地窗，留中柱与边墙形成三段式立面
     {
       id: "win-front-2f-l",
       wallId: "wall-front-2f",
       type: "window",
-      offset: 0.6,
-      sillHeight: 0.0,
-      width: 4.6,
-      height: 2.5,
+      offset: 1.5,
+      sillHeight: 0.3,
+      width: 2.6,
+      height: 2.2,
+      frameMaterialId: FRAME_MATERIAL_ID,
+    },
+    {
+      id: "win-front-2f-c",
+      wallId: "wall-front-2f",
+      type: "window",
+      offset: 4.7,
+      sillHeight: 0.3,
+      width: 2.6,
+      height: 2.2,
       frameMaterialId: FRAME_MATERIAL_ID,
     },
     {
       id: "win-front-2f-r",
       wallId: "wall-front-2f",
       type: "window",
-      offset: 6.8,
-      sillHeight: 0.0,
-      width: 4.6,
-      height: 2.5,
+      offset: 7.9,
+      sillHeight: 0.3,
+      width: 2.6,
+      height: 2.2,
       frameMaterialId: FRAME_MATERIAL_ID,
     },
     // 2F 侧窗
@@ -217,20 +227,20 @@ export function createSampleProject(): HouseProject {
       id: "win-front-3f-l",
       wallId: "wall-front-3f",
       type: "window",
-      offset: 0.8,
+      offset: 1.5,
       sillHeight: 0.5,
       width: 2.6,
-      height: 2.0,
+      height: 1.8,
       frameMaterialId: FRAME_MATERIAL_ID,
     },
     {
       id: "win-front-3f-r",
       wallId: "wall-front-3f",
       type: "window",
-      offset: 5.6,
+      offset: 5.9,
       sillHeight: 0.5,
       width: 2.6,
-      height: 2.0,
+      height: 1.8,
       frameMaterialId: FRAME_MATERIAL_ID,
     },
     // 3F 山墙小窗
@@ -238,9 +248,9 @@ export function createSampleProject(): HouseProject {
       id: "win-right-3f",
       wallId: "wall-right-3f",
       type: "window",
-      offset: 2.0,
+      offset: 1.8,
       sillHeight: 1.0,
-      width: 1.0,
+      width: 1.2,
       height: 1.2,
       frameMaterialId: FRAME_MATERIAL_ID,
     },
@@ -248,9 +258,9 @@ export function createSampleProject(): HouseProject {
       id: "win-left-3f",
       wallId: "wall-left-3f",
       type: "window",
-      offset: 2.0,
+      offset: 1.8,
       sillHeight: 1.0,
-      width: 1.0,
+      width: 1.2,
       height: 1.2,
       frameMaterialId: FRAME_MATERIAL_ID,
     },
@@ -276,8 +286,8 @@ export function createSampleProject(): HouseProject {
       storeyId: "3f",
       attachedWallId: "wall-front-3f",
       offset: 0,
-      width: 9,
-      depth: 1.5,
+      width: 10,
+      depth: 1.0,
       slabThickness: SLAB_THICKNESS,
       railingHeight: 1.05,
       materialId: SLAB_MATERIAL_ID,
