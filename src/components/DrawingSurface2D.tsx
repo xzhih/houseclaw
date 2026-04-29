@@ -1,35 +1,27 @@
 import { useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
 import type { ObjectSelection } from "../domain/selection";
-import { wallLength } from "../domain/measurements";
 import { moveWall, translateStorey, updateBalcony, updateOpening, updateStair } from "../domain/mutations";
-import { rotatePoint } from "../domain/stairs";
 import type { HouseProject } from "../domain/types";
 import { planStoreyIdFromView } from "../domain/views";
 import { snapPlanPoint, snapToEndpoint } from "../geometry/snapping";
 import { collectPlanAnchors, findAxisAlignedGuides, type GuideMatch } from "../geometry/smartGuides";
 import { buildWallNetwork, type WallFootprint } from "../geometry/wallNetwork";
-import { elevationOffsetSign, projectElevationView } from "../projection/elevation";
+import { projectElevationView } from "../projection/elevation";
 import { projectPlanView } from "../projection/plan";
 import { GridOverlay } from "./canvas/GridOverlay";
 import { ScaleRuler } from "./canvas/ScaleRuler";
 import { SmartGuides } from "./canvas/SmartGuides";
 import { StatusReadout } from "./canvas/StatusReadout";
 import { ZoomControls } from "./canvas/ZoomControls";
-import type { DragReadout, Point2D, PointMapping } from "./canvas/types";
-import type {
-  DragState,
-  ElevationDragHandlers,
-  PlanDragHandlers,
-} from "./canvas/dragState";
+import type { DragReadout, Point2D } from "./canvas/types";
+import type { DragState } from "./canvas/dragState";
 import {
   ELEVATION_SIDE_BY_VIEW,
   SURFACE_HEIGHT,
-  SURFACE_PADDING,
   SURFACE_WIDTH,
   createPointMapping,
   elevationAxisToWorld,
   elevationBounds,
-  eventToViewBoxPoint,
   planBounds,
   unionBounds,
 } from "./canvas/renderUtils";
@@ -37,6 +29,7 @@ import { renderPlan } from "./canvas/renderPlan";
 import { renderElevation } from "./canvas/renderElevation";
 import { renderRoofView } from "./canvas/renderRoofView";
 import { DEFAULT_VIEWPORT, useViewport } from "./canvas/useViewport";
+import { eventToWorldWith, useDragHandlers } from "./canvas/useDragHandlers";
 
 const PLAN_GRID_SIZE = 0.1;
 const PLAN_ENDPOINT_THRESHOLD = 0.2;
@@ -111,14 +104,15 @@ export function DrawingSurface2D({
     panHandlers.onPointerDown(event);
   };
 
-  const eventToWorldWith = (
-    event: { clientX: number; clientY: number },
-    mapping: PointMapping,
-  ): Point2D | undefined => {
-    if (!svgRef.current) return undefined;
-    const vb = eventToViewBoxPoint(svgRef.current, event.clientX, event.clientY);
-    return mapping.unproject(vb);
-  };
+  const { planHandlers, elevationHandlers } = useDragHandlers({
+    project,
+    storeyId,
+    elevationSide,
+    planMapping,
+    elevationMapping,
+    svgRef,
+    setDragState,
+  });
 
   const snapToGrid = (value: number) => Math.round(value / PLAN_GRID_SIZE) * PLAN_GRID_SIZE;
   const roundToMm = (value: number) => Math.round(value * 1000) / 1000;
@@ -126,398 +120,6 @@ export function DrawingSurface2D({
     x: roundToMm(point.x),
     y: roundToMm(point.y),
   });
-
-  const beginDragWith = (
-    event: PointerEvent<SVGElement>,
-    mapping: PointMapping | undefined,
-    factory: (
-      pointerId: number,
-      startWorld: Point2D,
-      mapping: PointMapping,
-    ) => DragState | undefined,
-  ) => {
-    if (project.activeTool !== "select") return;
-    if (event.button !== 0) return;
-    if (!svgRef.current || !mapping) return;
-
-    const startWorld = eventToWorldWith(event, mapping);
-    if (!startWorld) return;
-    const next = factory(event.pointerId, startWorld, mapping);
-    if (!next) return;
-
-    event.stopPropagation();
-    svgRef.current.setPointerCapture(event.pointerId);
-    setDragState(next);
-  };
-
-  const beginElementDrag = (
-    event: PointerEvent<SVGElement>,
-    factory: (
-      pointerId: number,
-      startWorld: Point2D,
-      mapping: PointMapping,
-    ) => DragState | undefined,
-  ) => beginDragWith(event, planMapping, factory);
-
-  const onWallElementPointerDown: PlanDragHandlers["onWallPointerDown"] = (event, wallId) => {
-    if (storeyId === undefined) return;
-    const wall = project.walls.find((candidate) => candidate.id === wallId);
-    if (!wall) return;
-    beginElementDrag(event, (pointerId, startWorld, mapping) => ({
-      kind: "wall-translate",
-      pointerId,
-      startWorld,
-      mapping,
-      moved: false,
-      wallId,
-      origStart: wall.start,
-      origEnd: wall.end,
-    }));
-  };
-
-  const onOpeningElementPointerDown: PlanDragHandlers["onOpeningPointerDown"] = (event, openingId) => {
-    if (storeyId === undefined) return;
-    const opening = project.openings.find((candidate) => candidate.id === openingId);
-    if (!opening) return;
-    const wall = project.walls.find((candidate) => candidate.id === opening.wallId);
-    if (!wall) return;
-    beginElementDrag(event, (pointerId, startWorld, mapping) => ({
-      kind: "opening",
-      pointerId,
-      startWorld,
-      mapping,
-      moved: false,
-      openingId,
-      wallStart: wall.start,
-      wallEnd: wall.end,
-      origOffset: opening.offset,
-      openingWidth: opening.width,
-    }));
-  };
-
-  const onBalconyElementPointerDown: PlanDragHandlers["onBalconyPointerDown"] = (event, balconyId) => {
-    if (storeyId === undefined) return;
-    const balcony = project.balconies.find((candidate) => candidate.id === balconyId);
-    if (!balcony) return;
-    const wall = project.walls.find((candidate) => candidate.id === balcony.attachedWallId);
-    if (!wall) return;
-    beginElementDrag(event, (pointerId, startWorld, mapping) => ({
-      kind: "balcony",
-      pointerId,
-      startWorld,
-      mapping,
-      moved: false,
-      balconyId,
-      wallStart: wall.start,
-      wallEnd: wall.end,
-      origOffset: balcony.offset,
-      balconyWidth: balcony.width,
-    }));
-  };
-
-  const onWallEndpointHandlePointerDown: PlanDragHandlers["onWallEndpointPointerDown"] = (
-    event,
-    wallId,
-    endpoint,
-  ) => {
-    if (storeyId === undefined) return;
-    const wall = project.walls.find((candidate) => candidate.id === wallId);
-    if (!wall) return;
-    const origPoint = endpoint === "start" ? wall.start : wall.end;
-    const fixedPoint = endpoint === "start" ? wall.end : wall.start;
-    beginElementDrag(event, (pointerId, startWorld, mapping) => ({
-      kind: "wall-endpoint",
-      pointerId,
-      startWorld,
-      mapping,
-      moved: false,
-      wallId,
-      endpoint,
-      origPoint,
-      fixedPoint,
-    }));
-  };
-
-  const onPlanOpeningEdgePointerDown: PlanDragHandlers["onOpeningEdgePointerDown"] = (
-    event,
-    openingId,
-    edge,
-  ) => {
-    if (storeyId === undefined) return;
-    const opening = project.openings.find((candidate) => candidate.id === openingId);
-    if (!opening) return;
-    const wall = project.walls.find((candidate) => candidate.id === opening.wallId);
-    if (!wall) return;
-    const wallLen = wallLength(wall);
-    beginElementDrag(event, (pointerId, startWorld, mapping) => ({
-      kind: "plan-opening-resize",
-      pointerId,
-      startWorld,
-      mapping,
-      moved: false,
-      openingId,
-      edge,
-      wallStart: wall.start,
-      wallEnd: wall.end,
-      origOffset: opening.offset,
-      origWidth: opening.width,
-      wallLen,
-    }));
-  };
-
-  const onPlanBalconyEdgePointerDown: PlanDragHandlers["onBalconyEdgePointerDown"] = (
-    event,
-    balconyId,
-    edge,
-  ) => {
-    if (storeyId === undefined) return;
-    const balcony = project.balconies.find((candidate) => candidate.id === balconyId);
-    if (!balcony) return;
-    const wall = project.walls.find((candidate) => candidate.id === balcony.attachedWallId);
-    if (!wall) return;
-    const wallLen = wallLength(wall);
-    beginElementDrag(event, (pointerId, startWorld, mapping) => ({
-      kind: "plan-balcony-resize",
-      pointerId,
-      startWorld,
-      mapping,
-      moved: false,
-      balconyId,
-      edge,
-      wallStart: wall.start,
-      wallEnd: wall.end,
-      origOffset: balcony.offset,
-      origWidth: balcony.width,
-      wallLen,
-    }));
-  };
-
-  const onStairBodyHandlePointerDown: PlanDragHandlers["onStairBodyPointerDown"] = (
-    event,
-    storeyId,
-  ) => {
-    const storey = project.storeys.find((s) => s.id === storeyId);
-    const stair = storey?.stair;
-    if (!stair) return;
-    beginElementDrag(event, (pointerId, startWorld, mapping) => ({
-      kind: "stair-translate",
-      pointerId,
-      startWorld,
-      mapping,
-      moved: false,
-      storeyId,
-      origX: stair.x,
-      origY: stair.y,
-    }));
-  };
-
-  const onStairCornerHandlePointerDown: PlanDragHandlers["onStairCornerPointerDown"] = (
-    event,
-    storeyId,
-    corner,
-  ) => {
-    const storey = project.storeys.find((s) => s.id === storeyId);
-    const stair = storey?.stair;
-    if (!stair) return;
-    const rotation = stair.rotation ?? 0;
-    const center: Point2D = { x: stair.x + stair.width / 2, y: stair.y + stair.depth / 2 };
-    const oppositeLocal: Point2D =
-      corner === "bl"
-        ? { x: stair.x + stair.width, y: stair.y + stair.depth }
-        : corner === "br"
-          ? { x: stair.x, y: stair.y + stair.depth }
-          : corner === "tr"
-            ? { x: stair.x, y: stair.y }
-            : /* "tl" */ { x: stair.x + stair.width, y: stair.y };
-    const worldAnchor = rotatePoint(oppositeLocal, center, rotation);
-    beginElementDrag(event, (pointerId, startWorld, mapping) => ({
-      kind: "stair-resize",
-      pointerId,
-      startWorld,
-      mapping,
-      moved: false,
-      storeyId,
-      corner,
-      worldAnchor,
-      origRotation: rotation,
-    }));
-  };
-
-  const onStairRotateHandlePointerDown: PlanDragHandlers["onStairRotatePointerDown"] = (
-    event,
-    storeyId,
-  ) => {
-    const storey = project.storeys.find((s) => s.id === storeyId);
-    const stair = storey?.stair;
-    if (!stair) return;
-    const center: Point2D = { x: stair.x + stair.width / 2, y: stair.y + stair.depth / 2 };
-    beginElementDrag(event, (pointerId, startWorld, mapping) => ({
-      kind: "stair-rotate",
-      pointerId,
-      startWorld,
-      mapping,
-      moved: false,
-      storeyId,
-      center,
-      initialMouseAngle: Math.atan2(startWorld.y - center.y, startWorld.x - center.x),
-      origRotation: stair.rotation ?? 0,
-    }));
-  };
-
-  const planDragHandlers: PlanDragHandlers = {
-    onWallPointerDown: onWallElementPointerDown,
-    onOpeningPointerDown: onOpeningElementPointerDown,
-    onBalconyPointerDown: onBalconyElementPointerDown,
-    onWallEndpointPointerDown: onWallEndpointHandlePointerDown,
-    onOpeningEdgePointerDown: onPlanOpeningEdgePointerDown,
-    onBalconyEdgePointerDown: onPlanBalconyEdgePointerDown,
-    onStairBodyPointerDown: onStairBodyHandlePointerDown,
-    onStairCornerPointerDown: onStairCornerHandlePointerDown,
-    onStairRotatePointerDown: onStairRotateHandlePointerDown,
-  };
-
-  const onElevationOpeningPointerDown: ElevationDragHandlers["onOpeningPointerDown"] = (event, openingId) => {
-    const opening = project.openings.find((candidate) => candidate.id === openingId);
-    if (!opening) return;
-    const wall = project.walls.find((candidate) => candidate.id === opening.wallId);
-    if (!wall || !elevationSide) return;
-    const storey = project.storeys.find((candidate) => candidate.id === wall.storeyId);
-    const wallLen = wallLength(wall);
-    const projSign = elevationOffsetSign(wall, elevationSide);
-    beginDragWith(event, elevationMapping, (pointerId, startWorld, mapping) => ({
-      kind: "elev-opening-move",
-      pointerId,
-      startWorld,
-      mapping,
-      moved: false,
-      openingId,
-      origOffset: opening.offset,
-      origSill: opening.sillHeight,
-      width: opening.width,
-      height: opening.height,
-      wallLen,
-      storeyHeight: storey?.height ?? wall.height,
-      projSign,
-    }));
-  };
-
-  const onElevationOpeningCornerPointerDown: ElevationDragHandlers["onOpeningCornerPointerDown"] = (
-    event,
-    openingId,
-    corner,
-  ) => {
-    const opening = project.openings.find((candidate) => candidate.id === openingId);
-    if (!opening) return;
-    const wall = project.walls.find((candidate) => candidate.id === opening.wallId);
-    if (!wall || !elevationSide) return;
-    const storey = project.storeys.find((candidate) => candidate.id === wall.storeyId);
-    const wallLen = wallLength(wall);
-    const projSign = elevationOffsetSign(wall, elevationSide);
-    // For mirrored sides (back/left) on a non-canonical wall direction, the visually
-    // left/right corners correspond to the opposite ends of the opening on the wall.
-    // Swap so the resize math (written in wall-direction terms) acts on the edge the
-    // user actually grabbed.
-    const effectiveCorner: typeof corner =
-      projSign < 0
-        ? corner === "tl"
-          ? "tr"
-          : corner === "tr"
-            ? "tl"
-            : corner === "bl"
-              ? "br"
-              : "bl"
-        : corner;
-    beginDragWith(event, elevationMapping, (pointerId, startWorld, mapping) => ({
-      kind: "elev-opening-resize",
-      pointerId,
-      startWorld,
-      mapping,
-      moved: false,
-      openingId,
-      corner: effectiveCorner,
-      origOffset: opening.offset,
-      origSill: opening.sillHeight,
-      origWidth: opening.width,
-      origHeight: opening.height,
-      wallLen,
-      storeyHeight: storey?.height ?? wall.height,
-      projSign,
-    }));
-  };
-
-  const onElevationBalconyPointerDown: ElevationDragHandlers["onBalconyPointerDown"] = (event, balconyId) => {
-    const balcony = project.balconies.find((candidate) => candidate.id === balconyId);
-    if (!balcony) return;
-    const wall = project.walls.find((candidate) => candidate.id === balcony.attachedWallId);
-    if (!wall || !elevationSide) return;
-    const wallLen = wallLength(wall);
-    const projSign = elevationOffsetSign(wall, elevationSide);
-    beginDragWith(event, elevationMapping, (pointerId, startWorld, mapping) => ({
-      kind: "elev-balcony-move",
-      pointerId,
-      startWorld,
-      mapping,
-      moved: false,
-      balconyId,
-      origOffset: balcony.offset,
-      width: balcony.width,
-      wallLen,
-      projSign,
-    }));
-  };
-
-  const onElevationBalconyEdgePointerDown: ElevationDragHandlers["onBalconyEdgePointerDown"] = (
-    event,
-    balconyId,
-    edge,
-  ) => {
-    const balcony = project.balconies.find((candidate) => candidate.id === balconyId);
-    if (!balcony) return;
-    const wall = project.walls.find((candidate) => candidate.id === balcony.attachedWallId);
-    if (!wall || !elevationSide) return;
-    const wallLen = wallLength(wall);
-    const projSign = elevationOffsetSign(wall, elevationSide);
-    const effectiveEdge: typeof edge = projSign < 0 ? (edge === "l" ? "r" : "l") : edge;
-    beginDragWith(event, elevationMapping, (pointerId, startWorld, mapping) => ({
-      kind: "elev-balcony-resize",
-      pointerId,
-      startWorld,
-      mapping,
-      moved: false,
-      balconyId,
-      edge: effectiveEdge,
-      origOffset: balcony.offset,
-      origWidth: balcony.width,
-      wallLen,
-      projSign,
-    }));
-  };
-
-  const onElevationStoreyPointerDown: ElevationDragHandlers["onStoreyPointerDown"] = (
-    event,
-    bandStoreyId,
-  ) => {
-    if (!elevationSide) return;
-    if (!project.storeys.some((storey) => storey.id === bandStoreyId)) return;
-    beginDragWith(event, elevationMapping, (pointerId, startWorld, mapping) => ({
-      kind: "elev-storey-translate",
-      pointerId,
-      startWorld,
-      mapping,
-      moved: false,
-      storeyId: bandStoreyId,
-      side: elevationSide,
-      origProject: project,
-    }));
-  };
-
-  const elevationDragHandlers: ElevationDragHandlers = {
-    onStoreyPointerDown: onElevationStoreyPointerDown,
-    onOpeningPointerDown: onElevationOpeningPointerDown,
-    onOpeningCornerPointerDown: onElevationOpeningCornerPointerDown,
-    onBalconyPointerDown: onElevationBalconyPointerDown,
-    onBalconyEdgePointerDown: onElevationBalconyEdgePointerDown,
-  };
 
   const otherWallSegments = (excludeWallId?: string) =>
     storeyId === undefined
@@ -892,7 +494,7 @@ export function DrawingSurface2D({
 
   const handlePointerMove = (event: PointerEvent<SVGSVGElement>) => {
     if (dragState && event.pointerId === dragState.pointerId) {
-      const currentWorld = eventToWorldWith(event, dragState.mapping);
+      const currentWorld = eventToWorldWith(svgRef.current, event, dragState.mapping);
       if (!currentWorld) return;
       setCursorWorld(currentWorld);
       const dx = currentWorld.x - dragState.startWorld.x;
@@ -914,7 +516,7 @@ export function DrawingSurface2D({
       setCursorWorld(null);
       return;
     }
-    const world = eventToWorldWith(event, activeMapping);
+    const world = eventToWorldWith(svgRef.current, event, activeMapping);
     setCursorWorld(world ?? null);
   };
 
@@ -1008,7 +610,7 @@ export function DrawingSurface2D({
               project.activeTool,
               planFootprints,
               activeSnap,
-              planDragHandlers,
+              planHandlers,
               ghostProjection,
             )
           : elevationProjection
@@ -1017,7 +619,7 @@ export function DrawingSurface2D({
                 project.selection,
                 onSelect,
                 project.activeTool,
-                elevationDragHandlers,
+                elevationHandlers,
               )
             : renderRoofView(project, onSelect, onProjectChange)}
         {storeyId && planMapping ? (
