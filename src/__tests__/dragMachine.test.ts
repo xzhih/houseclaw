@@ -588,6 +588,8 @@ describe("applyDrag elev-balcony-resize", () => {
 
   it("returns null when newWidth < minSize=0.3", () => {
     const project: HouseProject = { ...fixture(), openings: [] };
+    // Place balcony so origOffset+origWidth > wallLen via origOffset=3.85, origWidth=0.3 (sum=4.15>4).
+    // Wall-end clamp recomputes newWidth = wallLen - origOffset = 0.15 < minSize=0.3 → null.
     const state: DragState = {
       kind: "elev-balcony-resize",
       pointerId: 1,
@@ -596,37 +598,13 @@ describe("applyDrag elev-balcony-resize", () => {
       mapping: MAPPING,
       balconyId: "b1",
       edge: "r",
-      origOffset: 0.5,
-      origWidth: 1.5,
+      origOffset: 3.85,
+      origWidth: 0.3,
       wallLen: 4,
       projSign: 1,
     };
-    // dxOffset=-1.25 → newWidth=max(0.3, 0.25)=0.3 actually; force smaller via offset shift.
-    // Use edge=l: dxOffset large positive shrinks from left.
-    const stateL: DragState = { ...state, edge: "l" };
-    // Need newWidth < 0.3 after clamping. limited = min(1.4, 1.5 - 0.3) = 1.2 → newWidth = 0.3, not < 0.3.
-    // So edge=l can't break minSize naturally. Use right-edge with massive negative dxOffset:
-    // In edge="r": newWidth = max(minSize, origWidth + dxOffset) clamps to minSize.
-    // Then if newOffset+newWidth>wallLen check shrinks; with origOffset=0.5, no overshoot.
-    // newWidth stays at minSize=0.3, not < 0.3. So minSize boundary alone won't trigger null on right.
-    // Trigger via left edge with offset clamp: very large dxOffset.
-    // edge=l: limited = min(dxOffset, origWidth - minSize) = min(huge, 1.2) = 1.2
-    //   newOffset = 0.5+1.2 = 1.7; newWidth = 1.5 - 1.2 = 0.3 (== minSize, not < )
-    // To break: shift origOffset so newOffset+newWidth overshoots wallLen, forcing newWidth < minSize.
-    // Use edge=r and origOffset near wallLen with dxOffset positive. After clamp:
-    // origOffset=3.7, origWidth=0.3 wallLen=4. dxOffset=0.5 → newWidth=max(0.3, 0.8)=0.8.
-    // newOffset+newWidth=4.5>4 → newWidth=0.3. Still not <.
-    // Use origOffset=3.85, origWidth=0.3, dxOffset=0 → newWidth=0.3. newOffset+newWidth=4.15>4 → newWidth=0.15<minSize.
-    const trickyState: DragState = {
-      ...state,
-      edge: "r",
-      origOffset: 3.85,
-      origWidth: 0.3,
-    };
-    const out = applyDrag(trickyState, { x: 0, y: 0 }, ctxFor(project));
-    // origOffset+origWidth = 4.15 > 4 already; engine recomputes newWidth = 4 - 3.85 = 0.15 < 0.3 → null
+    const out = applyDrag(state, { x: 0, y: 0 }, ctxFor(project));
     expect(out).toBeNull();
-    void stateL;
   });
 });
 
