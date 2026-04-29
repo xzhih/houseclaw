@@ -266,8 +266,7 @@ export function createSampleProject(): HouseProject {
     },
   ];
 
-  // 2F 前阳台：附 2F 前墙，外挑 2m 至 y=0，覆盖 1F 入户庭院上方
-  // 3F 前阳台：附 3F 前墙，外挑 1.5m 至 y=2，坐在 2F 阳台屋面之上
+  // 2F 前阳台 + 3F 前阳台：尺度收紧避免立面被悬挑结构压垮
   const balconies: Balcony[] = [
     {
       id: "balcony-front-2f",
@@ -275,7 +274,7 @@ export function createSampleProject(): HouseProject {
       attachedWallId: "wall-front-2f",
       offset: 0,
       width: 12,
-      depth: 2.0,
+      depth: 1.2,
       slabThickness: SLAB_THICKNESS,
       railingHeight: 1.05,
       materialId: SLAB_MATERIAL_ID,
@@ -296,7 +295,7 @@ export function createSampleProject(): HouseProject {
   ];
 
   // 2F 三段披檐 wraparound：前墙长披檐 + 左右两侧短披檐（中式坡屋面绕角入侧）
-  // elevation 必须 > 2F 楼面（3.2m），略高一点 3.4m 让出檐离 1F 顶部留呼吸；30° 坡。
+  // 出挑收紧到 1.4m（仅略略覆盖 1.2m 阳台），保持中式 eave 比例
   const SKIRT_ELEVATION = STOREY_HEIGHT + 0.2;
   const skirts: SkirtRoof[] = [
     {
@@ -304,10 +303,10 @@ export function createSampleProject(): HouseProject {
       hostWallId: "wall-front-2f",
       offset: 0,
       width: 12,
-      depth: 2.4,
+      depth: 1.4,
       elevation: SKIRT_ELEVATION,
       pitch: Math.PI / 6,
-      overhang: 0.4,
+      overhang: 0.3,
       materialId: ROOF_MATERIAL_ID,
     },
     {
@@ -315,10 +314,10 @@ export function createSampleProject(): HouseProject {
       hostWallId: "wall-right-2f",
       offset: 0,
       width: 2.0,
-      depth: 1.6,
+      depth: 1.0,
       elevation: SKIRT_ELEVATION,
       pitch: Math.PI / 6,
-      overhang: 0.4,
+      overhang: 0.3,
       materialId: ROOF_MATERIAL_ID,
     },
     {
@@ -326,10 +325,10 @@ export function createSampleProject(): HouseProject {
       hostWallId: "wall-left-2f",
       offset: 5.0,
       width: 2.0,
-      depth: 1.6,
+      depth: 1.0,
       elevation: SKIRT_ELEVATION,
       pitch: Math.PI / 6,
-      overhang: 0.4,
+      overhang: 0.3,
       materialId: ROOF_MATERIAL_ID,
     },
   ];
