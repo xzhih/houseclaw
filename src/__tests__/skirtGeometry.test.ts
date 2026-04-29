@@ -6,7 +6,8 @@ const HOST_WALL: Wall = {
   id: "wall-host",
   storeyId: "1f",
   start: { x: 0, y: 0 },
-  end: { x: 10, y: 0 },          // along +x; outward normal is +y (using wall.right convention)
+  end: { x: 10, y: 0 },          // along +x; outward normal is -y (right side of travel,
+                                  // matching balcony convention)
   thickness: 0.24,
   height: 3,
   exterior: true,
@@ -56,11 +57,11 @@ describe("buildSkirtGeometry", () => {
     expect(xs[xs.length - 1]).toBeCloseTo(10.3);
   });
 
-  it("eave edge offset outward by depth+overhang along wall normal (+y for this host wall)", () => {
+  it("eave edge offset outward by depth+overhang along wall normal (-y for this host wall)", () => {
     const geom = buildSkirtGeometry(makeSkirt(), HOST_WALL);
     const eaveVerts = geom.panel.vertices.filter((v) => v.z < 3.0);
     for (const v of eaveVerts) {
-      expect(v.y).toBeCloseTo(1.3);
+      expect(v.y).toBeCloseTo(-1.3);
     }
   });
 

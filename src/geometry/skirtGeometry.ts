@@ -12,7 +12,10 @@ export type SkirtGeometry = {
  *
  * Convention:
  *  û = host wall unit direction (start → end)
- *  n̂ = host wall outward unit normal (right side of û in plan; +90° CCW rotation of û)
+ *  n̂ = host wall outward unit normal — +90° CW rotation of û, matching the balcony
+ *      convention used elsewhere (renderUtils.balconyPolygon, threeScene balcony bounds).
+ *      For a sample/showcase wall wound CCW around interior (interior on left of û),
+ *      this correctly points AWAY from the building.
  *  Anchor line sits on wall at z=elevation, spanning [offset - overhang, offset + width + overhang]
  *  Eave line sits at distance (depth + overhang) outward, at z = elevation - (depth+overhang)*tan(pitch)
  *  Panel: 4-vertex trapezoid (here a parallelogram since both edges have equal extent)
@@ -27,9 +30,10 @@ export function buildSkirtGeometry(skirt: SkirtRoof, hostWall: Wall): SkirtGeome
   }
   const ux = dx / len;
   const uy = dy / len;
-  // Outward normal = û rotated +90° CCW (gives right side, matching wall.right convention).
-  const nx = -uy;
-  const ny = ux;
+  // Outward = +90° CW of û (right side of travel direction).
+  // Matches balcony's (uy, -ux) so both project to the same side of an exterior wall.
+  const nx = uy;
+  const ny = -ux;
 
   const drop = (skirt.depth + skirt.overhang) * Math.tan(skirt.pitch);
   const a0Along = skirt.offset - skirt.overhang;
