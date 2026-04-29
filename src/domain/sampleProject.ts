@@ -266,7 +266,8 @@ export function createSampleProject(): HouseProject {
     },
   ];
 
-  // 2F 前阳台 + 3F 前阳台：尺度收紧避免立面被悬挑结构压垮
+  // 阳台：2F 前小窄台（披檐之下、视觉作为窗台延伸）+ 2F 后大阳台 + 3F 前小阳台
+  // 前阳台 depth 0.8m、披檐 depth 1.2m，披檐外伸超过阳台不会撞栏杆
   const balconies: Balcony[] = [
     {
       id: "balcony-front-2f",
@@ -274,6 +275,18 @@ export function createSampleProject(): HouseProject {
       attachedWallId: "wall-front-2f",
       offset: 0,
       width: 12,
+      depth: 0.8,
+      slabThickness: SLAB_THICKNESS,
+      railingHeight: 0.9,
+      materialId: SLAB_MATERIAL_ID,
+      railingMaterialId: WALL_MATERIAL_ID,
+    },
+    {
+      id: "balcony-back-2f",
+      storeyId: "2f",
+      attachedWallId: "wall-back-2f",
+      offset: 2.0,
+      width: 5.0,
       depth: 1.2,
       slabThickness: SLAB_THICKNESS,
       railingHeight: 1.05,
@@ -286,7 +299,7 @@ export function createSampleProject(): HouseProject {
       attachedWallId: "wall-front-3f",
       offset: 0,
       width: 10,
-      depth: 1.0,
+      depth: 0.8,
       slabThickness: SLAB_THICKNESS,
       railingHeight: 1.05,
       materialId: SLAB_MATERIAL_ID,
@@ -294,8 +307,8 @@ export function createSampleProject(): HouseProject {
     },
   ];
 
-  // 2F 三段披檐 wraparound：前墙长披檐 + 左右两侧短披檐（中式坡屋面绕角入侧）
-  // 出挑收紧到 1.4m（仅略略覆盖 1.2m 阳台），保持中式 eave 比例
+  // 单条 2F 前披檐：贯通全前墙、外挑 1.2m、30° 坡，作为中式立面核心特征
+  // 双侧披檐去掉——之前与前披檐在角部撞结构
   const SKIRT_ELEVATION = STOREY_HEIGHT + 0.2;
   const skirts: SkirtRoof[] = [
     {
@@ -303,29 +316,7 @@ export function createSampleProject(): HouseProject {
       hostWallId: "wall-front-2f",
       offset: 0,
       width: 12,
-      depth: 1.4,
-      elevation: SKIRT_ELEVATION,
-      pitch: Math.PI / 6,
-      overhang: 0.3,
-      materialId: ROOF_MATERIAL_ID,
-    },
-    {
-      id: "skirt-right-2f",
-      hostWallId: "wall-right-2f",
-      offset: 0,
-      width: 2.0,
-      depth: 1.0,
-      elevation: SKIRT_ELEVATION,
-      pitch: Math.PI / 6,
-      overhang: 0.3,
-      materialId: ROOF_MATERIAL_ID,
-    },
-    {
-      id: "skirt-left-2f",
-      hostWallId: "wall-left-2f",
-      offset: 5.0,
-      width: 2.0,
-      depth: 1.0,
+      depth: 1.2,
       elevation: SKIRT_ELEVATION,
       pitch: Math.PI / 6,
       overhang: 0.3,
