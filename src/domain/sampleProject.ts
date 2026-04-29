@@ -280,7 +280,7 @@ export function createSampleProject(): HouseProject {
       slabThickness: SLAB_THICKNESS,
       railingHeight: 0.9,
       materialId: SLAB_MATERIAL_ID,
-      railingMaterialId: WALL_MATERIAL_ID,
+      railingMaterialId: FRAME_MATERIAL_ID,
     },
     {
       id: "balcony-back-2f",
@@ -292,7 +292,7 @@ export function createSampleProject(): HouseProject {
       slabThickness: SLAB_THICKNESS,
       railingHeight: 1.05,
       materialId: SLAB_MATERIAL_ID,
-      railingMaterialId: WALL_MATERIAL_ID,
+      railingMaterialId: FRAME_MATERIAL_ID,
     },
     {
       id: "balcony-front-3f",
@@ -304,7 +304,7 @@ export function createSampleProject(): HouseProject {
       slabThickness: SLAB_THICKNESS,
       railingHeight: 1.05,
       materialId: SLAB_MATERIAL_ID,
-      railingMaterialId: WALL_MATERIAL_ID,
+      railingMaterialId: FRAME_MATERIAL_ID,
     },
   ];
 
