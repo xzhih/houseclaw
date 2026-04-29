@@ -48,7 +48,7 @@ describe("house domain model", () => {
     expect(wallMaterial).toMatchObject({
       name: "外墙涂料",
       kind: "wall",
-      color: "#dedbd2",
+      color: "#f4efe6",
       repeat: { x: 2, y: 2 },
     });
     expect(frameMaterial).toMatchObject({

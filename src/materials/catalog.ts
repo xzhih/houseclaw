@@ -5,8 +5,9 @@ export const materialCatalog: readonly Material[] = [
     id: "mat-white-render",
     name: "外墙涂料",
     kind: "wall",
-    // Eggshell white with a faint cool tint — fresh, not yellow.
-    color: "#dedbd2",
+    // Bright eggshell — chosen for visible contrast against mat-gray-tile roof
+    // and mat-dark-frame openings under three.js shadows.
+    color: "#f4efe6",
     repeat: { x: 2, y: 2 },
   },
   {
