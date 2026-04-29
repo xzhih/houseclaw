@@ -1,0 +1,457 @@
+import type { KeyboardEvent, PointerEvent } from "react";
+import type { ObjectSelection } from "../../domain/selection";
+import { isSelected } from "../../domain/selection";
+import { rotatePoint } from "../../domain/stairs";
+import type { ToolId } from "../../domain/types";
+import { slicePanelFootprint, type WallFootprint } from "../../geometry/wallNetwork";
+import type { PlanProjection } from "../../projection/types";
+import type { PlanDragHandlers } from "./dragState";
+import {
+  balconyPolygon,
+  buildStairSymbolGeometry,
+  computeSolidPanels,
+  createPointMapping,
+  openingLine,
+  planBounds,
+  polyPoints,
+  unionBounds,
+} from "./renderUtils";
+import type { Point2D } from "./types";
+
+const ENDPOINT_HANDLE_RADIUS = 7;
+
+type OnSelect = (selection: ObjectSelection | undefined) => void;
+
+export function renderSelectableBalcony(
+  balconyId: string,
+  selected: boolean,
+  onSelect: OnSelect,
+  activeTool: ToolId,
+  props: { className: string; points?: string; x?: number; y?: number; width?: number; height?: number },
+  onPointerDown?: (event: PointerEvent<SVGElement>) => void,
+) {
+  const commonProps = {
+    role: "button",
+    tabIndex: 0,
+    "aria-label": `选择阳台 ${balconyId}`,
+    "aria-pressed": selected,
+    className: selected ? `${props.className} is-selected` : props.className,
+    onPointerDown,
+    onClick: () => {
+      onSelect({ kind: "balcony", id: balconyId });
+    },
+    onKeyDown: (event: KeyboardEvent<SVGElement>) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        onSelect({ kind: "balcony", id: balconyId });
+      }
+    },
+  };
+
+  if (props.points) {
+    return <polygon {...commonProps} points={props.points} />;
+  }
+
+  return <rect {...commonProps} x={props.x} y={props.y} width={props.width} height={props.height} />;
+}
+
+export function renderPlan(
+  projection: PlanProjection,
+  selection: ObjectSelection | undefined,
+  onSelect: OnSelect,
+  activeTool: ToolId,
+  footprints: Map<string, WallFootprint>,
+  snapHit: Point2D | null,
+  handlers?: PlanDragHandlers,
+  ghost?: PlanProjection,
+) {
+  const mainBounds = planBounds(projection);
+  const bounds = ghost ? unionBounds(mainBounds, planBounds(ghost)) : mainBounds;
+  const { project: projectPoint } = createPointMapping(bounds);
+  const wallsById = new Map(projection.wallSegments.map((wall) => [wall.wallId, wall]));
+  const selectedWall =
+    selection?.kind === "wall"
+      ? projection.wallSegments.find((wall) => wall.wallId === selection.id)
+      : undefined;
+  const selectedOpening =
+    selection?.kind === "opening"
+      ? projection.openings.find((opening) => opening.openingId === selection.id)
+      : undefined;
+  const selectedBalcony =
+    selection?.kind === "balcony"
+      ? projection.balconies.find((balcony) => balcony.balconyId === selection.id)
+      : undefined;
+  const selectedStairSymbol =
+    selection?.kind === "stair"
+      ? projection.stairs.find((s) => s.storeyId === selection.id)
+      : undefined;
+
+  return (
+    <>
+      {ghost
+        ? ghost.wallSegments.map((wall) => {
+            const start = projectPoint(wall.start);
+            const end = projectPoint(wall.end);
+            return (
+              <line
+                key={`ghost-${wall.wallId}`}
+                className="plan-wall-ghost"
+                x1={start.x}
+                y1={start.y}
+                x2={end.x}
+                y2={end.y}
+                aria-hidden="true"
+              />
+            );
+          })
+        : null}
+      {projection.wallSegments.map((wall) => {
+        const footprint = footprints.get(wall.wallId);
+        if (!footprint) return null;
+        const selected = isSelected(selection, "wall", wall.wallId);
+        const className = selected ? "plan-wall is-selected" : "plan-wall";
+        const wallLen = Math.hypot(wall.end.x - wall.start.x, wall.end.y - wall.start.y);
+        const wallOpenings = projection.openings.filter((opening) => opening.wallId === wall.wallId);
+        const segment = { start: wall.start, end: wall.end, thickness: wall.thickness };
+        const solidPanels = computeSolidPanels(wallLen, wallOpenings);
+
+        return (
+          <g
+            key={wall.wallId}
+            role="button"
+            tabIndex={0}
+            aria-label={`选择墙 ${wall.wallId}`}
+            aria-pressed={selected}
+            className={className}
+            onPointerDown={(event) => handlers?.onWallPointerDown(event, wall.wallId)}
+            onClick={() => onSelect({ kind: "wall", id: wall.wallId })}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                onSelect({ kind: "wall", id: wall.wallId });
+              }
+            }}
+          >
+            {solidPanels.map((panel, index) => {
+              const sliced = slicePanelFootprint(footprint, segment, panel);
+              const corners = [
+                projectPoint(sliced.rightStart),
+                projectPoint(sliced.leftStart),
+                projectPoint(sliced.leftEnd),
+                projectPoint(sliced.rightEnd),
+              ];
+              const points = corners.map((c) => `${c.x},${c.y}`).join(" ");
+              return <polygon key={index} className="plan-wall-panel" points={points} />;
+            })}
+          </g>
+        );
+      })}
+      {projection.openings.map((opening) => {
+        const wall = wallsById.get(opening.wallId);
+        if (!wall) return null;
+
+        const line = openingLine(opening, wall);
+        if (!line) return null;
+
+        const start = projectPoint(line.start);
+        const end = projectPoint(line.end);
+        const selected = isSelected(selection, "opening", opening.openingId);
+        const typeClass = `plan-opening--${opening.type}`;
+
+        return (
+          <g key={opening.openingId} className="opening-glyph">
+            <line
+              role="button"
+              tabIndex={0}
+              aria-label={`选择开孔 ${opening.openingId}`}
+              aria-pressed={selected}
+              className={`plan-opening ${typeClass}${selected ? " is-selected" : ""}`}
+              x1={start.x}
+              y1={start.y}
+              x2={end.x}
+              y2={end.y}
+              onPointerDown={(event) => handlers?.onOpeningPointerDown(event, opening.openingId)}
+              onClick={() => onSelect({ kind: "opening", id: opening.openingId })}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  onSelect({ kind: "opening", id: opening.openingId });
+                }
+              }}
+            />
+          </g>
+        );
+      })}
+      {projection.balconies.map((balcony) => {
+        const wall = wallsById.get(balcony.wallId);
+        if (!wall) return null;
+
+        const points = balconyPolygon(balcony, wall).map(projectPoint);
+        if (points.length === 0) return null;
+
+        return (
+          <g key={balcony.balconyId}>
+            {renderSelectableBalcony(
+              balcony.balconyId,
+              isSelected(selection, "balcony", balcony.balconyId),
+              onSelect,
+              activeTool,
+              {
+                className: "plan-balcony",
+                points: points.map((point) => `${point.x},${point.y}`).join(" "),
+              },
+              (event) => handlers?.onBalconyPointerDown(event, balcony.balconyId),
+            )}
+          </g>
+        );
+      })}
+      {projection.skirts.map((rect) => {
+        const points = rect.vertices
+          .map((v) => {
+            const p = projectPoint(v);
+            return `${p.x},${p.y}`;
+          })
+          .join(" ");
+        const selected = isSelected(selection, "skirt", rect.skirtId);
+        return (
+          <polygon
+            key={rect.skirtId}
+            className={`plan-skirt${selected ? " is-selected" : ""}`}
+            points={points}
+            onClick={(e) => {
+              e.stopPropagation();
+              onSelect({ kind: "skirt", id: rect.skirtId });
+            }}
+          />
+        );
+      })}
+      {projection.stairs.map((stair) => {
+        const selected = isSelected(selection, "stair", stair.storeyId);
+        const symbol = buildStairSymbolGeometry(stair, projectPoint);
+
+        return (
+          <g
+            key={stair.storeyId}
+            role="button"
+            tabIndex={0}
+            aria-label={`选择楼梯 ${stair.storeyId}`}
+            aria-pressed={selected}
+            className={selected ? "plan-stair is-selected" : "plan-stair"}
+            onPointerDown={(event) => handlers?.onStairBodyPointerDown(event, stair.storeyId)}
+            onClick={() => onSelect({ kind: "stair", id: stair.storeyId })}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                onSelect({ kind: "stair", id: stair.storeyId });
+              }
+            }}
+          >
+            <polygon className="plan-stair-outline" points={polyPoints(symbol.outline)} />
+            {symbol.flights.map((flight, i) => (
+              <polygon key={`f${i}`} className="plan-stair-flight" points={polyPoints(flight)} />
+            ))}
+            {symbol.landings.map((landing, i) => (
+              <polygon key={`l${i}`} className="plan-stair-landing" points={polyPoints(landing)} />
+            ))}
+            {symbol.treadLines.map((line, i) => (
+              <line
+                key={`t${i}`}
+                className="plan-stair-tread"
+                x1={line.from.x}
+                y1={line.from.y}
+                x2={line.to.x}
+                y2={line.to.y}
+              />
+            ))}
+            {symbol.cutLine.length > 0 ? (
+              <polyline
+                className="plan-stair-cut"
+                points={polyPoints(symbol.cutLine)}
+                fill="none"
+              />
+            ) : null}
+            <text
+              x={symbol.labelPos.x}
+              y={symbol.labelPos.y}
+              textAnchor="middle"
+              dominantBaseline="middle"
+              className="plan-stair-label"
+            >
+              UP
+            </text>
+          </g>
+        );
+      })}
+      {selectedWall && handlers ? (
+        <>
+          <circle
+            className="wall-endpoint-handle"
+            cx={projectPoint(selectedWall.start).x}
+            cy={projectPoint(selectedWall.start).y}
+            r={ENDPOINT_HANDLE_RADIUS}
+            aria-label={`拉伸墙 ${selectedWall.wallId} 起点`}
+            onPointerDown={(event) =>
+              handlers.onWallEndpointPointerDown(event, selectedWall.wallId, "start")
+            }
+          />
+          <circle
+            className="wall-endpoint-handle"
+            cx={projectPoint(selectedWall.end).x}
+            cy={projectPoint(selectedWall.end).y}
+            r={ENDPOINT_HANDLE_RADIUS}
+            aria-label={`拉伸墙 ${selectedWall.wallId} 终点`}
+            onPointerDown={(event) =>
+              handlers.onWallEndpointPointerDown(event, selectedWall.wallId, "end")
+            }
+          />
+        </>
+      ) : null}
+      {selectedOpening && handlers
+        ? (() => {
+            const wall = wallsById.get(selectedOpening.wallId);
+            if (!wall) return null;
+            const line = openingLine(selectedOpening, wall);
+            if (!line) return null;
+            const start = projectPoint(line.start);
+            const end = projectPoint(line.end);
+            return (
+              <>
+                <circle
+                  className="resize-handle"
+                  cx={start.x}
+                  cy={start.y}
+                  r={ENDPOINT_HANDLE_RADIUS}
+                  aria-label={`调整开孔 ${selectedOpening.openingId} 起点`}
+                  onPointerDown={(event) =>
+                    handlers.onOpeningEdgePointerDown(event, selectedOpening.openingId, "l")
+                  }
+                />
+                <circle
+                  className="resize-handle"
+                  cx={end.x}
+                  cy={end.y}
+                  r={ENDPOINT_HANDLE_RADIUS}
+                  aria-label={`调整开孔 ${selectedOpening.openingId} 终点`}
+                  onPointerDown={(event) =>
+                    handlers.onOpeningEdgePointerDown(event, selectedOpening.openingId, "r")
+                  }
+                />
+              </>
+            );
+          })()
+        : null}
+      {selectedBalcony && handlers
+        ? (() => {
+            const wall = wallsById.get(selectedBalcony.wallId);
+            if (!wall) return null;
+            const dx = wall.end.x - wall.start.x;
+            const dy = wall.end.y - wall.start.y;
+            const len = Math.hypot(dx, dy);
+            if (len === 0) return null;
+            const ux = dx / len;
+            const uy = dy / len;
+            const innerStart = {
+              x: wall.start.x + ux * selectedBalcony.offset,
+              y: wall.start.y + uy * selectedBalcony.offset,
+            };
+            const innerEnd = {
+              x: wall.start.x + ux * (selectedBalcony.offset + selectedBalcony.width),
+              y: wall.start.y + uy * (selectedBalcony.offset + selectedBalcony.width),
+            };
+            const start = projectPoint(innerStart);
+            const end = projectPoint(innerEnd);
+            return (
+              <>
+                <circle
+                  className="resize-handle"
+                  cx={start.x}
+                  cy={start.y}
+                  r={ENDPOINT_HANDLE_RADIUS}
+                  aria-label={`调整阳台 ${selectedBalcony.balconyId} 起点`}
+                  onPointerDown={(event) =>
+                    handlers.onBalconyEdgePointerDown(event, selectedBalcony.balconyId, "l")
+                  }
+                />
+                <circle
+                  className="resize-handle"
+                  cx={end.x}
+                  cy={end.y}
+                  r={ENDPOINT_HANDLE_RADIUS}
+                  aria-label={`调整阳台 ${selectedBalcony.balconyId} 终点`}
+                  onPointerDown={(event) =>
+                    handlers.onBalconyEdgePointerDown(event, selectedBalcony.balconyId, "r")
+                  }
+                />
+              </>
+            );
+          })()
+        : null}
+      {selectedStairSymbol && handlers
+        ? (() => {
+            const stair = selectedStairSymbol;
+            const rotation = stair.rotation;
+            const center = stair.center;
+            const { rect } = stair;
+            const cornersLocal: Array<{ name: "bl" | "br" | "tr" | "tl"; local: Point2D }> = [
+              { name: "bl", local: { x: rect.x, y: rect.y } },
+              { name: "br", local: { x: rect.x + rect.width, y: rect.y } },
+              { name: "tr", local: { x: rect.x + rect.width, y: rect.y + rect.depth } },
+              { name: "tl", local: { x: rect.x, y: rect.y + rect.depth } },
+            ];
+            const cornersWorld = cornersLocal.map((c) => ({
+              name: c.name,
+              pos: projectPoint(rotatePoint(c.local, center, rotation)),
+            }));
+            const HANDLE_OFFSET = 0.5;
+            const topMidLocal: Point2D = { x: center.x, y: rect.y + rect.depth };
+            const handleLocal: Point2D = { x: center.x, y: rect.y + rect.depth + HANDLE_OFFSET };
+            const topMidWorld = projectPoint(rotatePoint(topMidLocal, center, rotation));
+            const handleWorld = projectPoint(rotatePoint(handleLocal, center, rotation));
+            return (
+              <>
+                <line
+                  className="stair-rotate-stem"
+                  x1={topMidWorld.x}
+                  y1={topMidWorld.y}
+                  x2={handleWorld.x}
+                  y2={handleWorld.y}
+                />
+                <circle
+                  className="stair-rotate-handle"
+                  cx={handleWorld.x}
+                  cy={handleWorld.y}
+                  r={ENDPOINT_HANDLE_RADIUS}
+                  aria-label={`旋转楼梯 ${stair.storeyId}`}
+                  onPointerDown={(event) =>
+                    handlers.onStairRotatePointerDown(event, stair.storeyId)
+                  }
+                />
+                {cornersWorld.map((c) => (
+                  <circle
+                    key={c.name}
+                    className="resize-handle"
+                    cx={c.pos.x}
+                    cy={c.pos.y}
+                    r={ENDPOINT_HANDLE_RADIUS}
+                    aria-label={`楼梯 ${c.name} 角点`}
+                    onPointerDown={(event) =>
+                      handlers.onStairCornerPointerDown(event, stair.storeyId, c.name)
+                    }
+                  />
+                ))}
+              </>
+            );
+          })()
+        : null}
+      {snapHit ? (
+        <circle
+          className="snap-indicator"
+          cx={projectPoint(snapHit).x}
+          cy={projectPoint(snapHit).y}
+          r={9}
+          aria-hidden="true"
+        />
+      ) : null}
+    </>
+  );
+}
