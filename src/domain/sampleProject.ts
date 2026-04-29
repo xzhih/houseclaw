@@ -15,7 +15,7 @@ import type {
 const WALL_THICKNESS = 0.24;
 const SLAB_THICKNESS = 0.24;
 const STOREY_HEIGHT = 3.2;
-const TOP_STOREY_HEIGHT = 3.0;
+const TOP_STOREY_HEIGHT = 3.2;
 
 const WALL_MATERIAL_ID = "mat-white-render";
 const SLAB_MATERIAL_ID = "mat-gray-stone";
