@@ -3,7 +3,7 @@ import type { ObjectSelection } from "../domain/selection";
 import { wallLength } from "../domain/measurements";
 import { moveWall, translateStorey, updateBalcony, updateOpening, updateStair } from "../domain/mutations";
 import { rotatePoint } from "../domain/stairs";
-import type { HouseProject, ToolId, ViewId } from "../domain/types";
+import type { HouseProject } from "../domain/types";
 import { planStoreyIdFromView } from "../domain/views";
 import { snapPlanPoint, snapToEndpoint } from "../geometry/snapping";
 import { collectPlanAnchors, findAxisAlignedGuides, type GuideMatch } from "../geometry/smartGuides";
@@ -15,7 +15,7 @@ import { ScaleRuler } from "./canvas/ScaleRuler";
 import { SmartGuides } from "./canvas/SmartGuides";
 import { StatusReadout } from "./canvas/StatusReadout";
 import { ZoomControls } from "./canvas/ZoomControls";
-import type { Bounds, DragReadout, Point2D, PointMapping, Viewport } from "./canvas/types";
+import type { DragReadout, Point2D, PointMapping, Viewport } from "./canvas/types";
 import type {
   DragState,
   ElevationDragHandlers,
