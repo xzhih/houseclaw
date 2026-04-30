@@ -60,8 +60,10 @@ export function AppShell() {
                 dispatch={dispatch}
               />
               <ToolPalette
+                project={project}
                 activeTool={project.activeTool}
                 onChange={(toolId) => dispatch({ type: "set-tool", toolId })}
+                dispatch={dispatch}
               />
               <PropertyPanel project={project} dispatch={dispatch} />
             </div>
