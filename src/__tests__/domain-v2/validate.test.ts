@@ -48,3 +48,68 @@ describe("validateProject — wall height", () => {
     expect(errors.some((e) => e.includes("Wall w-front") && e.includes("top below bottom"))).toBe(true);
   });
 });
+
+describe("validateProject — slab", () => {
+  it("flags a slab polygon with fewer than 3 vertices", () => {
+    const p = createValidV2Project();
+    p.slabs[0].polygon = [{ x: 0, y: 0 }, { x: 1, y: 0 }];
+    const errors = validateProject(p);
+    expect(errors.some((e) => e.includes("Slab slab-1f") && e.includes("polygon"))).toBe(true);
+  });
+
+  it("flags a self-intersecting slab polygon", () => {
+    const p = createValidV2Project();
+    p.slabs[0].polygon = [
+      { x: 0, y: 0 },
+      { x: 4, y: 4 },
+      { x: 4, y: 0 },
+      { x: 0, y: 4 },
+    ];
+    const errors = validateProject(p);
+    expect(errors.some((e) => e.includes("Slab slab-1f") && e.includes("self-intersecting"))).toBe(true);
+  });
+
+  it("flags a CW (non-CCW) slab polygon", () => {
+    const p = createValidV2Project();
+    p.slabs[0].polygon = [...p.slabs[0].polygon].reverse();
+    const errors = validateProject(p);
+    expect(errors.some((e) => e.includes("Slab slab-1f") && e.includes("CCW"))).toBe(true);
+  });
+
+  it("flags a slab with non-positive thickness", () => {
+    const p = createValidV2Project();
+    p.slabs[0].thickness = 0;
+    const errors = validateProject(p);
+    expect(errors.some((e) => e.includes("Slab slab-1f") && e.includes("thickness"))).toBe(true);
+  });
+});
+
+describe("validateProject — roof", () => {
+  it("flags a roof whose edges length differs from polygon length", () => {
+    const p = createValidV2Project();
+    p.roofs[0].edges = ["eave", "gable", "eave"]; // length 3 vs polygon 4
+    const errors = validateProject(p);
+    expect(errors.some((e) => e.includes("Roof roof-main") && e.includes("edges length"))).toBe(true);
+  });
+
+  it("flags a roof with pitch outside [π/36, π/3]", () => {
+    const p = createValidV2Project();
+    p.roofs[0].pitch = Math.PI / 100;
+    const errors = validateProject(p);
+    expect(errors.some((e) => e.includes("Roof roof-main") && e.includes("pitch"))).toBe(true);
+  });
+
+  it("flags a roof with overhang outside [0, 2]", () => {
+    const p = createValidV2Project();
+    p.roofs[0].overhang = 2.5;
+    const errors = validateProject(p);
+    expect(errors.some((e) => e.includes("Roof roof-main") && e.includes("overhang"))).toBe(true);
+  });
+
+  it("flags a roof whose base anchor references a missing storey", () => {
+    const p = createValidV2Project();
+    p.roofs[0].base = { kind: "storey", storeyId: "ghost", offset: 0 };
+    const errors = validateProject(p);
+    expect(errors).toContain("Roof roof-main base anchor references missing storey: ghost");
+  });
+});
