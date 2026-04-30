@@ -44,6 +44,20 @@ export function validateProject(project: HouseProject): string[] {
     if (!isPolygonCCW(slab.polygon)) {
       errors.push(`Slab ${slab.id} polygon must be CCW`);
     }
+    if (slab.holes) {
+      slab.holes.forEach((hole, i) => {
+        if (hole.length < 3) {
+          errors.push(`Slab ${slab.id} hole[${i}] must have ≥ 3 vertices (got ${hole.length})`);
+          return;
+        }
+        if (!isPolygonSimple(hole)) {
+          errors.push(`Slab ${slab.id} hole[${i}] is self-intersecting`);
+        }
+        if (isPolygonCCW(hole)) {
+          errors.push(`Slab ${slab.id} hole[${i}] must be CW (inner boundary)`);
+        }
+      });
+    }
   }
 
   for (const roof of project.roofs) {

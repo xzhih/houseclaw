@@ -82,6 +82,54 @@ describe("validateProject — slab", () => {
     const errors = validateProject(p);
     expect(errors.some((e) => e.includes("Slab slab-1f") && e.includes("thickness"))).toBe(true);
   });
+
+  it("accepts a slab with valid CW holes", () => {
+    const p = createValidV2Project();
+    p.slabs[0].holes = [
+      [
+        { x: 1, y: 1 },
+        { x: 1, y: 2 },
+        { x: 2, y: 2 },
+        { x: 2, y: 1 },
+      ],
+    ];
+    expect(validateProject(p)).toEqual([]);
+  });
+
+  it("flags a slab hole with fewer than 3 vertices", () => {
+    const p = createValidV2Project();
+    p.slabs[0].holes = [[{ x: 1, y: 1 }, { x: 2, y: 1 }]];
+    const errors = validateProject(p);
+    expect(errors.some((e) => e.includes("Slab slab-1f") && e.includes("hole[0]"))).toBe(true);
+  });
+
+  it("flags a slab hole that is CCW (must be CW inner boundary)", () => {
+    const p = createValidV2Project();
+    p.slabs[0].holes = [
+      [
+        { x: 1, y: 1 },
+        { x: 2, y: 1 },
+        { x: 2, y: 2 },
+        { x: 1, y: 2 },
+      ],
+    ];
+    const errors = validateProject(p);
+    expect(errors.some((e) => e.includes("Slab slab-1f hole[0]") && e.includes("CW"))).toBe(true);
+  });
+
+  it("flags a self-intersecting slab hole", () => {
+    const p = createValidV2Project();
+    p.slabs[0].holes = [
+      [
+        { x: 1, y: 1 },
+        { x: 2, y: 2 },
+        { x: 2, y: 1 },
+        { x: 1, y: 2 },
+      ],
+    ];
+    const errors = validateProject(p);
+    expect(errors.some((e) => e.includes("Slab slab-1f hole[0]") && e.includes("self-intersecting"))).toBe(true);
+  });
 });
 
 describe("validateProject — roof", () => {

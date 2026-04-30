@@ -36,6 +36,10 @@ export type Wall = {
 export type Slab = {
   id: string;
   polygon: Point2[];
+  /** Inner holes; each hole is a CW (negative signed area) simple polygon. Used
+   *  for stair openings, lightwells, etc. Three.js Shape API interprets these
+   *  as cutouts inside the outer (CCW) polygon. */
+  holes?: Point2[][];
   top: Anchor;
   thickness: number;
   materialId: string;
