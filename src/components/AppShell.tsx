@@ -57,6 +57,7 @@ export function AppShell() {
               <DrawingSurface2D
                 project={project}
                 onSelect={(selection) => dispatch({ type: "select", selection })}
+                dispatch={dispatch}
               />
               <ToolPalette
                 activeTool={project.activeTool}
