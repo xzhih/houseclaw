@@ -4,7 +4,7 @@ import type {
   ElevationBalconyRectV2,
   ElevationProjectionV2,
 } from "../../projection/v2/types";
-import type { ElevationDragHandlers } from "./dragState";
+import type { ElevationDragHandlersV2 as ElevationDragHandlers } from "./dragStateV2";
 import { renderSelectableBalcony } from "./renderPlan";
 import type { PointMapping } from "./types";
 
@@ -54,7 +54,6 @@ export function renderElevation({
             y={topLeft.y}
             width={bottomRight.x - topLeft.x}
             height={bottomRight.y - topLeft.y}
-            onPointerDown={(event) => handlers?.onStoreyPointerDown(event, band.wallId)}
             onClick={() => onSelect({ kind: "wall", wallId: band.wallId })}
           />
         );

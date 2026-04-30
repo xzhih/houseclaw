@@ -23,6 +23,14 @@ import { DEFAULT_VIEWPORT, useViewport } from "./canvas/useViewport";
 import { useCreateHandlers } from "./canvas/useCreateHandlers";
 import { CreatePreview } from "./canvas/createPreview";
 import type { Point2D } from "./canvas/types";
+import { useDragHandlersV2, eventToWorldWith } from "./canvas/useDragHandlersV2";
+import {
+  applyDragV2,
+  DRAG_MOVE_THRESHOLD_WORLD,
+  selectionOnClickV2,
+  type WallSegment,
+} from "./canvas/dragMachineV2";
+import type { DragStateV2 } from "./canvas/dragStateV2";
 
 type DrawingSurface2DProps = {
   project: ProjectStateV2;
@@ -44,6 +52,7 @@ export function DrawingSurface2D({ project, onSelect, dispatch }: DrawingSurface
   );
   const [gridVisible, setGridVisible] = useState(true);
   const [cursorWorld, setCursorWorld] = useState<Point2D | null>(null);
+  const [dragState, setDragState] = useState<DragStateV2 | null>(null);
 
   const planStoreyId = planStoreyIdFromView(project.activeView, project.storeys);
   const elevationSide =
@@ -52,9 +61,11 @@ export function DrawingSurface2D({ project, onSelect, dispatch }: DrawingSurface
 
   let body: React.ReactElement;
   let activeMapping = undefined as ReturnType<typeof createPointMapping> | undefined;
+  let planProjection: ReturnType<typeof projectPlanV2> | undefined;
 
   if (planStoreyId) {
     const projection = projectPlanV2(project, planStoreyId);
+    planProjection = projection;
     const mapping = createPointMapping(planBounds(projection));
     activeMapping = mapping;
     body = renderPlan({
@@ -62,6 +73,7 @@ export function DrawingSurface2D({ project, onSelect, dispatch }: DrawingSurface
       mapping,
       selection: project.selection,
       onSelect,
+      handlers: undefined, // assigned below after hook init
     });
   } else if (elevationSide) {
     const projection = projectElevationV2(project, elevationSide);
@@ -72,6 +84,7 @@ export function DrawingSurface2D({ project, onSelect, dispatch }: DrawingSurface
       mapping,
       selection: project.selection,
       onSelect,
+      handlers: undefined, // assigned below after hook init
     });
   } else if (isRoofView) {
     const projection = projectRoofViewV2(project);
@@ -92,11 +105,46 @@ export function DrawingSurface2D({ project, onSelect, dispatch }: DrawingSurface
     );
   }
 
+  const { planHandlers, elevationHandlers } = useDragHandlersV2({
+    project,
+    planStoreyId,
+    elevationSide,
+    planMapping: planStoreyId ? activeMapping : undefined,
+    elevationMapping: elevationSide ? activeMapping : undefined,
+    svgRef,
+    setDragState,
+  });
+
+  // Re-render body with handlers wired in
+  if (planStoreyId && planProjection && activeMapping) {
+    body = renderPlan({
+      projection: planProjection,
+      mapping: activeMapping,
+      selection: project.selection,
+      onSelect,
+      handlers: planHandlers,
+    });
+  } else if (elevationSide && activeMapping) {
+    const projection = projectElevationV2(project, elevationSide);
+    body = renderElevation({
+      projection,
+      mapping: activeMapping,
+      selection: project.selection,
+      onSelect,
+      handlers: elevationHandlers,
+    });
+  }
+
   const createHandlers = useCreateHandlers({
     project,
     storeyId: planStoreyId,
     dispatch,
   });
+
+  const otherWallSegmentsExclude = (excludeWallId?: string): WallSegment[] =>
+    project.walls
+      .filter((w) => w.id !== excludeWallId)
+      .map((w) => ({ start: w.start, end: w.end }));
 
   return (
     <div className="drawing-surface" aria-label="2D drawing surface">
@@ -109,19 +157,61 @@ export function DrawingSurface2D({ project, onSelect, dispatch }: DrawingSurface
         onPointerDown={panHandlers.onPointerDown}
         onPointerMove={(event) => {
           panHandlers.onPointerMove(event);
-          if (activeMapping && svgRef.current && planStoreyId) {
-            const ctm = svgRef.current.getScreenCTM();
-            if (ctm) {
-              const pt = svgRef.current.createSVGPoint();
-              pt.x = event.clientX;
-              pt.y = event.clientY;
-              const transformed = pt.matrixTransform(ctm.inverse());
-              setCursorWorld(activeMapping.unproject({ x: transformed.x, y: transformed.y }));
+
+          if (dragState && svgRef.current) {
+            const world = eventToWorldWith(svgRef.current, event, dragState.mapping);
+            if (world) {
+              const dist = Math.hypot(
+                world.x - dragState.startWorld.x,
+                world.y - dragState.startWorld.y,
+              );
+              if (dist >= DRAG_MOVE_THRESHOLD_WORLD || dragState.moved) {
+                if (!dragState.moved) {
+                  setDragState({ ...dragState, moved: true } as DragStateV2);
+                }
+                const outcome = applyDragV2(dragState, world, {
+                  project,
+                  planProjection,
+                  otherWallSegmentsExclude,
+                });
+                if (outcome) {
+                  for (const action of outcome.actions) {
+                    dispatch(action);
+                  }
+                }
+              }
             }
+          } else if (activeMapping && svgRef.current && planStoreyId) {
+            const world = eventToWorldWith(svgRef.current, event, activeMapping);
+            if (world) setCursorWorld(world);
           }
         }}
-        onPointerUp={panHandlers.onPointerUp}
+        onPointerUp={(event) => {
+          panHandlers.onPointerUp(event);
+          if (dragState) {
+            if (svgRef.current?.hasPointerCapture(dragState.pointerId)) {
+              svgRef.current.releasePointerCapture(dragState.pointerId);
+            }
+            if (!dragState.moved) {
+              const sel = selectionOnClickV2(dragState);
+              if (sel) onSelect(sel);
+            }
+            setDragState(null);
+          }
+        }}
+        onPointerCancel={(event) => {
+          if (dragState) {
+            if (svgRef.current?.hasPointerCapture(dragState.pointerId)) {
+              svgRef.current.releasePointerCapture(dragState.pointerId);
+            }
+            setDragState(null);
+          }
+          panHandlers.onPointerUp(event);
+        }}
         onClick={(event) => {
+          // Skip click handling if we just finished a drag (pointerup already handled selection)
+          if (dragState) return;
+
           const target = event.target as SVGElement;
           const hitKind = target.getAttribute("data-kind");
           const hitId = target.getAttribute("data-id");
@@ -130,14 +220,8 @@ export function DrawingSurface2D({ project, onSelect, dispatch }: DrawingSurface
 
           let world: { x: number; y: number } | null = null;
           if (activeMapping && svgRef.current) {
-            const ctm = svgRef.current.getScreenCTM();
-            if (ctm) {
-              const pt = svgRef.current.createSVGPoint();
-              pt.x = event.clientX;
-              pt.y = event.clientY;
-              const transformed = pt.matrixTransform(ctm.inverse());
-              world = activeMapping.unproject({ x: transformed.x, y: transformed.y });
-            }
+            const w = eventToWorldWith(svgRef.current, event, activeMapping);
+            if (w) world = w;
           }
 
           if (world) {

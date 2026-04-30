@@ -10,7 +10,7 @@ import type {
   PlanStairSymbolV2,
   PlanWallSegmentV2,
 } from "../../projection/v2/types";
-import type { PlanDragHandlers } from "./dragState";
+import type { PlanDragHandlersV2 as PlanDragHandlers } from "./dragStateV2";
 import {
   balconyPolygon,
   buildStairSymbolGeometry,
