@@ -19,7 +19,7 @@ import {
   StoreyEditor,
   WallEditor,
   type EditorCtx,
-} from "./PropertyPanel";
+} from "./PropertyPanelLegacy";
 
 export type { EditorCtx };
 
