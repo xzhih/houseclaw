@@ -6,6 +6,7 @@ import { DrawingSurface2D } from "./DrawingSurface2D";
 import { ToolPalette } from "./ToolPalette";
 import { ViewTabs } from "./ViewTabs";
 import { ElevationSideTabs } from "./ElevationSideTabs";
+import { StoreysEditor } from "./StoreysEditor";
 
 function init(): ProjectStateV2 {
   return withSessionDefaults(createV2SampleProject());
@@ -42,6 +43,7 @@ export function AppShell() {
           <Preview3D project={project} />
         ) : (
           <div className="editor-2d">
+            <StoreysEditor project={project} dispatch={dispatch} />
             <ViewTabs
               project={project}
               onChange={(viewId) => dispatch({ type: "set-view", viewId })}

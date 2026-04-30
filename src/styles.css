@@ -1776,3 +1776,64 @@ select {
   border-color: #aaa;
   background: #f5f5f5;
 }
+
+/* P4C-α: StoreysEditor */
+.storeys-editor {
+  background: white;
+  border-bottom: 1px solid #ddd;
+  padding: 12px 16px;
+  font-size: 0.9em;
+}
+.storeys-editor-row {
+  display: grid;
+  grid-template-columns: 60px 120px 120px 120px 32px;
+  gap: 8px;
+  align-items: center;
+  padding: 4px 0;
+}
+.storeys-editor-header {
+  font-weight: 500;
+  color: #666;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 6px;
+  margin-bottom: 6px;
+}
+.storey-id {
+  font-family: ui-monospace, monospace;
+  color: #888;
+}
+.storeys-editor input[type="text"],
+.storeys-editor input[type="number"] {
+  padding: 3px 6px;
+  border: 1px solid #ccc;
+  border-radius: 3px;
+  font-size: 0.95em;
+}
+.storey-no-height {
+  text-align: center;
+  color: #aaa;
+}
+.storey-remove {
+  width: 24px;
+  height: 24px;
+  border: 1px solid transparent;
+  background: transparent;
+  border-radius: 3px;
+  cursor: pointer;
+  color: #c00;
+}
+.storey-remove:hover {
+  border-color: #c00;
+  background: #fff5f5;
+}
+.storey-add-button {
+  margin-top: 8px;
+  padding: 4px 12px;
+  border: 1px dashed #999;
+  background: transparent;
+  border-radius: 3px;
+  cursor: pointer;
+}
+.storey-add-button:hover {
+  border-color: #333;
+}
