@@ -46,6 +46,8 @@
 - 单测：registry 命中所有 selection kind；isDeletable 对所有 kind 返回正确值
 - 手动验证：选中 wall/opening/balcony/storey/stair/skirt/roof 七种类型，编辑面板 + 删除键 + 删除按钮全部行为不变
 
+状态：✅ 已合并 @ aa968e3
+
 ---
 
 ## M2 — 持久化版本化
@@ -64,6 +66,8 @@
 
 - 加载现有所有 sample 与已存在的 `.house.json` 文件无回退
 - 加新构件数组时，路线是清晰的："加 type → 加 migrate step → 加 assert* → 加 mutation"，不会再"忘了改 persistence.ts"
+
+状态：✅ 已合并 @ 7537067（MIGRATIONS 链）+ bb0a4a3（normalizeRoof 清理）
 
 ---
 
@@ -96,6 +100,8 @@
 ### 依赖
 
 M1 已完成（M3 重构 PropertyPanel 时仍会调用 `tryMutate`，需要 registry pattern 已落地）
+
+状态：✅ 已合并 @ 8165d20（6 stores + re-export）+ 48c84c5（attachStore）+ 3bccdea（singletonStore + errors）
 
 ---
 
