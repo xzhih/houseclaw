@@ -6,7 +6,6 @@ import type {
   PlanBalconyGlyphV2,
   PlanOpeningGlyphV2,
   PlanProjectionV2,
-  PlanSlabOutline,
   PlanStairSymbolV2,
   PlanWallSegmentV2,
   RoofViewProjectionV2,
