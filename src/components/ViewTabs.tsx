@@ -1,39 +1,41 @@
-import type { ViewId } from "../domain/types";
-
-export type PrimaryView = "plan" | "elevation" | "roof";
-
-const PRIMARY_TABS: { type: PrimaryView; label: string }[] = [
-  { type: "plan", label: "俯视" },
-  { type: "elevation", label: "正视" },
-  { type: "roof", label: "屋顶" },
-];
-
-export function primaryFromView(view: ViewId): PrimaryView {
-  if (view.startsWith("plan-")) return "plan";
-  if (view === "roof") return "roof";
-  return "elevation";
-}
+import type { ProjectStateV2 } from "../app/v2/projectReducer";
 
 type ViewTabsProps = {
-  activeView: ViewId;
-  onPrimaryChange: (primary: PrimaryView) => void;
+  project: ProjectStateV2;
+  onChange: (viewId: string) => void;
 };
 
-export function ViewTabs({ activeView, onPrimaryChange }: ViewTabsProps) {
-  const current = primaryFromView(activeView);
+export function ViewTabs({ project, onChange }: ViewTabsProps) {
+  const planTabs = project.storeys.map((s) => ({
+    id: `plan-${s.id}`,
+    label: s.label,
+  }));
   return (
-    <nav className="view-tabs" aria-label="view mode">
-      {PRIMARY_TABS.map((tab) => (
+    <div className="view-tabs" role="tablist">
+      {planTabs.map((tab) => (
         <button
-          key={tab.type}
-          type="button"
-          className="tab-button"
-          aria-pressed={current === tab.type}
-          onClick={() => onPrimaryChange(tab.type)}
+          key={tab.id}
+          role="tab"
+          aria-selected={project.activeView === tab.id}
+          onClick={() => onChange(tab.id)}
         >
           {tab.label}
         </button>
       ))}
-    </nav>
+      <button
+        role="tab"
+        aria-selected={project.activeView.startsWith("elevation-")}
+        onClick={() => onChange("elevation-front")}
+      >
+        立面
+      </button>
+      <button
+        role="tab"
+        aria-selected={project.activeView === "roof"}
+        onClick={() => onChange("roof")}
+      >
+        屋顶
+      </button>
+    </div>
   );
 }

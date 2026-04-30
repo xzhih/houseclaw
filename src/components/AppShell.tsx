@@ -2,6 +2,10 @@ import { useReducer } from "react";
 import { withSessionDefaults, projectReducerV2, type ProjectStateV2 } from "../app/v2/projectReducer";
 import { createV2SampleProject } from "../domain/v2/sampleProject";
 import { Preview3D } from "./Preview3D";
+import { DrawingSurface2D } from "./DrawingSurface2D";
+import { ToolPalette } from "./ToolPalette";
+import { ViewTabs } from "./ViewTabs";
+import { ElevationSideTabs } from "./ElevationSideTabs";
 
 function init(): ProjectStateV2 {
   return withSessionDefaults(createV2SampleProject());
@@ -9,6 +13,7 @@ function init(): ProjectStateV2 {
 
 export function AppShell() {
   const [project, dispatch] = useReducer(projectReducerV2, undefined, init);
+  const isElevation = project.activeView.startsWith("elevation-");
 
   return (
     <div className="app-shell">
@@ -36,15 +41,27 @@ export function AppShell() {
         {project.mode === "3d" ? (
           <Preview3D project={project} />
         ) : (
-          <div className="wip-placeholder">
-            <h2>v2 2D 编辑器即将上线</h2>
-            <p>P4B 阶段会接通 plan / elevation / roof 视图。当前阶段只有 3D 预览可用。</p>
-            <button
-              type="button"
-              onClick={() => dispatch({ type: "set-mode", mode: "3d" })}
-            >
-              返回 3D 预览
-            </button>
+          <div className="editor-2d">
+            <ViewTabs
+              project={project}
+              onChange={(viewId) => dispatch({ type: "set-view", viewId })}
+            />
+            {isElevation ? (
+              <ElevationSideTabs
+                activeView={project.activeView}
+                onChange={(viewId) => dispatch({ type: "set-view", viewId })}
+              />
+            ) : null}
+            <div className="editor-2d-body">
+              <DrawingSurface2D
+                project={project}
+                onSelect={(selection) => dispatch({ type: "select", selection })}
+              />
+              <ToolPalette
+                activeTool={project.activeTool}
+                onChange={(toolId) => dispatch({ type: "set-tool", toolId })}
+              />
+            </div>
           </div>
         )}
       </main>

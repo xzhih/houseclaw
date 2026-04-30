@@ -1,41 +1,28 @@
-import type { ViewId } from "../domain/types";
-import type { ElevationSide } from "../projection/types";
-
-const SIDE_TABS: { side: ElevationSide; label: string }[] = [
-  { side: "front", label: "正面" },
-  { side: "back", label: "背面" },
-  { side: "left", label: "左面" },
-  { side: "right", label: "右面" },
-];
-
-function sideFromView(view: ViewId): ElevationSide | undefined {
-  if (view === "elevation-front") return "front";
-  if (view === "elevation-back") return "back";
-  if (view === "elevation-left") return "left";
-  if (view === "elevation-right") return "right";
-  return undefined;
-}
-
 type ElevationSideTabsProps = {
-  activeView: ViewId;
-  onSideChange: (side: ElevationSide) => void;
+  activeView: string;
+  onChange: (viewId: string) => void;
 };
 
-export function ElevationSideTabs({ activeView, onSideChange }: ElevationSideTabsProps) {
-  const current = sideFromView(activeView);
+const SIDES: Array<{ id: string; label: string }> = [
+  { id: "elevation-front", label: "正面" },
+  { id: "elevation-back", label: "背面" },
+  { id: "elevation-left", label: "左侧" },
+  { id: "elevation-right", label: "右侧" },
+];
+
+export function ElevationSideTabs({ activeView, onChange }: ElevationSideTabsProps) {
   return (
-    <nav className="view-tabs" aria-label="elevation side">
-      {SIDE_TABS.map((tab) => (
+    <div className="elevation-side-tabs" role="tablist">
+      {SIDES.map((side) => (
         <button
-          key={tab.side}
-          type="button"
-          className="tab-button"
-          aria-pressed={current === tab.side}
-          onClick={() => onSideChange(tab.side)}
+          key={side.id}
+          role="tab"
+          aria-selected={activeView === side.id}
+          onClick={() => onChange(side.id)}
         >
-          {tab.label}
+          {side.label}
         </button>
       ))}
-    </nav>
+    </div>
   );
 }

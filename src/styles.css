@@ -1728,3 +1728,51 @@ select {
   background: white;
   cursor: pointer;
 }
+
+/* P4B: 2D editor layout */
+.editor-2d {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: #fafafa;
+}
+.editor-2d-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+.editor-2d .view-tabs {
+  display: flex;
+  gap: 8px;
+  padding: 8px 16px;
+  border-bottom: 1px solid #ddd;
+  background: white;
+}
+.editor-2d .view-tabs button {
+  padding: 4px 12px;
+  border: 1px solid transparent;
+  background: transparent;
+  cursor: pointer;
+}
+.editor-2d .view-tabs button[aria-selected="true"] {
+  border-color: #999;
+  background: #f0f0f0;
+}
+.elevation-side-tabs {
+  display: flex;
+  gap: 6px;
+  padding: 6px 16px;
+  border-bottom: 1px solid #eee;
+  background: white;
+}
+.elevation-side-tabs button {
+  padding: 3px 10px;
+  border: 1px solid transparent;
+  background: transparent;
+  cursor: pointer;
+  font-size: 0.9em;
+}
+.elevation-side-tabs button[aria-selected="true"] {
+  border-color: #aaa;
+  background: #f5f5f5;
+}
