@@ -113,3 +113,104 @@ describe("validateProject — roof", () => {
     expect(errors).toContain("Roof roof-main base anchor references missing storey: ghost");
   });
 });
+
+describe("validateProject — opening", () => {
+  it("flags an opening that references a missing wall", () => {
+    const p = createValidV2Project();
+    p.openings[0].wallId = "ghost";
+    const errors = validateProject(p);
+    expect(errors).toContain("Opening opening-front-window references missing wall: ghost");
+  });
+
+  it("flags an opening whose sillHeight + height exceeds resolved wall height", () => {
+    const p = createValidV2Project();
+    p.openings[0].sillHeight = 2.5;
+    p.openings[0].height = 1.5; // 4.0m total > 3.2m wall height
+    const errors = validateProject(p);
+    expect(
+      errors.some((e) => e.includes("Opening opening-front-window") && e.includes("exceeds wall height")),
+    ).toBe(true);
+  });
+
+  it("flags an opening whose offset + width exceeds wall length", () => {
+    const p = createValidV2Project();
+    p.openings[0].offset = 5.5;
+    p.openings[0].width = 1.0; // 6.5 > 6 wall length
+    const errors = validateProject(p);
+    expect(
+      errors.some((e) => e.includes("Opening opening-front-window") && e.includes("exceeds wall length")),
+    ).toBe(true);
+  });
+});
+
+describe("validateProject — stair", () => {
+  it("flags a stair whose to anchor resolves not strictly above from", () => {
+    const p = createValidV2Project();
+    p.stairs.push({
+      id: "s1",
+      x: 1, y: 1, width: 1, depth: 3,
+      shape: "straight",
+      treadDepth: 0.27,
+      bottomEdge: "+y",
+      from: { kind: "absolute", z: 0 },
+      to: { kind: "absolute", z: 0 },
+      materialId: "mat-wall",
+    });
+    const errors = validateProject(p);
+    expect(errors.some((e) => e.includes("Stair s1") && e.includes("to must be above from"))).toBe(true);
+  });
+
+  it("flags a stair whose anchors reference missing storeys", () => {
+    const p = createValidV2Project();
+    p.stairs.push({
+      id: "s2",
+      x: 1, y: 1, width: 1, depth: 3,
+      shape: "straight",
+      treadDepth: 0.27,
+      bottomEdge: "+y",
+      from: { kind: "storey", storeyId: "ghost", offset: 0 },
+      to: { kind: "storey", storeyId: "2f", offset: 0 },
+      materialId: "mat-wall",
+    });
+    const errors = validateProject(p);
+    expect(errors).toContain("Stair s2 from anchor references missing storey: ghost");
+  });
+});
+
+describe("validateProject — balcony", () => {
+  it("flags a balcony that references a missing wall", () => {
+    const p = createValidV2Project();
+    p.balconies.push({
+      id: "b1",
+      attachedWallId: "ghost",
+      offset: 1,
+      width: 2,
+      depth: 1,
+      slabTop: { kind: "storey", storeyId: "2f", offset: 0 },
+      slabThickness: 0.15,
+      railingHeight: 1.1,
+      materialId: "mat-wall",
+      railingMaterialId: "mat-frame",
+    });
+    const errors = validateProject(p);
+    expect(errors).toContain("Balcony b1 references missing wall: ghost");
+  });
+
+  it("flags a balcony whose slabTop anchor references missing storey", () => {
+    const p = createValidV2Project();
+    p.balconies.push({
+      id: "b2",
+      attachedWallId: "w-front",
+      offset: 1,
+      width: 2,
+      depth: 1,
+      slabTop: { kind: "storey", storeyId: "ghost", offset: 0 },
+      slabThickness: 0.15,
+      railingHeight: 1.1,
+      materialId: "mat-wall",
+      railingMaterialId: "mat-frame",
+    });
+    const errors = validateProject(p);
+    expect(errors).toContain("Balcony b2 slabTop anchor references missing storey: ghost");
+  });
+});

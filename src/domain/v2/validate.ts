@@ -66,6 +66,53 @@ export function validateProject(project: HouseProject): string[] {
     }
   }
 
+  const wallsById = new Map(project.walls.map((w) => [w.id, w]));
+
+  for (const opening of project.openings) {
+    const wall = wallsById.get(opening.wallId);
+    if (!wall) {
+      errors.push(`Opening ${opening.id} references missing wall: ${opening.wallId}`);
+      continue;
+    }
+    // Wall length
+    const dx = wall.end.x - wall.start.x;
+    const dy = wall.end.y - wall.start.y;
+    const wallLength = Math.hypot(dx, dy);
+    if (opening.offset + opening.width > wallLength + 1e-6) {
+      errors.push(
+        `Opening ${opening.id} offset+width ${(opening.offset + opening.width).toFixed(3)} exceeds wall length ${wallLength.toFixed(3)}`,
+      );
+    }
+    // Wall vertical height (skip if wall anchors invalid — already flagged above).
+    if (wall.bottom.kind === "storey" && !storeyIds.has(wall.bottom.storeyId)) continue;
+    if (wall.top.kind === "storey" && !storeyIds.has(wall.top.storeyId)) continue;
+    const wallHeight =
+      resolveAnchor(wall.top, project.storeys) - resolveAnchor(wall.bottom, project.storeys);
+    if (opening.sillHeight + opening.height > wallHeight + 1e-6) {
+      errors.push(
+        `Opening ${opening.id} sillHeight+height ${(opening.sillHeight + opening.height).toFixed(3)} exceeds wall height ${wallHeight.toFixed(3)}`,
+      );
+    }
+  }
+
+  for (const stair of project.stairs) {
+    const fromOk = checkAnchor(stair.from, `Stair ${stair.id} from anchor`);
+    const toOk = checkAnchor(stair.to, `Stair ${stair.id} to anchor`);
+    if (!fromOk || !toOk) continue;
+    const fromZ = resolveAnchor(stair.from, project.storeys);
+    const toZ = resolveAnchor(stair.to, project.storeys);
+    if (toZ <= fromZ) {
+      errors.push(`Stair ${stair.id} to must be above from (from=${fromZ.toFixed(3)}, to=${toZ.toFixed(3)})`);
+    }
+  }
+
+  for (const balcony of project.balconies) {
+    if (!wallsById.has(balcony.attachedWallId)) {
+      errors.push(`Balcony ${balcony.id} references missing wall: ${balcony.attachedWallId}`);
+    }
+    checkAnchor(balcony.slabTop, `Balcony ${balcony.id} slabTop anchor`);
+  }
+
   return errors;
 }
 
