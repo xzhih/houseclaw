@@ -15,13 +15,10 @@ import {
   balconyPolygon,
   buildStairSymbolGeometry,
   computeSolidPanels,
-  createPointMapping,
   openingLine,
-  planBounds,
   polyPoints,
-  unionBounds,
 } from "./renderUtils";
-import type { Point2D } from "./types";
+import type { Point2D, PointMapping } from "./types";
 
 const ENDPOINT_HANDLE_RADIUS = 7;
 
@@ -47,7 +44,7 @@ export function renderSelectableBalcony(
   balconyId: string,
   selected: boolean,
   onSelect: OnSelect,
-  activeTool: ToolId,
+  _activeTool: ToolId | undefined,
   props: { className: string; points?: string; x?: number; y?: number; width?: number; height?: number },
   onPointerDown?: (event: PointerEvent<SVGElement>) => void,
 ) {
@@ -76,19 +73,28 @@ export function renderSelectableBalcony(
   return <rect {...commonProps} x={props.x} y={props.y} width={props.width} height={props.height} />;
 }
 
-export function renderPlan(
-  projection: PlanProjectionV2,
-  selection: SelectionV2,
-  onSelect: OnSelect,
-  activeTool: ToolId,
-  footprints: Map<string, WallFootprint>,
-  snapHit: Point2D | null,
-  handlers?: PlanDragHandlers,
-  ghost?: PlanProjectionV2,
-) {
-  const mainBounds = planBounds(projection);
-  const bounds = ghost ? unionBounds(mainBounds, planBounds(ghost)) : mainBounds;
-  const mapping = createPointMapping(bounds);
+type RenderPlanProps = {
+  projection: PlanProjectionV2;
+  mapping: PointMapping;
+  selection: SelectionV2;
+  onSelect: OnSelect;
+  activeTool?: ToolId;
+  footprints?: Map<string, WallFootprint>;
+  snapHit?: Point2D | null;
+  handlers?: PlanDragHandlers;
+  ghost?: PlanProjectionV2;
+};
+
+export function renderPlan({
+  projection,
+  mapping,
+  selection,
+  onSelect,
+  footprints = new Map(),
+  snapHit = null,
+  handlers,
+  ghost,
+}: RenderPlanProps) {
   const { project: projectPoint } = mapping;
   const wallsById = new Map(projection.wallSegments.map((wall) => [wall.wallId, wall]));
   const selectedWall =
@@ -248,7 +254,7 @@ export function renderPlan(
               balcony.balconyId,
               isBalconySelected(selection, balcony.balconyId),
               onSelect,
-              activeTool,
+              undefined,
               {
                 className: "plan-balcony",
                 points: points.map((point) => `${point.x},${point.y}`).join(" "),

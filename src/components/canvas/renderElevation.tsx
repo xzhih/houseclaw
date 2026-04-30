@@ -6,18 +6,26 @@ import type {
 } from "../../projection/v2/types";
 import type { ElevationDragHandlers } from "./dragState";
 import { renderSelectableBalcony } from "./renderPlan";
-import { createPointMapping, elevationBounds } from "./renderUtils";
+import type { PointMapping } from "./types";
 
 const ENDPOINT_HANDLE_RADIUS = 7;
 
-export function renderElevation(
-  projection: ElevationProjectionV2,
-  selection: SelectionV2 | undefined,
-  onSelect: (selection: SelectionV2) => void,
-  activeTool: ToolId,
-  handlers?: ElevationDragHandlers,
-) {
-  const mapping = createPointMapping(elevationBounds(projection));
+type RenderElevationProps = {
+  projection: ElevationProjectionV2;
+  mapping: PointMapping;
+  selection: SelectionV2 | undefined;
+  onSelect: (selection: SelectionV2) => void;
+  activeTool?: ToolId;
+  handlers?: ElevationDragHandlers;
+};
+
+export function renderElevation({
+  projection,
+  mapping,
+  selection,
+  onSelect,
+  handlers,
+}: RenderElevationProps) {
   const { project: projectPoint } = mapping;
 
   const selectedOpening =
@@ -121,7 +129,7 @@ export function renderElevation(
               balcony.balconyId,
               selection?.kind === "balcony" && selection.balconyId === balcony.balconyId,
               onSelect,
-              activeTool,
+              undefined,
               {
                 className: "elevation-balcony",
                 x: topLeft.x,
