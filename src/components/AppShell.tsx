@@ -31,6 +31,7 @@ import {
 } from "../domain/mutations";
 import { deleteSelection, isSelectionDeletable } from "./selectionRegistry";
 import { createSampleProject } from "../domain/sampleProject";
+import { computeStairConfig } from "../domain/stairs";
 import type { ObjectSelection } from "../domain/selection";
 import type { HouseProject, Mode, OpeningType, Stair, ToolId, ViewId, Wall } from "../domain/types";
 import { planStoreyIdFromView } from "../domain/views";
@@ -331,14 +332,18 @@ export function AppShell() {
           setAddError("当前已是最顶层,没有可向上的楼梯。");
           return;
         }
+        // depth 必须容得下 treadCount × treadDepth，否则踏步溢出 bbox。
+        const treadDepth = 0.27;
+        const climb = above.elevation - sortedStoreys[idx].elevation;
+        const cfg = computeStairConfig(climb, above.slabThickness, treadDepth);
         const draftStair: Stair = {
           x: 1.0,
           y: 3.0,
           width: 1.2,
-          depth: 2.5,
+          depth: cfg.treadCount * treadDepth,
           shape: "straight",
-          treadDepth: 0.27,
-          bottomEdge: "+y",
+          treadDepth,
+          bottomEdge: "-y",
           materialId: pickStairMaterialId(project),
         };
         const next = addStair(project, targetStoreyId, draftStair);

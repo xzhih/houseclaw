@@ -71,14 +71,16 @@ export function createSampleProject(): HouseProject {
       height: STOREY_HEIGHT,
       slabThickness: SLAB_THICKNESS,
       // 直跑楼梯，靠左后内置（不与门窗冲突）
+      // depth = treadCount × treadDepth = 18 × 0.27 ≈ 4.86，确保踏步全部落在 bbox 内
+      // bottomEdge = "-y" 让入口朝向前门方向
       stair: {
         x: 0.5,
-        y: 4.4,
+        y: 3.0,
         width: 1.4,
-        depth: 3.2,
+        depth: 4.86,
         shape: "straight",
         treadDepth: 0.27,
-        bottomEdge: "+y",
+        bottomEdge: "-y",
         materialId: DECOR_MATERIAL_ID,
       },
     },
@@ -90,12 +92,12 @@ export function createSampleProject(): HouseProject {
       slabThickness: SLAB_THICKNESS,
       stair: {
         x: 0.5,
-        y: 4.4,
+        y: 3.0,
         width: 1.4,
-        depth: 3.2,
+        depth: 4.86,
         shape: "straight",
         treadDepth: 0.27,
-        bottomEdge: "+y",
+        bottomEdge: "-y",
         materialId: DECOR_MATERIAL_ID,
       },
     },
