@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createValidV2Project } from "../../domain/v2/fixtures";
-import { MIN_WALL_HEIGHT, validateProject } from "../../domain/v2/validate";
+import { MIN_WALL_HEIGHT, assertValidProject, validateProject } from "../../domain/v2/validate";
 
 describe("validateProject — base case", () => {
   it("returns no errors for a valid project", () => {
@@ -212,5 +212,21 @@ describe("validateProject — balcony", () => {
     });
     const errors = validateProject(p);
     expect(errors).toContain("Balcony b2 slabTop anchor references missing storey: ghost");
+  });
+});
+
+describe("assertValidProject", () => {
+  it("returns the project unchanged when valid", () => {
+    const p = createValidV2Project();
+    expect(assertValidProject(p)).toBe(p);
+  });
+
+  it("throws an Error containing every collected error message", () => {
+    const p = createValidV2Project();
+    p.walls[0].bottom = { kind: "storey", storeyId: "ghost-a", offset: 0 };
+    p.walls[1].top = { kind: "storey", storeyId: "ghost-b", offset: 0 };
+    expect(() => assertValidProject(p)).toThrow(/ghost-a/);
+    expect(() => assertValidProject(p)).toThrow(/ghost-b/);
+    expect(() => assertValidProject(p)).toThrow(/Invalid v2 project/);
   });
 });
