@@ -1929,3 +1929,85 @@ select {
 .tool-action-button:hover {
   background: #dbeafe;
 }
+
+/* P4C-γ1 hotfix: v2 layout resets to override v1 absolute positioning + dark
+ * theme inheritance. Without these the v1 .drawing-surface / .property-panel
+ * absolute rules capture clicks across the viewport and the v1 dark text
+ * color makes labels invisible on the v2 white panels. */
+.editor-2d {
+  color: #1f1f1f;
+}
+.editor-2d .drawing-surface {
+  position: static;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  background: #fafafa;
+}
+.editor-2d .drawing-surface svg {
+  width: 100%;
+  height: 100%;
+  flex: 1;
+  display: block;
+}
+.editor-2d .property-panel {
+  position: static;
+  top: auto;
+  right: auto;
+  bottom: auto;
+  width: 320px;
+  border-radius: 0;
+  background: #ffffff;
+  color: #1f1f1f;
+  border-left: 1px solid #ddd;
+  border-top: none;
+  border-bottom: none;
+  border-right: none;
+  padding: 12px;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  z-index: auto;
+}
+.editor-2d .tool-palette {
+  position: static;
+  top: auto;
+  right: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 8px;
+  background: #f4f4f4;
+  border-left: 1px solid #ddd;
+  width: 80px;
+  color: #1f1f1f;
+}
+.editor-2d .tool-palette button {
+  padding: 6px 8px;
+  border: 1px solid transparent;
+  background: transparent;
+  cursor: pointer;
+  font-size: 0.85em;
+  color: #1f1f1f;
+  border-radius: 3px;
+}
+.editor-2d .tool-palette button[aria-pressed="true"] {
+  background: #e5edff;
+  border-color: #3b82f6;
+  color: #1e40af;
+}
+.editor-2d .property-panel input[type="text"],
+.editor-2d .property-panel input[type="number"],
+.editor-2d .property-panel select {
+  color: #1f1f1f;
+  background: #ffffff;
+}
+.editor-2d .property-panel label,
+.editor-2d .property-panel .entity-editor-title,
+.editor-2d .property-panel .property-panel-section-title,
+.editor-2d .storeys-editor-header span {
+  color: #1f1f1f;
+}
+.editor-2d .storey-id {
+  color: #555;
+}
