@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import type { ProjectStateV2, SelectionV2 } from "../app/v2/projectReducer";
+import type { ProjectActionV2 } from "../app/v2/projectReducer";
 import { projectElevationV2 } from "../projection/v2/elevation";
 import { projectPlanV2 } from "../projection/v2/plan";
 import { projectRoofViewV2 } from "../projection/v2/roofView";
@@ -19,10 +20,14 @@ import { renderElevation } from "./canvas/renderElevation";
 import { renderPlan } from "./canvas/renderPlan";
 import { renderRoofView } from "./canvas/renderRoofView";
 import { DEFAULT_VIEWPORT, useViewport } from "./canvas/useViewport";
+import { useCreateHandlers } from "./canvas/useCreateHandlers";
+import { CreatePreview } from "./canvas/createPreview";
+import type { Point2D } from "./canvas/types";
 
 type DrawingSurface2DProps = {
   project: ProjectStateV2;
   onSelect: (selection: SelectionV2) => void;
+  dispatch: (action: ProjectActionV2) => void;
 };
 
 function planStoreyIdFromView(viewId: string, storeys: { id: string }[]): string | undefined {
@@ -31,13 +36,14 @@ function planStoreyIdFromView(viewId: string, storeys: { id: string }[]): string
   return storeys.find((s) => s.id === id)?.id;
 }
 
-export function DrawingSurface2D({ project, onSelect }: DrawingSurface2DProps) {
+export function DrawingSurface2D({ project, onSelect, dispatch }: DrawingSurface2DProps) {
   const svgRef = useRef<SVGSVGElement | null>(null);
   const { viewport, setViewport, isPanning, panHandlers } = useViewport(
     svgRef,
     `${project.id}|${project.activeView}`,
   );
   const [gridVisible, setGridVisible] = useState(true);
+  const [cursorWorld, setCursorWorld] = useState<Point2D | null>(null);
 
   const planStoreyId = planStoreyIdFromView(project.activeView, project.storeys);
   const elevationSide =
@@ -86,6 +92,12 @@ export function DrawingSurface2D({ project, onSelect }: DrawingSurface2DProps) {
     );
   }
 
+  const createHandlers = useCreateHandlers({
+    project,
+    storeyId: planStoreyId,
+    dispatch,
+  });
+
   return (
     <div className="drawing-surface" aria-label="2D drawing surface">
       <svg
@@ -93,11 +105,50 @@ export function DrawingSurface2D({ project, onSelect }: DrawingSurface2DProps) {
         width={SURFACE_WIDTH}
         height={SURFACE_HEIGHT}
         viewBox={`${viewport.panX} ${viewport.panY} ${SURFACE_WIDTH / viewport.zoom} ${SURFACE_HEIGHT / viewport.zoom}`}
+        tabIndex={0}
         onPointerDown={panHandlers.onPointerDown}
-        onPointerMove={panHandlers.onPointerMove}
+        onPointerMove={(event) => {
+          panHandlers.onPointerMove(event);
+          if (activeMapping && svgRef.current && planStoreyId) {
+            const ctm = svgRef.current.getScreenCTM();
+            if (ctm) {
+              const pt = svgRef.current.createSVGPoint();
+              pt.x = event.clientX;
+              pt.y = event.clientY;
+              const transformed = pt.matrixTransform(ctm.inverse());
+              setCursorWorld(activeMapping.unproject({ x: transformed.x, y: transformed.y }));
+            }
+          }
+        }}
         onPointerUp={panHandlers.onPointerUp}
         onClick={(event) => {
+          const target = event.target as SVGElement;
+          const hitKind = target.getAttribute("data-kind");
+          const hitId = target.getAttribute("data-id");
+          let hit: SelectionV2 = undefined;
+          if (hitKind === "wall" && hitId) hit = { kind: "wall", wallId: hitId };
+
+          let world: { x: number; y: number } | null = null;
+          if (activeMapping && svgRef.current) {
+            const ctm = svgRef.current.getScreenCTM();
+            if (ctm) {
+              const pt = svgRef.current.createSVGPoint();
+              pt.x = event.clientX;
+              pt.y = event.clientY;
+              const transformed = pt.matrixTransform(ctm.inverse());
+              world = activeMapping.unproject({ x: transformed.x, y: transformed.y });
+            }
+          }
+
+          if (world) {
+            const handled = createHandlers.handleCanvasClick(world, hit);
+            if (handled) return;
+          }
+
           if (event.target === event.currentTarget) onSelect(undefined);
+        }}
+        onKeyDown={(event) => {
+          createHandlers.handleKeyDown(event.key);
         }}
         style={{ cursor: isPanning ? "grabbing" : "grab", background: "#fafafa" }}
       >
@@ -105,6 +156,13 @@ export function DrawingSurface2D({ project, onSelect }: DrawingSurface2DProps) {
           <GridOverlay mapping={activeMapping} viewport={viewport} visible={gridVisible} />
         ) : null}
         {body}
+        {activeMapping && planStoreyId ? (
+          <CreatePreview
+            state={createHandlers.state}
+            mapping={activeMapping}
+            cursorWorld={cursorWorld ?? undefined}
+          />
+        ) : null}
       </svg>
       {activeMapping ? <ScaleRuler mapping={activeMapping} viewport={viewport} /> : null}
       <ZoomControls

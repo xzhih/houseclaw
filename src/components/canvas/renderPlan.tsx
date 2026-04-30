@@ -177,6 +177,8 @@ export function renderPlan({
         return (
           <g
             key={wall.wallId}
+            data-kind="wall"
+            data-id={wall.wallId}
             role="button"
             tabIndex={0}
             aria-label={`选择墙 ${wall.wallId}`}
