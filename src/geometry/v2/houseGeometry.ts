@@ -55,7 +55,8 @@ export function buildSceneGeometryV2(project: HouseProject): HouseGeometryV2 {
   const openingFrames = project.openings.flatMap((opening) => {
     const wall = wallsById.get(opening.wallId);
     if (!wall) return [];
-    return buildOpeningFrameStrips(opening, wall);
+    const wallBottomZ = resolveAnchor(wall.bottom, storeys);
+    return buildOpeningFrameStrips(opening, wall, wallBottomZ);
   });
 
   return { walls, slabs, roofs, stairs, balconies, openingFrames };

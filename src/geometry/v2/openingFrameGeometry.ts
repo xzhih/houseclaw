@@ -14,10 +14,18 @@ const FRAME_DEPTH = 0.04;
  * Build 4 frame strips around a single opening.
  *
  * The strips form a rectangular ring on the wall's OUTER face, slightly proud
- * of the wall surface so they catch light. Returns plan-space center coords;
- * caller (threeScene) converts plan-y → scene-z when positioning the mesh.
+ * of the wall surface so they catch light. Returns plan-space center coords
+ * (x, y) plus already-resolved world z (caller-provided wallBottomZ + sill);
+ * the renderer just needs to map plan-y → scene-z when positioning the mesh.
+ *
+ * `wallBottomZ` is the resolved world z of the wall's bottom anchor; without
+ * it the strips would float at sill-only z when the wall is anchored above 0.
  */
-export function buildOpeningFrameStrips(opening: Opening, wall: Wall): FrameStrip[] {
+export function buildOpeningFrameStrips(
+  opening: Opening,
+  wall: Wall,
+  wallBottomZ: number,
+): FrameStrip[] {
   const len = wallLength(wall);
   if (len === 0) return [];
 
@@ -57,7 +65,9 @@ export function buildOpeningFrameStrips(opening: Opening, wall: Wall): FrameStri
     };
   };
 
-  const sill = opening.sillHeight;
+  // sillHeight is wall-local (relative to wall bottom). Bake wallBottomZ into
+  // the strip's world z so the renderer can position meshes directly.
+  const sill = wallBottomZ + opening.sillHeight;
   const top = sill + opening.height;
 
   // bottom/top strips span full opening width.
