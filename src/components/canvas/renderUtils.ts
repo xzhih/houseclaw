@@ -1,14 +1,16 @@
 import { rotatePoint } from "../../domain/stairs";
 import type { Point2, ViewId } from "../../domain/types";
 import type {
-  ElevationProjection,
+  ElevationProjectionV2,
   ElevationSide,
-  PlanBalconyGlyph,
-  PlanOpeningGlyph,
-  PlanProjection,
-  PlanStairSymbol,
-  PlanWallSegment,
-} from "../../projection/types";
+  PlanBalconyGlyphV2,
+  PlanOpeningGlyphV2,
+  PlanProjectionV2,
+  PlanSlabOutline,
+  PlanStairSymbolV2,
+  PlanWallSegmentV2,
+  RoofViewProjectionV2,
+} from "../../projection/v2/types";
 import type { Bounds, Point2D, PointMapping } from "./types";
 
 export const SURFACE_WIDTH = 720;
@@ -86,14 +88,22 @@ export function computeSolidPanels(
   return panels.filter((panel) => panel.width > 1e-4);
 }
 
-export function planBounds(projection: PlanProjection): Bounds {
+export function planBounds(projection: PlanProjectionV2): Bounds {
   const wallsById = new Map(projection.wallSegments.map((wall) => [wall.wallId, wall]));
-  const points = [
+  const points: Point2[] = [
     ...projection.wallSegments.flatMap((wall) => [wall.start, wall.end]),
+    ...projection.slabOutlines.flatMap((slab) => [
+      ...slab.outline,
+      ...slab.holes.flat(),
+    ]),
     ...projection.balconies.flatMap((balcony) => {
       const wall = wallsById.get(balcony.wallId);
       return wall ? balconyPolygon(balcony, wall) : [];
     }),
+    ...projection.stairs.flatMap((stair) => [
+      { x: stair.rect.x, y: stair.rect.y },
+      { x: stair.rect.x + stair.rect.width, y: stair.rect.y + stair.rect.depth },
+    ]),
   ];
 
   if (points.length === 0) {
@@ -130,9 +140,13 @@ export function elevationAxisToWorld(side: ElevationSide, dxAxis: number): { dx:
   }
 }
 
-export function elevationBounds(projection: ElevationProjection): Bounds {
+export function elevationBounds(projection: ElevationProjectionV2): Bounds {
   const xValues = projection.wallBands.flatMap((band) => [band.x, band.x + band.width]);
   const yValues = projection.wallBands.flatMap((band) => [band.y, band.y + band.height]);
+  for (const line of projection.slabLines) {
+    xValues.push(line.start.x, line.end.x);
+    yValues.push(line.start.y, line.end.y);
+  }
   for (const opening of projection.openings) {
     xValues.push(opening.x, opening.x + opening.width);
     yValues.push(opening.y, opening.y + opening.height);
@@ -141,20 +155,10 @@ export function elevationBounds(projection: ElevationProjection): Bounds {
     xValues.push(balcony.x, balcony.x + balcony.width);
     yValues.push(balcony.y, balcony.y + balcony.height);
   }
-  if (projection.roof) {
-    for (const poly of projection.roof) {
-      for (const v of poly.vertices) {
-        xValues.push(v.x);
-        yValues.push(v.y);
-      }
-    }
-  }
-  if (projection.skirts) {
-    for (const poly of projection.skirts) {
-      for (const v of poly.vertices) {
-        xValues.push(v.x);
-        yValues.push(v.y);
-      }
+  for (const poly of projection.roofPolygons) {
+    for (const v of poly.vertices) {
+      xValues.push(v.x);
+      yValues.push(v.y);
     }
   }
 
@@ -171,8 +175,8 @@ export function elevationBounds(projection: ElevationProjection): Bounds {
 }
 
 export function openingLine(
-  opening: PlanOpeningGlyph,
-  segment: PlanWallSegment,
+  opening: PlanOpeningGlyphV2,
+  segment: PlanWallSegmentV2,
 ): { start: { x: number; y: number }; end: { x: number; y: number } } | undefined {
   const dx = segment.end.x - segment.start.x;
   const dy = segment.end.y - segment.start.y;
@@ -195,7 +199,7 @@ export function openingLine(
   };
 }
 
-export function balconyPolygon(balcony: PlanBalconyGlyph, segment: PlanWallSegment) {
+export function balconyPolygon(balcony: PlanBalconyGlyphV2, segment: PlanWallSegmentV2) {
   const dx = segment.end.x - segment.start.x;
   const dy = segment.end.y - segment.start.y;
   const length = Math.hypot(dx, dy);
@@ -242,7 +246,7 @@ export type StairSymbolGeometry = {
 };
 
 export function buildStairSymbolGeometry(
-  stair: PlanStairSymbol,
+  stair: PlanStairSymbolV2,
   projectPoint: (point: Point2) => Point2D,
 ): StairSymbolGeometry {
   const { rect, bottomEdge, treadDepth, treadCount, shape } = stair;
@@ -361,4 +365,18 @@ export function buildStairSymbolGeometry(
   ];
 
   return { outline, flights, landings, treadLines, cutLine, labelPos };
+}
+
+export function roofViewBounds(projection: RoofViewProjectionV2): Bounds {
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (const poly of projection.polygons) {
+    for (const v of poly.vertices) {
+      if (v.x < minX) minX = v.x;
+      if (v.x > maxX) maxX = v.x;
+      if (v.y < minY) minY = v.y;
+      if (v.y > maxY) maxY = v.y;
+    }
+  }
+  if (!Number.isFinite(minX)) return { minX: 0, minY: 0, maxX: 1, maxY: 1 };
+  return { minX, minY, maxX, maxY };
 }

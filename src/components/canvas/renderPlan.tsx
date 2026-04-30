@@ -1,10 +1,15 @@
 import type { KeyboardEvent, PointerEvent } from "react";
-import type { ObjectSelection } from "../../domain/selection";
-import { isSelected } from "../../domain/selection";
+import type { SelectionV2 } from "../../app/v2/projectReducer";
 import { rotatePoint } from "../../domain/stairs";
 import type { ToolId } from "../../domain/types";
 import { slicePanelFootprint, type WallFootprint } from "../../geometry/wallNetwork";
-import type { PlanProjection } from "../../projection/types";
+import type {
+  PlanBalconyGlyphV2,
+  PlanOpeningGlyphV2,
+  PlanProjectionV2,
+  PlanStairSymbolV2,
+  PlanWallSegmentV2,
+} from "../../projection/v2/types";
 import type { PlanDragHandlers } from "./dragState";
 import {
   balconyPolygon,
@@ -20,7 +25,23 @@ import type { Point2D } from "./types";
 
 const ENDPOINT_HANDLE_RADIUS = 7;
 
-type OnSelect = (selection: ObjectSelection | undefined) => void;
+type OnSelect = (selection: SelectionV2) => void;
+
+function isWallSelected(selection: SelectionV2, wallId: string): boolean {
+  return selection?.kind === "wall" && selection.wallId === wallId;
+}
+
+function isOpeningSelected(selection: SelectionV2, openingId: string): boolean {
+  return selection?.kind === "opening" && selection.openingId === openingId;
+}
+
+function isBalconySelected(selection: SelectionV2, balconyId: string): boolean {
+  return selection?.kind === "balcony" && selection.balconyId === balconyId;
+}
+
+function isStairSelected(selection: SelectionV2, stairId: string): boolean {
+  return selection?.kind === "stair" && selection.stairId === stairId;
+}
 
 export function renderSelectableBalcony(
   balconyId: string,
@@ -38,12 +59,12 @@ export function renderSelectableBalcony(
     className: selected ? `${props.className} is-selected` : props.className,
     onPointerDown,
     onClick: () => {
-      onSelect({ kind: "balcony", id: balconyId });
+      onSelect({ kind: "balcony", balconyId });
     },
     onKeyDown: (event: KeyboardEvent<SVGElement>) => {
       if (event.key === "Enter" || event.key === " ") {
         event.preventDefault();
-        onSelect({ kind: "balcony", id: balconyId });
+        onSelect({ kind: "balcony", balconyId });
       }
     },
   };
@@ -56,34 +77,35 @@ export function renderSelectableBalcony(
 }
 
 export function renderPlan(
-  projection: PlanProjection,
-  selection: ObjectSelection | undefined,
+  projection: PlanProjectionV2,
+  selection: SelectionV2,
   onSelect: OnSelect,
   activeTool: ToolId,
   footprints: Map<string, WallFootprint>,
   snapHit: Point2D | null,
   handlers?: PlanDragHandlers,
-  ghost?: PlanProjection,
+  ghost?: PlanProjectionV2,
 ) {
   const mainBounds = planBounds(projection);
   const bounds = ghost ? unionBounds(mainBounds, planBounds(ghost)) : mainBounds;
-  const { project: projectPoint } = createPointMapping(bounds);
+  const mapping = createPointMapping(bounds);
+  const { project: projectPoint } = mapping;
   const wallsById = new Map(projection.wallSegments.map((wall) => [wall.wallId, wall]));
   const selectedWall =
     selection?.kind === "wall"
-      ? projection.wallSegments.find((wall) => wall.wallId === selection.id)
+      ? projection.wallSegments.find((wall) => wall.wallId === selection.wallId)
       : undefined;
   const selectedOpening =
     selection?.kind === "opening"
-      ? projection.openings.find((opening) => opening.openingId === selection.id)
+      ? projection.openings.find((opening) => opening.openingId === selection.openingId)
       : undefined;
   const selectedBalcony =
     selection?.kind === "balcony"
-      ? projection.balconies.find((balcony) => balcony.balconyId === selection.id)
+      ? projection.balconies.find((balcony) => balcony.balconyId === selection.balconyId)
       : undefined;
   const selectedStairSymbol =
     selection?.kind === "stair"
-      ? projection.stairs.find((s) => s.storeyId === selection.id)
+      ? projection.stairs.find((s) => s.stairId === selection.stairId)
       : undefined;
 
   return (
@@ -105,10 +127,41 @@ export function renderPlan(
             );
           })
         : null}
+      {projection.slabOutlines.map((slab) => {
+        const projected = slab.outline.map(projectPoint);
+        if (projected.length === 0) return null;
+        let d = `M ${projected[0].x} ${projected[0].y}`;
+        for (const p of projected.slice(1)) {
+          d += ` L ${p.x} ${p.y}`;
+        }
+        d += " Z";
+        // Holes (CW direction reversed in SVG even-odd to act as cutouts).
+        for (const hole of slab.holes) {
+          const holeProjected = hole.map(projectPoint);
+          if (holeProjected.length === 0) continue;
+          d += ` M ${holeProjected[0].x} ${holeProjected[0].y}`;
+          for (const p of holeProjected.slice(1)) {
+            d += ` L ${p.x} ${p.y}`;
+          }
+          d += " Z";
+        }
+        return (
+          <path
+            key={`slab-${slab.slabId}`}
+            d={d}
+            fillRule="evenodd"
+            fill={slab.role === "floor" ? "rgba(189, 189, 189, 0.15)" : "transparent"}
+            stroke="rgba(0, 0, 0, 0.3)"
+            strokeWidth={1}
+            strokeDasharray={slab.role === "intermediate" ? "4 4" : undefined}
+            pointerEvents="none"
+          />
+        );
+      })}
       {projection.wallSegments.map((wall) => {
         const footprint = footprints.get(wall.wallId);
         if (!footprint) return null;
-        const selected = isSelected(selection, "wall", wall.wallId);
+        const selected = isWallSelected(selection, wall.wallId);
         const className = selected ? "plan-wall is-selected" : "plan-wall";
         const wallLen = Math.hypot(wall.end.x - wall.start.x, wall.end.y - wall.start.y);
         const wallOpenings = projection.openings.filter((opening) => opening.wallId === wall.wallId);
@@ -124,11 +177,11 @@ export function renderPlan(
             aria-pressed={selected}
             className={className}
             onPointerDown={(event) => handlers?.onWallPointerDown(event, wall.wallId)}
-            onClick={() => onSelect({ kind: "wall", id: wall.wallId })}
+            onClick={() => onSelect({ kind: "wall", wallId: wall.wallId })}
             onKeyDown={(event) => {
               if (event.key === "Enter" || event.key === " ") {
                 event.preventDefault();
-                onSelect({ kind: "wall", id: wall.wallId });
+                onSelect({ kind: "wall", wallId: wall.wallId });
               }
             }}
           >
@@ -155,7 +208,7 @@ export function renderPlan(
 
         const start = projectPoint(line.start);
         const end = projectPoint(line.end);
-        const selected = isSelected(selection, "opening", opening.openingId);
+        const selected = isOpeningSelected(selection, opening.openingId);
         const typeClass = `plan-opening--${opening.type}`;
 
         return (
@@ -171,11 +224,11 @@ export function renderPlan(
               x2={end.x}
               y2={end.y}
               onPointerDown={(event) => handlers?.onOpeningPointerDown(event, opening.openingId)}
-              onClick={() => onSelect({ kind: "opening", id: opening.openingId })}
+              onClick={() => onSelect({ kind: "opening", openingId: opening.openingId })}
               onKeyDown={(event) => {
                 if (event.key === "Enter" || event.key === " ") {
                   event.preventDefault();
-                  onSelect({ kind: "opening", id: opening.openingId });
+                  onSelect({ kind: "opening", openingId: opening.openingId });
                 }
               }}
             />
@@ -193,7 +246,7 @@ export function renderPlan(
           <g key={balcony.balconyId}>
             {renderSelectableBalcony(
               balcony.balconyId,
-              isSelected(selection, "balcony", balcony.balconyId),
+              isBalconySelected(selection, balcony.balconyId),
               onSelect,
               activeTool,
               {
@@ -205,44 +258,24 @@ export function renderPlan(
           </g>
         );
       })}
-      {projection.skirts.map((rect) => {
-        const points = rect.vertices
-          .map((v) => {
-            const p = projectPoint(v);
-            return `${p.x},${p.y}`;
-          })
-          .join(" ");
-        const selected = isSelected(selection, "skirt", rect.skirtId);
-        return (
-          <polygon
-            key={rect.skirtId}
-            className={`plan-skirt${selected ? " is-selected" : ""}`}
-            points={points}
-            onClick={(e) => {
-              e.stopPropagation();
-              onSelect({ kind: "skirt", id: rect.skirtId });
-            }}
-          />
-        );
-      })}
       {projection.stairs.map((stair) => {
-        const selected = isSelected(selection, "stair", stair.storeyId);
+        const selected = isStairSelected(selection, stair.stairId);
         const symbol = buildStairSymbolGeometry(stair, projectPoint);
 
         return (
           <g
-            key={stair.storeyId}
+            key={stair.stairId}
             role="button"
             tabIndex={0}
-            aria-label={`选择楼梯 ${stair.storeyId}`}
+            aria-label={`选择楼梯 ${stair.stairId}`}
             aria-pressed={selected}
             className={selected ? "plan-stair is-selected" : "plan-stair"}
-            onPointerDown={(event) => handlers?.onStairBodyPointerDown(event, stair.storeyId)}
-            onClick={() => onSelect({ kind: "stair", id: stair.storeyId })}
+            onPointerDown={(event) => handlers?.onStairBodyPointerDown(event, stair.stairId)}
+            onClick={() => onSelect({ kind: "stair", stairId: stair.stairId })}
             onKeyDown={(event) => {
               if (event.key === "Enter" || event.key === " ") {
                 event.preventDefault();
-                onSelect({ kind: "stair", id: stair.storeyId });
+                onSelect({ kind: "stair", stairId: stair.stairId });
               }
             }}
           >
@@ -421,9 +454,9 @@ export function renderPlan(
                   cx={handleWorld.x}
                   cy={handleWorld.y}
                   r={ENDPOINT_HANDLE_RADIUS}
-                  aria-label={`旋转楼梯 ${stair.storeyId}`}
+                  aria-label={`旋转楼梯 ${stair.stairId}`}
                   onPointerDown={(event) =>
-                    handlers.onStairRotatePointerDown(event, stair.storeyId)
+                    handlers.onStairRotatePointerDown(event, stair.stairId)
                   }
                 />
                 {cornersWorld.map((c) => (
@@ -435,7 +468,7 @@ export function renderPlan(
                     r={ENDPOINT_HANDLE_RADIUS}
                     aria-label={`楼梯 ${c.name} 角点`}
                     onPointerDown={(event) =>
-                      handlers.onStairCornerPointerDown(event, stair.storeyId, c.name)
+                      handlers.onStairCornerPointerDown(event, stair.stairId, c.name)
                     }
                   />
                 ))}
