@@ -6,6 +6,7 @@ import {
   setStoreyElevation,
   setStoreyHeight,
   setStoreyLabel,
+  swapStoreyElevations,
 } from "../../../domain/mutations/storeys";
 
 describe("setStoreyLabel", () => {
@@ -56,6 +57,34 @@ describe("addStorey", () => {
     expect(next.storeys.length).toBe(project.storeys.length + 1);
     const newStorey = next.storeys[next.storeys.length - 1];
     expect(newStorey.elevation).toBeCloseTo(9.6);
+  });
+});
+
+describe("swapStoreyElevations", () => {
+  it("swaps elevations between two empty storeys (no anchors broken)", () => {
+    // Add two empty storeys above ROOF so no walls are anchored to them.
+    const base = addStorey(addStorey(createSampleProject()));
+    const sorted = [...base.storeys].sort((a, b) => a.elevation - b.elevation);
+    const a = sorted[sorted.length - 2];
+    const b = sorted[sorted.length - 1];
+    const aElev = a.elevation;
+    const bElev = b.elevation;
+    const next = swapStoreyElevations(base, a.id, b.id);
+    expect(next.storeys.find((s) => s.id === a.id)?.elevation).toBe(bElev);
+    expect(next.storeys.find((s) => s.id === b.id)?.elevation).toBe(aElev);
+  });
+
+  it("throws when swap would invert a wall whose top/bottom span both storeys", () => {
+    // sampleProject has walls anchored bottom=1f, top=2f. Swapping 1f↔2f
+    // makes top=3.2→0 and bottom=0→3.2 — wall top below bottom, invalid.
+    const project = createSampleProject();
+    expect(() => swapStoreyElevations(project, "1f", "2f")).toThrow();
+  });
+
+  it("is a no-op when aId === bId", () => {
+    const project = createSampleProject();
+    const next = swapStoreyElevations(project, "1f", "1f");
+    expect(next).toEqual(project);
   });
 });
 

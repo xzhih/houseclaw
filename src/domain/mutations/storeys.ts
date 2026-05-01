@@ -40,6 +40,27 @@ export function setStoreyElevation(
   return assertValidProject({ ...project, storeys });
 }
 
+/** Swap the elevations of two storeys atomically — the way "reorder" is
+ *  modeled in HouseClaw, since z is the only physical ordering. Walls/slabs
+ *  anchored to the storeys move with them. Throws if the swap would
+ *  produce an invalid project (e.g. a wall whose top anchor sat on the
+ *  higher of the two storeys and bottom on the lower would invert). */
+export function swapStoreyElevations(
+  project: HouseProject,
+  aId: string,
+  bId: string,
+): HouseProject {
+  if (aId === bId) return project;
+  const a = findStorey(project, aId);
+  const b = findStorey(project, bId);
+  const storeys = project.storeys.map((s) => {
+    if (s.id === a.id) return { ...s, elevation: b.elevation };
+    if (s.id === b.id) return { ...s, elevation: a.elevation };
+    return s;
+  });
+  return assertValidProject({ ...project, storeys });
+}
+
 /** Edit "this storey's height" = adjust the next storey's elevation + cascade
  *  every storey above by the same delta. */
 export function setStoreyHeight(

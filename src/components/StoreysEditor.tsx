@@ -14,6 +14,17 @@ function formatElevation(z: number): string {
 export function StoreysEditor({ project, dispatch }: StoreysEditorProps) {
   const sorted = [...project.storeys].sort((a, b) => a.elevation - b.elevation);
 
+  const swapWith = (aId: string, bId: string) => {
+    try {
+      dispatch({ type: "swap-storey-elevations", aId, bId });
+    } catch (err) {
+      // The swap would invert a wall/slab anchor pair — surface so the user
+      // knows why nothing happened (silent no-op is worse here).
+      const msg = err instanceof Error ? err.message : String(err);
+      alert(`无法调整顺序：${msg}`);
+    }
+  };
+
   return (
     <div className="storeys-editor" role="group" aria-label="楼层管理">
       <div className="storeys-editor-row storeys-editor-header">
@@ -25,6 +36,7 @@ export function StoreysEditor({ project, dispatch }: StoreysEditorProps) {
       </div>
       {sorted.map((storey, i) => {
         const next = sorted[i + 1];
+        const prev = sorted[i - 1];
         const computedHeight = next ? next.elevation - storey.elevation : null;
         return (
           <div key={storey.id} className="storeys-editor-row">
@@ -78,16 +90,38 @@ export function StoreysEditor({ project, dispatch }: StoreysEditorProps) {
             ) : (
               <span className="storey-no-height">—</span>
             )}
-            <button
-              type="button"
-              className="storey-remove"
-              onClick={() =>
-                dispatch({ type: "remove-storey", storeyId: storey.id })
-              }
-              title={`删除 ${storey.label}`}
-            >
-              ×
-            </button>
+            <div className="storey-actions">
+              <button
+                type="button"
+                className="storey-move"
+                onClick={() => prev && swapWith(storey.id, prev.id)}
+                disabled={!prev}
+                aria-label={`下移 ${storey.label}`}
+                title={prev ? `下移到 ${prev.label} 位置` : "已在最底层"}
+              >
+                ↓
+              </button>
+              <button
+                type="button"
+                className="storey-move"
+                onClick={() => next && swapWith(storey.id, next.id)}
+                disabled={!next}
+                aria-label={`上移 ${storey.label}`}
+                title={next ? `上移到 ${next.label} 位置` : "已在最顶层"}
+              >
+                ↑
+              </button>
+              <button
+                type="button"
+                className="storey-remove"
+                onClick={() =>
+                  dispatch({ type: "remove-storey", storeyId: storey.id })
+                }
+                title={`删除 ${storey.label}`}
+              >
+                ×
+              </button>
+            </div>
           </div>
         );
       })}

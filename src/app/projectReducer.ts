@@ -4,6 +4,7 @@ import {
   setStoreyLabel,
   setStoreyElevation,
   setStoreyHeight,
+  swapStoreyElevations,
   addStorey,
   removeStorey,
   updateWall,
@@ -74,6 +75,7 @@ export type ProjectAction =
   | { type: "set-storey-label"; storeyId: string; label: string }
   | { type: "set-storey-elevation"; storeyId: string; elevation: number }
   | { type: "set-storey-height"; storeyId: string; height: number }
+  | { type: "swap-storey-elevations"; aId: string; bId: string }
   | { type: "add-storey" }
   | { type: "remove-storey"; storeyId: string }
   // Wall mutations
@@ -134,6 +136,8 @@ export function projectReducer(
       return mergeProject(state, setStoreyElevation(state, action.storeyId, action.elevation));
     case "set-storey-height":
       return mergeProject(state, setStoreyHeight(state, action.storeyId, action.height));
+    case "swap-storey-elevations":
+      return mergeProject(state, swapStoreyElevations(state, action.aId, action.bId));
     case "add-storey":
       return mergeProject(state, addStorey(state));
     case "remove-storey":

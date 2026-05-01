@@ -50,6 +50,7 @@ export {
   setStoreyLabel,
   setStoreyElevation,
   setStoreyHeight,
+  swapStoreyElevations,
   addStorey,
   removeStorey,
 } from "./mutations/storeys";
