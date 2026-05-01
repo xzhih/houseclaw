@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { AnchorPicker } from "../../../components/editors/AnchorPicker";
-import type { Anchor, Storey } from "../../../domain/v2/types";
+import type { Anchor, Storey } from "../../../domain/types";
 
 const STOREYS: Storey[] = [
   { id: "1f", label: "1F", elevation: 0 },

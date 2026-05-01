@@ -1,8 +1,8 @@
-import type { ProjectStateV2, ProjectActionV2 } from "../app/v2/projectReducer";
+import type { ProjectState, ProjectAction } from "../app/projectReducer";
 
 type StoreysEditorProps = {
-  project: ProjectStateV2;
-  dispatch: (action: ProjectActionV2) => void;
+  project: ProjectState;
+  dispatch: (action: ProjectAction) => void;
 };
 
 function formatElevation(z: number): string {

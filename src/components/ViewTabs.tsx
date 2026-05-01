@@ -1,7 +1,7 @@
-import type { ProjectStateV2 } from "../app/v2/projectReducer";
+import type { ProjectState } from "../app/projectReducer";
 
 type ViewTabsProps = {
-  project: ProjectStateV2;
+  project: ProjectState;
   onChange: (viewId: string) => void;
 };
 

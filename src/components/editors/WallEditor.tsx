@@ -1,5 +1,5 @@
-import type { ProjectStateV2, ProjectActionV2 } from "../../app/v2/projectReducer";
-import type { Wall } from "../../domain/v2/types";
+import type { ProjectState, ProjectAction } from "../../app/projectReducer";
+import type { Wall } from "../../domain/types";
 import { NumberField } from "../NumberField";
 import { ToggleRow } from "../chrome/ToggleRow";
 import { DeleteRow } from "../chrome/DeleteRow";
@@ -8,13 +8,13 @@ import { MaterialPicker } from "./MaterialPicker";
 
 type WallEditorProps = {
   wall: Wall;
-  project: ProjectStateV2;
-  dispatch: (action: ProjectActionV2) => void;
+  project: ProjectState;
+  dispatch: (action: ProjectAction) => void;
 };
 
 function tryDispatch(
-  fn: () => ProjectActionV2,
-  dispatch: (action: ProjectActionV2) => void,
+  fn: () => ProjectAction,
+  dispatch: (action: ProjectAction) => void,
 ): string | undefined {
   try {
     dispatch(fn());

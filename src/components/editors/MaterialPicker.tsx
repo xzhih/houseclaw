@@ -1,5 +1,5 @@
 import { useId } from "react";
-import type { Material, MaterialKind } from "../../domain/v2/types";
+import type { Material, MaterialKind } from "../../domain/types";
 
 type MaterialPickerProps = {
   materials: Material[];

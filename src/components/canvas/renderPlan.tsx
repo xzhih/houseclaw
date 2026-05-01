@@ -1,15 +1,15 @@
 import type { KeyboardEvent, PointerEvent } from "react";
-import type { SelectionV2 } from "../../app/v2/projectReducer";
-import { rotatePoint } from "../../domain/v2/stairs";
-import { slicePanelFootprint, type WallFootprint } from "../../geometry/v2/wallNetwork";
+import type { Selection } from "../../app/projectReducer";
+import { rotatePoint } from "../../domain/stairs";
+import { slicePanelFootprint, type WallFootprint } from "../../geometry/wallNetwork";
 import type {
-  PlanBalconyGlyphV2,
-  PlanOpeningGlyphV2,
-  PlanProjectionV2,
-  PlanStairSymbolV2,
-  PlanWallSegmentV2,
-} from "../../projection/v2/types";
-import type { PlanDragHandlersV2 as PlanDragHandlers } from "./dragStateV2";
+  PlanBalconyGlyph,
+  PlanOpeningGlyph,
+  PlanProjection,
+  PlanStairSymbol,
+  PlanWallSegment,
+} from "../../projection/types";
+import type { PlanDragHandlers as PlanDragHandlers } from "./dragState";
 import {
   balconyPolygon,
   buildStairSymbolGeometry,
@@ -21,21 +21,21 @@ import type { Point2D, PointMapping } from "./types";
 
 const ENDPOINT_HANDLE_RADIUS = 7;
 
-type OnSelect = (selection: SelectionV2) => void;
+type OnSelect = (selection: Selection) => void;
 
-function isWallSelected(selection: SelectionV2, wallId: string): boolean {
+function isWallSelected(selection: Selection, wallId: string): boolean {
   return selection?.kind === "wall" && selection.wallId === wallId;
 }
 
-function isOpeningSelected(selection: SelectionV2, openingId: string): boolean {
+function isOpeningSelected(selection: Selection, openingId: string): boolean {
   return selection?.kind === "opening" && selection.openingId === openingId;
 }
 
-function isBalconySelected(selection: SelectionV2, balconyId: string): boolean {
+function isBalconySelected(selection: Selection, balconyId: string): boolean {
   return selection?.kind === "balcony" && selection.balconyId === balconyId;
 }
 
-function isStairSelected(selection: SelectionV2, stairId: string): boolean {
+function isStairSelected(selection: Selection, stairId: string): boolean {
   return selection?.kind === "stair" && selection.stairId === stairId;
 }
 
@@ -73,15 +73,15 @@ export function renderSelectableBalcony(
 }
 
 type RenderPlanProps = {
-  projection: PlanProjectionV2;
+  projection: PlanProjection;
   mapping: PointMapping;
-  selection: SelectionV2;
+  selection: Selection;
   onSelect: OnSelect;
   activeTool?: string;
   footprints?: Map<string, WallFootprint>;
   snapHit?: Point2D | null;
   handlers?: PlanDragHandlers;
-  ghost?: PlanProjectionV2;
+  ghost?: PlanProjection;
 };
 
 export function renderPlan({

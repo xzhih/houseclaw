@@ -1,20 +1,20 @@
 import { useRef, useState } from "react";
-import type { ProjectActionV2, ProjectStateV2 } from "../../app/v2/projectReducer";
-import type { HouseProject } from "../../domain/v2/types";
+import type { ProjectAction, ProjectState } from "../../app/projectReducer";
+import type { HouseProject } from "../../domain/types";
 import {
   generateProjectId,
   nextProjectName,
   type WorkspaceCatalog,
-} from "../../app/v2/workspaceV2";
+} from "../../app/workspace";
 import {
   downloadProjectJson,
   importProjectJson,
-} from "../../app/v2/persistenceV2";
+} from "../../app/persistence";
 import { Accordion } from "../chrome/Accordion";
 
 type ProjectSectionProps = {
-  project: ProjectStateV2;
-  dispatch: (action: ProjectActionV2) => void;
+  project: ProjectState;
+  dispatch: (action: ProjectAction) => void;
   catalog: WorkspaceCatalog;
   onSwitchProject: (id: string) => void;
   onAddProject: (project: HouseProject) => void;

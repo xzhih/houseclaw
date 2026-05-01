@@ -1,5 +1,5 @@
 import type { PointMapping, Viewport } from "./types";
-import type { GuideMatch } from "../../geometry/v2/smartGuides";
+import type { GuideMatch } from "../../geometry/smartGuides";
 
 const EXTEND_M = 0.5;
 

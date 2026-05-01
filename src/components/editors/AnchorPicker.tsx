@@ -1,5 +1,5 @@
 import { useId } from "react";
-import type { Anchor, Storey } from "../../domain/v2/types";
+import type { Anchor, Storey } from "../../domain/types";
 
 type AnchorPickerProps = {
   anchor: Anchor;

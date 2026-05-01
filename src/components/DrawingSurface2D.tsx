@@ -1,9 +1,9 @@
 import { useCallback, useRef, useState } from "react";
-import type { ProjectStateV2, SelectionV2 } from "../app/v2/projectReducer";
-import type { ProjectActionV2 } from "../app/v2/projectReducer";
-import { projectElevationV2 } from "../projection/v2/elevation";
-import { projectPlanV2 } from "../projection/v2/plan";
-import { projectRoofViewV2 } from "../projection/v2/roofView";
+import type { ProjectState, Selection } from "../app/projectReducer";
+import type { ProjectAction } from "../app/projectReducer";
+import { projectElevation } from "../projection/elevation";
+import { projectPlan } from "../projection/plan";
+import { projectRoofView } from "../projection/roofView";
 import { GridOverlay } from "./canvas/GridOverlay";
 import { ScaleRuler } from "./canvas/ScaleRuler";
 import { ZoomControls } from "./canvas/ZoomControls";
@@ -23,23 +23,23 @@ import { DEFAULT_VIEWPORT, useViewport } from "./canvas/useViewport";
 import { useCreateHandlers } from "./canvas/useCreateHandlers";
 import { CreatePreview } from "./canvas/createPreview";
 import type { Point2D, DragReadout } from "./canvas/types";
-import { useDragHandlersV2, eventToWorldWith } from "./canvas/useDragHandlersV2";
+import { useDragHandlers, eventToWorldWith } from "./canvas/useDragHandlers";
 import {
-  applyDragV2,
+  applyDrag,
   DRAG_MOVE_THRESHOLD_PX,
-  selectionOnClickV2,
+  selectionOnClick,
   type WallSegment,
-} from "./canvas/dragMachineV2";
-import type { DragStateV2 } from "./canvas/dragStateV2";
+} from "./canvas/dragMachine";
+import type { DragState } from "./canvas/dragState";
 import { ContextChip, ContextChipAction } from "./chrome/ContextChip";
 import { DragReadoutChip } from "./chrome/DragReadoutChip";
 import { buildDefaultRoof } from "./chrome/buildDefaultRoof";
-import { buildWallNetwork } from "../geometry/v2/wallNetwork";
+import { buildWallNetwork } from "../geometry/wallNetwork";
 
 type DrawingSurface2DProps = {
-  project: ProjectStateV2;
-  onSelect: (selection: SelectionV2) => void;
-  dispatch: (action: ProjectActionV2) => void;
+  project: ProjectState;
+  onSelect: (selection: Selection) => void;
+  dispatch: (action: ProjectAction) => void;
 };
 
 function planStoreyIdFromView(viewId: string, storeys: { id: string }[]): string | undefined {
@@ -62,7 +62,7 @@ export function DrawingSurface2D({ project, onSelect, dispatch }: DrawingSurface
   // so the handler must read the ref to see the just-set state, otherwise the
   // first move event drops on the floor (intermittent "highlight but no drag"
   // behavior — symptoms vary with mouse speed).
-  const dragStateRef = useRef<DragStateV2 | null>(null);
+  const dragStateRef = useRef<DragState | null>(null);
   const dragStartPixelRef = useRef<{ x: number; y: number } | null>(null);
   // Timestamp of the last pointerup that ended a drag/click on a real object.
   // The SVG-level onClick uses this to skip "clear selection on background
@@ -71,13 +71,13 @@ export function DrawingSurface2D({ project, onSelect, dispatch }: DrawingSurface
   // setPointerCapture was set on it, which would otherwise immediately
   // clear the selection that pointerup just set.
   const lastObjectInteractionRef = useRef(0);
-  const [dragState, setDragStateInner] = useState<DragStateV2 | null>(null);
+  const [dragState, setDragStateInner] = useState<DragState | null>(null);
   // Two call shapes:
   //   setDragState(next, startPixel) — from pointerdown (records pixel start)
   //   setDragState(null)             — from pointerup/cancel (clears)
   //   setDragState({ ...ds, moved: true }) — from pointermove (updates ds only)
   const setDragState = useCallback(
-    (next: DragStateV2 | null, startPixel?: { x: number; y: number }) => {
+    (next: DragState | null, startPixel?: { x: number; y: number }) => {
       dragStateRef.current = next;
       setDragStateInner(next);
       if (next === null) {
@@ -99,11 +99,11 @@ export function DrawingSurface2D({ project, onSelect, dispatch }: DrawingSurface
 
   let body: React.ReactElement;
   let activeMapping = undefined as ReturnType<typeof createPointMapping> | undefined;
-  let planProjection: ReturnType<typeof projectPlanV2> | undefined;
+  let planProjection: ReturnType<typeof projectPlan> | undefined;
 
   let planFootprints: Map<string, ReturnType<typeof buildWallNetwork>[number]> | undefined;
   if (planStoreyId) {
-    const projection = projectPlanV2(project, planStoreyId);
+    const projection = projectPlan(project, planStoreyId);
     planProjection = projection;
     const mapping = createPointMapping(planBounds(projection));
     activeMapping = mapping;
@@ -122,7 +122,7 @@ export function DrawingSurface2D({ project, onSelect, dispatch }: DrawingSurface
       handlers: undefined, // assigned below after hook init
     });
   } else if (elevationSide) {
-    const projection = projectElevationV2(project, elevationSide);
+    const projection = projectElevation(project, elevationSide);
     const mapping = createPointMapping(elevationBounds(projection));
     activeMapping = mapping;
     body = renderElevation({
@@ -133,7 +133,7 @@ export function DrawingSurface2D({ project, onSelect, dispatch }: DrawingSurface
       handlers: undefined, // assigned below after hook init
     });
   } else if (isRoofView) {
-    const projection = projectRoofViewV2(project);
+    const projection = projectRoofView(project);
     const mapping = createPointMapping(roofViewBounds(projection));
     activeMapping = mapping;
     body = renderRoofView({
@@ -151,7 +151,7 @@ export function DrawingSurface2D({ project, onSelect, dispatch }: DrawingSurface
     );
   }
 
-  const { planHandlers, elevationHandlers } = useDragHandlersV2({
+  const { planHandlers, elevationHandlers } = useDragHandlers({
     project,
     planStoreyId,
     elevationSide,
@@ -172,7 +172,7 @@ export function DrawingSurface2D({ project, onSelect, dispatch }: DrawingSurface
       handlers: planHandlers,
     });
   } else if (elevationSide && activeMapping) {
-    const projection = projectElevationV2(project, elevationSide);
+    const projection = projectElevation(project, elevationSide);
     body = renderElevation({
       projection,
       mapping: activeMapping,
@@ -211,7 +211,7 @@ export function DrawingSurface2D({ project, onSelect, dispatch }: DrawingSurface
           const ds = dragStateRef.current;
           if (ds && svgRef.current) {
             // dragStartPixelRef was set by setDragState() at pointerdown (via
-            // useDragHandlersV2). Pixel-based threshold is zoom-independent —
+            // useDragHandlers). Pixel-based threshold is zoom-independent —
             // a normal click with 1-2px jitter no longer triggers a drag.
             const startPx = dragStartPixelRef.current;
             const pxDist = startPx
@@ -221,9 +221,9 @@ export function DrawingSurface2D({ project, onSelect, dispatch }: DrawingSurface
               const world = eventToWorldWith(svgRef.current, event, ds.mapping);
               if (world) {
                 if (!ds.moved) {
-                  setDragState({ ...ds, moved: true } as DragStateV2);
+                  setDragState({ ...ds, moved: true } as DragState);
                 }
-                const outcome = applyDragV2(ds, world, {
+                const outcome = applyDrag(ds, world, {
                   project,
                   planProjection,
                   otherWallSegmentsExclude,
@@ -256,7 +256,7 @@ export function DrawingSurface2D({ project, onSelect, dispatch }: DrawingSurface
               svgRef.current.releasePointerCapture(ds.pointerId);
             }
             if (!ds.moved) {
-              const sel = selectionOnClickV2(ds);
+              const sel = selectionOnClick(ds);
               if (sel) onSelect(sel);
             }
             // Mark that we just ended an interaction on a real object —
@@ -298,7 +298,7 @@ export function DrawingSurface2D({ project, onSelect, dispatch }: DrawingSurface
           const target = event.target as SVGElement;
           const hitKind = target.getAttribute("data-kind");
           const hitId = target.getAttribute("data-id");
-          let hit: SelectionV2 = undefined;
+          let hit: Selection = undefined;
           if (hitKind === "wall" && hitId) hit = { kind: "wall", wallId: hitId };
 
           let world: { x: number; y: number } | null = null;

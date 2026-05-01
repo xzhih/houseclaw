@@ -1,12 +1,12 @@
 import type {
   RoofViewEdgeStroke,
   RoofViewPolygon,
-  RoofViewProjectionV2,
-} from "../../projection/v2/types";
+  RoofViewProjection,
+} from "../../projection/types";
 import type { Point2D, PointMapping } from "./types";
 
 type RenderRoofViewProps = {
-  projection: RoofViewProjectionV2;
+  projection: RoofViewProjection;
   mapping: PointMapping;
   selectedRoofId?: string;
   onSelectRoof?: (roofId: string) => void;

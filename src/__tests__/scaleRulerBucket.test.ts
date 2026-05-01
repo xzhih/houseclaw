@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { pickRulerLength } from "../geometry/v2/scaleRulerBucket";
+import { pickRulerLength } from "../geometry/scaleRulerBucket";
 
 describe("pickRulerLength", () => {
   it("100 px/m → 1 m（100px 在 [60,150] 范围内最大）", () => {

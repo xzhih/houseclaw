@@ -1,4 +1,4 @@
-import type { ProjectActionV2, ProjectStateV2, SelectionV2 } from "../../app/v2/projectReducer";
+import type { ProjectAction, ProjectState, Selection } from "../../app/projectReducer";
 import { Accordion } from "../chrome/Accordion";
 import { WallEditor } from "../editors/WallEditor";
 import { OpeningEditor } from "../editors/OpeningEditor";
@@ -8,11 +8,11 @@ import { RoofEditor } from "../editors/RoofEditor";
 import { StairEditor } from "../editors/StairEditor";
 
 type SelectionSectionProps = {
-  project: ProjectStateV2;
-  dispatch: (action: ProjectActionV2) => void;
+  project: ProjectState;
+  dispatch: (action: ProjectAction) => void;
 };
 
-function describeSelection(sel: NonNullable<SelectionV2>): string {
+function describeSelection(sel: NonNullable<Selection>): string {
   switch (sel.kind) {
     case "wall":
       return `WALL · ${sel.wallId}`;

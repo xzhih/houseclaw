@@ -1,5 +1,5 @@
-import type { ProjectStateV2, ProjectActionV2 } from "../../app/v2/projectReducer";
-import type { Slab } from "../../domain/v2/types";
+import type { ProjectState, ProjectAction } from "../../app/projectReducer";
+import type { Slab } from "../../domain/types";
 import { NumberField } from "../NumberField";
 import { DeleteRow } from "../chrome/DeleteRow";
 import { AnchorPicker } from "./AnchorPicker";
@@ -7,11 +7,11 @@ import { MaterialPicker } from "./MaterialPicker";
 
 type SlabEditorProps = {
   slab: Slab;
-  project: ProjectStateV2;
-  dispatch: (action: ProjectActionV2) => void;
+  project: ProjectState;
+  dispatch: (action: ProjectAction) => void;
 };
 
-function tryDispatch(fn: () => ProjectActionV2, dispatch: (action: ProjectActionV2) => void): string | undefined {
+function tryDispatch(fn: () => ProjectAction, dispatch: (action: ProjectAction) => void): string | undefined {
   try { dispatch(fn()); return undefined; } catch (e) { return e instanceof Error ? e.message : String(e); }
 }
 

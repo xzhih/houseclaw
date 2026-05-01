@@ -1,15 +1,15 @@
-import { rotatePoint } from "../../domain/v2/stairs";
-import type { Point2 } from "../../domain/v2/types";
+import { rotatePoint } from "../../domain/stairs";
+import type { Point2 } from "../../domain/types";
 import type {
-  ElevationProjectionV2,
+  ElevationProjection,
   ElevationSide,
-  PlanBalconyGlyphV2,
-  PlanOpeningGlyphV2,
-  PlanProjectionV2,
-  PlanStairSymbolV2,
-  PlanWallSegmentV2,
-  RoofViewProjectionV2,
-} from "../../projection/v2/types";
+  PlanBalconyGlyph,
+  PlanOpeningGlyph,
+  PlanProjection,
+  PlanStairSymbol,
+  PlanWallSegment,
+  RoofViewProjection,
+} from "../../projection/types";
 import type { Bounds, Point2D, PointMapping } from "./types";
 
 export const SURFACE_WIDTH = 720;
@@ -87,7 +87,7 @@ export function computeSolidPanels(
   return panels.filter((panel) => panel.width > 1e-4);
 }
 
-export function planBounds(projection: PlanProjectionV2): Bounds {
+export function planBounds(projection: PlanProjection): Bounds {
   const wallsById = new Map(projection.wallSegments.map((wall) => [wall.wallId, wall]));
   const points: Point2[] = [
     ...projection.wallSegments.flatMap((wall) => [wall.start, wall.end]),
@@ -139,7 +139,7 @@ export function elevationAxisToWorld(side: ElevationSide, dxAxis: number): { dx:
   }
 }
 
-export function elevationBounds(projection: ElevationProjectionV2): Bounds {
+export function elevationBounds(projection: ElevationProjection): Bounds {
   const xValues = projection.wallBands.flatMap((band) => [band.x, band.x + band.width]);
   const yValues = projection.wallBands.flatMap((band) => [band.y, band.y + band.height]);
   for (const line of projection.slabLines) {
@@ -174,8 +174,8 @@ export function elevationBounds(projection: ElevationProjectionV2): Bounds {
 }
 
 export function openingLine(
-  opening: PlanOpeningGlyphV2,
-  segment: PlanWallSegmentV2,
+  opening: PlanOpeningGlyph,
+  segment: PlanWallSegment,
 ): { start: { x: number; y: number }; end: { x: number; y: number } } | undefined {
   const dx = segment.end.x - segment.start.x;
   const dy = segment.end.y - segment.start.y;
@@ -198,7 +198,7 @@ export function openingLine(
   };
 }
 
-export function balconyPolygon(balcony: PlanBalconyGlyphV2, segment: PlanWallSegmentV2) {
+export function balconyPolygon(balcony: PlanBalconyGlyph, segment: PlanWallSegment) {
   const dx = segment.end.x - segment.start.x;
   const dy = segment.end.y - segment.start.y;
   const length = Math.hypot(dx, dy);
@@ -245,7 +245,7 @@ export type StairSymbolGeometry = {
 };
 
 export function buildStairSymbolGeometry(
-  stair: PlanStairSymbolV2,
+  stair: PlanStairSymbol,
   projectPoint: (point: Point2) => Point2D,
 ): StairSymbolGeometry {
   const { rect, bottomEdge, treadDepth, treadCount, shape } = stair;
@@ -366,7 +366,7 @@ export function buildStairSymbolGeometry(
   return { outline, flights, landings, treadLines, cutLine, labelPos };
 }
 
-export function roofViewBounds(projection: RoofViewProjectionV2): Bounds {
+export function roofViewBounds(projection: RoofViewProjection): Bounds {
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
   for (const poly of projection.polygons) {
     for (const v of poly.vertices) {

@@ -1,6 +1,6 @@
-import type { ProjectActionV2, ProjectStateV2 } from "../app/v2/projectReducer";
-import type { WorkspaceCatalog } from "../app/v2/workspaceV2";
-import type { HouseProject } from "../domain/v2/types";
+import type { ProjectAction, ProjectState } from "../app/projectReducer";
+import type { WorkspaceCatalog } from "../app/workspace";
+import type { HouseProject } from "../domain/types";
 import { StoreysSection } from "./PropertyPanel/StoreysSection";
 import { SelectionSection } from "./PropertyPanel/SelectionSection";
 import { MaterialsSection } from "./PropertyPanel/MaterialsSection";
@@ -8,8 +8,8 @@ import { ExportSection } from "./PropertyPanel/ExportSection";
 import { ProjectSection } from "./PropertyPanel/ProjectSection";
 
 type PropertyPanelProps = {
-  project: ProjectStateV2;
-  dispatch: (action: ProjectActionV2) => void;
+  project: ProjectState;
+  dispatch: (action: ProjectAction) => void;
   catalog: WorkspaceCatalog;
   onSwitchProject: (id: string) => void;
   onAddProject: (project: HouseProject) => void;

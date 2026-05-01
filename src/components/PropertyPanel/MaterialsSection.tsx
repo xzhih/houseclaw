@@ -1,8 +1,8 @@
-import type { ProjectStateV2 } from "../../app/v2/projectReducer";
+import type { ProjectState } from "../../app/projectReducer";
 import { Accordion } from "../chrome/Accordion";
 
 type MaterialsSectionProps = {
-  project: ProjectStateV2;
+  project: ProjectState;
 };
 
 export function MaterialsSection({ project }: MaterialsSectionProps) {

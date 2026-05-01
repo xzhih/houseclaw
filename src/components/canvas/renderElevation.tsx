@@ -1,20 +1,20 @@
-import type { SelectionV2 } from "../../app/v2/projectReducer";
+import type { Selection } from "../../app/projectReducer";
 
 import type {
-  ElevationBalconyRectV2,
-  ElevationProjectionV2,
-} from "../../projection/v2/types";
-import type { ElevationDragHandlersV2 as ElevationDragHandlers } from "./dragStateV2";
+  ElevationBalconyRect,
+  ElevationProjection,
+} from "../../projection/types";
+import type { ElevationDragHandlers as ElevationDragHandlers } from "./dragState";
 import { renderSelectableBalcony } from "./renderPlan";
 import type { PointMapping } from "./types";
 
 const ENDPOINT_HANDLE_RADIUS = 7;
 
 type RenderElevationProps = {
-  projection: ElevationProjectionV2;
+  projection: ElevationProjection;
   mapping: PointMapping;
-  selection: SelectionV2 | undefined;
-  onSelect: (selection: SelectionV2) => void;
+  selection: Selection | undefined;
+  onSelect: (selection: Selection) => void;
   activeTool?: string;
   handlers?: ElevationDragHandlers;
 };
@@ -118,7 +118,7 @@ export function renderElevation({
           />
         );
       })}
-      {projection.balconies.map((balcony: ElevationBalconyRectV2) => {
+      {projection.balconies.map((balcony: ElevationBalconyRect) => {
         const topLeft = projectPoint({ x: balcony.x, y: balcony.y + balcony.height });
         const bottomRight = projectPoint({ x: balcony.x + balcony.width, y: balcony.y });
 

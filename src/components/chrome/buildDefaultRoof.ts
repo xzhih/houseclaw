@@ -1,7 +1,7 @@
-import type { ProjectStateV2 } from "../../app/v2/projectReducer";
-import type { Roof, RoofEdgeKind } from "../../domain/v2/types";
+import type { ProjectState } from "../../app/projectReducer";
+import type { Roof, RoofEdgeKind } from "../../domain/types";
 
-export function buildDefaultRoof(project: ProjectStateV2): Roof | undefined {
+export function buildDefaultRoof(project: ProjectState): Roof | undefined {
   const exterior = project.walls.filter((w) => w.exterior);
   if (exterior.length === 0) return undefined;
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;

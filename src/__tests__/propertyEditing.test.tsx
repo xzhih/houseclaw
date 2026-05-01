@@ -2,8 +2,8 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { PropertyPanel } from "../components/PropertyPanel";
-import { withSessionDefaults } from "../app/v2/projectReducer";
-import { createV2SampleProject } from "../domain/v2/sampleProject";
+import { withSessionDefaults } from "../app/projectReducer";
+import { createSampleProject } from "../domain/sampleProject";
 
 function workspaceProps(activeId: string) {
   return {
@@ -16,14 +16,14 @@ function workspaceProps(activeId: string) {
 
 describe("PropertyPanel — v2 entity editing", () => {
   it("shows hint when no selection", () => {
-    const project = withSessionDefaults(createV2SampleProject());
+    const project = withSessionDefaults(createSampleProject());
     const dispatch = vi.fn();
     render(<PropertyPanel project={project} dispatch={dispatch} {...workspaceProps(project.id)} />);
     expect(screen.getByText("在 2D 视图中点击对象以编辑属性")).toBeInTheDocument();
   });
 
   it("renders WallEditor when a wall is selected", () => {
-    const project = withSessionDefaults(createV2SampleProject());
+    const project = withSessionDefaults(createSampleProject());
     const wallId = project.walls[0].id;
     const selected = { ...project, selection: { kind: "wall" as const, wallId } };
     const dispatch = vi.fn();
@@ -34,7 +34,7 @@ describe("PropertyPanel — v2 entity editing", () => {
 
   it("dispatches update-wall when thickness is edited", async () => {
     const user = userEvent.setup();
-    const project = withSessionDefaults(createV2SampleProject());
+    const project = withSessionDefaults(createSampleProject());
     const wallId = project.walls[0].id;
     const selected = { ...project, selection: { kind: "wall" as const, wallId } };
     const dispatch = vi.fn();
@@ -53,7 +53,7 @@ describe("PropertyPanel — v2 entity editing", () => {
   });
 
   it("renders OpeningEditor when an opening is selected", () => {
-    const project = withSessionDefaults(createV2SampleProject());
+    const project = withSessionDefaults(createSampleProject());
     const opening = project.openings[0];
     const selected = {
       ...project,
@@ -65,7 +65,7 @@ describe("PropertyPanel — v2 entity editing", () => {
   });
 
   it("shows missing-entity message when selection points at deleted entity", () => {
-    const project = withSessionDefaults(createV2SampleProject());
+    const project = withSessionDefaults(createSampleProject());
     const ghost = { ...project, selection: { kind: "wall" as const, wallId: "no-such-wall" } };
     render(<PropertyPanel project={ghost} dispatch={vi.fn()} {...workspaceProps(project.id)} />);
     expect(screen.getByText(/已被删除/)).toBeInTheDocument();

@@ -1,18 +1,18 @@
 import { useState, useCallback, useEffect } from "react";
-import type { ProjectActionV2, ProjectStateV2, SelectionV2 } from "../../app/v2/projectReducer";
-import type { Anchor, OpeningType, Point2 } from "../../domain/v2/types";
+import type { ProjectAction, ProjectState, Selection } from "../../app/projectReducer";
+import type { Anchor, OpeningType, Point2 } from "../../domain/types";
 
 export type CreateState =
   | { kind: "idle" }
   | { kind: "wall-pending"; firstPoint: Point2 }
   | { kind: "slab-pending"; vertices: Point2[] };
 
-export type HitObject = SelectionV2;
+export type HitObject = Selection;
 
 type UseCreateHandlersArgs = {
-  project: ProjectStateV2;
+  project: ProjectState;
   storeyId: string | undefined;
-  dispatch: (action: ProjectActionV2) => void;
+  dispatch: (action: ProjectAction) => void;
 };
 
 export type UseCreateHandlersResult = {
@@ -34,20 +34,20 @@ function generateId(prefix: string): string {
   return `${prefix}-${Date.now().toString(36)}-${Math.floor(Math.random() * 1296).toString(36)}`;
 }
 
-function nextStoreyAbove(project: ProjectStateV2, storeyId: string): string | undefined {
+function nextStoreyAbove(project: ProjectState, storeyId: string): string | undefined {
   const sorted = [...project.storeys].sort((a, b) => a.elevation - b.elevation);
   const idx = sorted.findIndex((s) => s.id === storeyId);
   if (idx === -1 || idx === sorted.length - 1) return undefined;
   return sorted[idx + 1].id;
 }
 
-function defaultMaterialId(project: ProjectStateV2, kind: "wall" | "frame" | "decor" | "roof"): string {
+function defaultMaterialId(project: ProjectState, kind: "wall" | "frame" | "decor" | "roof"): string {
   const m = project.materials.find((mat) => mat.kind === kind);
   return m?.id ?? project.materials[0]?.id ?? "mat-fallback";
 }
 
 function projectPointOntoWall(
-  project: ProjectStateV2,
+  project: ProjectState,
   wallId: string,
   point: Point2,
 ): { offset: number; wallLength: number } | undefined {

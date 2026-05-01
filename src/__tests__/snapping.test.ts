@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { snapPlanPoint, snapToEndpoint, snapToGrid } from "../geometry/v2/snapping";
+import { snapPlanPoint, snapToEndpoint, snapToGrid } from "../geometry/snapping";
 
 describe("snapToGrid", () => {
   it("rounds both coordinates to the nearest grid cell", () => {

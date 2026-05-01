@@ -1,15 +1,15 @@
 import { useEffect, useRef, useState } from "react";
-import type { ProjectStateV2 } from "../app/v2/projectReducer";
+import type { ProjectState } from "../app/projectReducer";
 import {
   DEFAULT_LIGHTING,
-  mountHouseSceneV2,
+  mountHouseScene,
   type CameraMode,
   type LightingParams,
   type MountedScene,
-} from "../rendering/v2/threeScene";
+} from "../rendering/threeScene";
 
 type Preview3DProps = {
-  project: ProjectStateV2;
+  project: ProjectState;
 };
 
 type LightingSliderProps = {
@@ -59,7 +59,7 @@ export function Preview3D({ project }: Preview3DProps) {
     if (!host) return undefined;
 
     try {
-      sceneRef.current = mountHouseSceneV2(host, project, {
+      sceneRef.current = mountHouseScene(host, project, {
         onWalkExit: () => setCameraMode("orbit"),
         onDigitKey: (digit) => {
           // Explicit floor jump — update HUD AND teleport. Distinct from

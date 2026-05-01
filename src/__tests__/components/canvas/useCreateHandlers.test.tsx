@@ -1,12 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import { useCreateHandlers } from "../../../components/canvas/useCreateHandlers";
-import { createV2SampleProject } from "../../../domain/v2/sampleProject";
-import { withSessionDefaults } from "../../../app/v2/projectReducer";
+import { createSampleProject } from "../../../domain/sampleProject";
+import { withSessionDefaults } from "../../../app/projectReducer";
 
 describe("useCreateHandlers — wall tool", () => {
   it("first click in wall tool records the start point (idle → wall-pending)", () => {
-    const project = withSessionDefaults({ ...createV2SampleProject() });
+    const project = withSessionDefaults({ ...createSampleProject() });
     project.activeTool = "wall";
     const dispatch = vi.fn();
     const { result } = renderHook(() => useCreateHandlers({ project, storeyId: "1f", dispatch }));
@@ -19,7 +19,7 @@ describe("useCreateHandlers — wall tool", () => {
   });
 
   it("second click dispatches add-wall and resets to idle", () => {
-    const project = withSessionDefaults({ ...createV2SampleProject() });
+    const project = withSessionDefaults({ ...createSampleProject() });
     project.activeTool = "wall";
     const dispatch = vi.fn();
     const { result } = renderHook(() => useCreateHandlers({ project, storeyId: "1f", dispatch }));
@@ -38,7 +38,7 @@ describe("useCreateHandlers — wall tool", () => {
   });
 
   it("Escape during wall-pending cancels back to idle", () => {
-    const project = withSessionDefaults({ ...createV2SampleProject() });
+    const project = withSessionDefaults({ ...createSampleProject() });
     project.activeTool = "wall";
     const dispatch = vi.fn();
     const { result } = renderHook(() => useCreateHandlers({ project, storeyId: "1f", dispatch }));
@@ -51,7 +51,7 @@ describe("useCreateHandlers — wall tool", () => {
 
 describe("useCreateHandlers — opening tools", () => {
   it("clicking on a wall in door mode dispatches add-opening with door type", () => {
-    const project = withSessionDefaults({ ...createV2SampleProject() });
+    const project = withSessionDefaults({ ...createSampleProject() });
     project.activeTool = "door";
     const dispatch = vi.fn();
     const { result } = renderHook(() => useCreateHandlers({ project, storeyId: "1f", dispatch }));
@@ -69,7 +69,7 @@ describe("useCreateHandlers — opening tools", () => {
   });
 
   it("clicking on empty space in door mode is a no-op", () => {
-    const project = withSessionDefaults({ ...createV2SampleProject() });
+    const project = withSessionDefaults({ ...createSampleProject() });
     project.activeTool = "door";
     const dispatch = vi.fn();
     const { result } = renderHook(() => useCreateHandlers({ project, storeyId: "1f", dispatch }));
@@ -80,7 +80,7 @@ describe("useCreateHandlers — opening tools", () => {
 
 describe("useCreateHandlers — slab tool", () => {
   it("accumulates polygon vertices and Enter dispatches add-slab", () => {
-    const project = withSessionDefaults({ ...createV2SampleProject() });
+    const project = withSessionDefaults({ ...createSampleProject() });
     project.activeTool = "slab";
     const dispatch = vi.fn();
     const { result } = renderHook(() => useCreateHandlers({ project, storeyId: "1f", dispatch }));
@@ -107,7 +107,7 @@ describe("useCreateHandlers — slab tool", () => {
   });
 
   it("Enter with fewer than 3 vertices is a no-op", () => {
-    const project = withSessionDefaults({ ...createV2SampleProject() });
+    const project = withSessionDefaults({ ...createSampleProject() });
     project.activeTool = "slab";
     const dispatch = vi.fn();
     const { result } = renderHook(() => useCreateHandlers({ project, storeyId: "1f", dispatch }));
@@ -120,7 +120,7 @@ describe("useCreateHandlers — slab tool", () => {
 
 describe("useCreateHandlers — select tool (no-op)", () => {
   it("does not intercept clicks in select mode", () => {
-    const project = withSessionDefaults({ ...createV2SampleProject() });
+    const project = withSessionDefaults({ ...createSampleProject() });
     project.activeTool = "select";
     const dispatch = vi.fn();
     const { result } = renderHook(() => useCreateHandlers({ project, storeyId: "1f", dispatch }));

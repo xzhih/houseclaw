@@ -1,10 +1,10 @@
-import type { ProjectActionV2, ProjectStateV2 } from "../../app/v2/projectReducer";
+import type { ProjectAction, ProjectState } from "../../app/projectReducer";
 import { Accordion } from "../chrome/Accordion";
 import { StoreysEditor } from "../StoreysEditor";
 
 type StoreysSectionProps = {
-  project: ProjectStateV2;
-  dispatch: (action: ProjectActionV2) => void;
+  project: ProjectState;
+  dispatch: (action: ProjectAction) => void;
 };
 
 export function StoreysSection({ project, dispatch }: StoreysSectionProps) {

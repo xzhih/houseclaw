@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
-import { withSessionDefaults, type ProjectActionV2, type ProjectStateV2, type SelectionV2 } from "../app/v2/projectReducer";
-import { useUndoableProject } from "../app/v2/useUndoableProject";
+import { withSessionDefaults, type ProjectAction, type ProjectState, type Selection } from "../app/projectReducer";
+import { useUndoableProject } from "../app/useUndoableProject";
 import {
   initializeWorkspace,
   saveCatalog,
@@ -9,8 +9,8 @@ import {
   addNewProject as wsAdd,
   removeProject as wsRemove,
   type WorkspaceCatalog,
-} from "../app/v2/workspaceV2";
-import type { HouseProject } from "../domain/v2/types";
+} from "../app/workspace";
+import type { HouseProject } from "../domain/types";
 import { Preview3D } from "./Preview3D";
 import { DrawingSurface2D } from "./DrawingSurface2D";
 import { ToolPalette } from "./ToolPalette";
@@ -22,14 +22,14 @@ import { PropertyPanel } from "./PropertyPanel";
 // the workspace API (switch / add / remove) and update both localStorage
 // and the AppShell's `catalog` state.
 const BOOT_SNAPSHOT = initializeWorkspace();
-function init(): ProjectStateV2 {
+function init(): ProjectState {
   return withSessionDefaults(BOOT_SNAPSHOT.project);
 }
 
 /** Convert the current selection to a remove-* action. Called when the user
  *  presses Delete/Backspace with something selected. Storey selections are
  *  intentionally NOT mapped — those have their own removal UI in StoreysEditor. */
-function removeActionForSelection(sel: SelectionV2): ProjectActionV2 | undefined {
+function removeActionForSelection(sel: Selection): ProjectAction | undefined {
   if (!sel) return undefined;
   switch (sel.kind) {
     case "wall":

@@ -1,6 +1,6 @@
 import { Fragment } from "react";
 import type { PointMapping, Viewport } from "./types";
-import { buildGridLines } from "../../geometry/v2/gridLines";
+import { buildGridLines } from "../../geometry/gridLines";
 
 const SURFACE_WIDTH = 720;
 const SURFACE_HEIGHT = 520;
