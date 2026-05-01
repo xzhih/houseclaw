@@ -338,3 +338,130 @@
   color: var(--text-primary);
   font-variant-numeric: tabular-nums;
 }
+
+/* === AppShell layout === */
+.app-root {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100vw;
+  background: var(--bg-chrome);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+}
+.chrome-header {
+  display: flex;
+  align-items: center;
+  height: var(--header-h);
+  padding: 0 16px;
+  background: var(--bg-chrome);
+  border-bottom: 1px solid var(--border-soft);
+  gap: 16px;
+}
+.chrome-header-logo {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text-primary);
+}
+.chrome-header-divider {
+  width: 1px;
+  height: 16px;
+  background: var(--border-mid);
+}
+.chrome-header-project {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+.chrome-header-spacer {
+  flex: 1;
+}
+.chrome-header-mode {
+  display: flex;
+  gap: 4px;
+}
+.chrome-header-mode-pill {
+  padding: 4px 10px;
+  background: transparent;
+  border: 1px solid var(--border-mid);
+  border-radius: 3px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background 200ms, color 200ms, box-shadow 200ms;
+}
+.chrome-header-mode-pill:hover {
+  color: var(--text-primary);
+  background: var(--bg-chrome-2);
+}
+.chrome-header-mode-pill[aria-pressed="true"] {
+  background: #fff;
+  color: #000;
+  border-color: transparent;
+  box-shadow: var(--glow-active);
+}
+
+/* === ViewBar === */
+.chrome-viewbar {
+  display: flex;
+  align-items: center;
+  height: var(--viewbar-h);
+  padding: 0 12px;
+  background: var(--bg-chrome);
+  border-bottom: 1px solid var(--border-soft);
+  gap: 4px;
+}
+.chrome-viewbar-tab {
+  position: relative;
+  height: 100%;
+  padding: 0 12px;
+  background: transparent;
+  border: 0;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color 200ms;
+}
+.chrome-viewbar-tab:hover {
+  color: rgba(255, 255, 255, 0.8);
+}
+.chrome-viewbar-tab[aria-selected="true"] {
+  color: var(--text-primary);
+}
+.chrome-viewbar-tab[aria-selected="true"]::after {
+  content: "";
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 0;
+  height: 1px;
+  background: #fff;
+}
+
+/* === Main body === */
+.chrome-main {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}
+.chrome-main-canvas-wrap {
+  flex: 1;
+  position: relative;
+  background: var(--bg-canvas);
+  min-width: 0;
+}
+.chrome-main-panel {
+  width: var(--panel-w);
+  background: var(--bg-chrome);
+  border-left: 1px solid var(--border-soft);
+  overflow-y: auto;
+  overflow-x: hidden;
+}
