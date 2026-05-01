@@ -46,6 +46,8 @@ export function AppShell() {
 
       <ViewTabs
         project={project}
+        // "3d" is a mode sentinel emitted by the 3D tab; non-3D tabs imply 2D mode,
+        // so we dispatch set-mode + set-view together. Returning to 3D preserves activeView.
         onChange={(viewId) => {
           if (viewId === "3d") {
             dispatch({ type: "set-mode", mode: "3d" });

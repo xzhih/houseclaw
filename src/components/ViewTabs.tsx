@@ -44,6 +44,7 @@ export function ViewTabs({ project, onChange }: ViewTabsProps) {
         屋顶
       </button>
       <span style={{ flex: 1 }} aria-hidden />
+      {/* "3d" is a mode sentinel — AppShell decodes it into set-mode without a set-view. */}
       <button
         role="tab"
         className="chrome-viewbar-tab"
