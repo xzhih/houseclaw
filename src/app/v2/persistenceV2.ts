@@ -1,6 +1,5 @@
 import type { HouseProject } from "../../domain/v2/types";
 
-const STORAGE_KEY = "houseclaw.v2.project";
 const SCHEMA_VERSION = 2;
 
 export function exportProjectJson(project: HouseProject): string {
@@ -36,33 +35,6 @@ export function importProjectJson(json: string): HouseProject {
     throw new Error("Invalid project JSON: missing id/name");
   }
   return raw as HouseProject;
-}
-
-export function saveProjectToLocalStorage(project: HouseProject): void {
-  try {
-    localStorage.setItem(STORAGE_KEY, exportProjectJson(project));
-  } catch {
-    // Quota exceeded / private mode — silent. Not critical for a personal tool.
-  }
-}
-
-export function loadProjectFromLocalStorage(): HouseProject | undefined {
-  try {
-    const json = localStorage.getItem(STORAGE_KEY);
-    if (!json) return undefined;
-    return importProjectJson(json);
-  } catch {
-    // Corrupted localStorage — let caller fall back to sample.
-    return undefined;
-  }
-}
-
-export function clearProjectFromLocalStorage(): void {
-  try {
-    localStorage.removeItem(STORAGE_KEY);
-  } catch {
-    // ignore
-  }
 }
 
 /** Trigger a browser download of the JSON. Returns a filename hint. */

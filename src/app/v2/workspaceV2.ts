@@ -7,6 +7,9 @@ import {
 
 const CATALOG_KEY = "houseclaw.v2.catalog";
 const PROJECT_PREFIX = "houseclaw.v2.project.";
+/** Legacy single-slot key from before multi-project support landed. We only
+ *  read it during migration, then delete it. */
+const LEGACY_SINGLE_SLOT_KEY = "houseclaw.v2.project";
 
 export type WorkspaceEntry = {
   id: string;
@@ -105,12 +108,33 @@ export function deleteProjectStorage(id: string): void {
   safeRemove(projectKey(id));
 }
 
+/** Read + delete the legacy `houseclaw.v2.project` single-slot key, returning
+ *  the project if it was present and parseable. The key was used briefly
+ *  before multi-project support landed; once migrated into a catalog entry
+ *  it's no longer needed and we remove it to keep localStorage tidy. */
+function consumeLegacySingleSlot(): HouseProject | undefined {
+  const json = safeRead(LEGACY_SINGLE_SLOT_KEY);
+  if (!json) return undefined;
+  let migrated: HouseProject | undefined;
+  try {
+    migrated = importProjectJson(json);
+  } catch {
+    // Unrecoverable; drop it.
+  }
+  safeRemove(LEGACY_SINGLE_SLOT_KEY);
+  return migrated;
+}
+
 /** Initialize the workspace on app boot. Returns the catalog + the project to
  *  load. Falls back to a fresh sample project if no catalog exists or the
- *  active project is corrupted. */
+ *  active project is corrupted. Migrates legacy single-slot data on first
+ *  run after the multi-project upgrade. */
 export function initializeWorkspace(): WorkspaceSnapshot {
   const existing = loadCatalog();
   if (existing) {
+    // Catalog exists — discard any stray legacy single-slot data
+    // (the user has already used multi-project, so the legacy slot is moot).
+    safeRemove(LEGACY_SINGLE_SLOT_KEY);
     const active = loadProjectById(existing.activeId);
     if (active) {
       return { catalog: existing, project: active };
@@ -127,7 +151,9 @@ export function initializeWorkspace(): WorkspaceSnapshot {
     }
     // All slots corrupted — drop catalog and start fresh.
   }
-  const project = createV2SampleProject();
+  // No catalog yet. If the user has data from the legacy single-slot era,
+  // migrate it; otherwise seed with the sample project.
+  const project = consumeLegacySingleSlot() ?? createV2SampleProject();
   const catalog: WorkspaceCatalog = {
     activeId: project.id,
     projects: [{ id: project.id, name: project.name }],
