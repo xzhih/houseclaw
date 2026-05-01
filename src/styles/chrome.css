@@ -282,7 +282,7 @@
   letter-spacing: 0.1em;
   text-transform: uppercase;
   box-shadow: var(--glow-active);
-  pointer-events: auto;
+  pointer-events: none;
   user-select: none;
   z-index: 30;
 }
@@ -296,6 +296,7 @@
   font-family: var(--font-mono);
   font-size: 11px;
   cursor: pointer;
+  pointer-events: auto;
   transition: background 150ms;
 }
 .chrome-context-chip-action:hover {
@@ -336,9 +337,4 @@
 .chrome-readout-chip-value {
   color: var(--text-primary);
   font-variant-numeric: tabular-nums;
-}
-.chrome-readout-chip-divider {
-  height: 1px;
-  margin: 6px 0;
-  background: var(--border-soft);
 }

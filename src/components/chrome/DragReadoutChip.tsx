@@ -38,7 +38,13 @@ function rowsFor(readout: DragReadout): Array<[string, string]> {
       return [["ROTATION", `${readout.angleDeg.toFixed(1)}°`]];
     case "elev-storey-translate":
       return [["Δy", `${fmt(readout.dy)}m`]];
+    default:
+      return assertNever(readout);
   }
+}
+
+function assertNever(value: never): never {
+  throw new Error(`unhandled DragReadout kind: ${JSON.stringify(value)}`);
 }
 
 export function DragReadoutChip({ readout, visible }: DragReadoutChipProps) {
