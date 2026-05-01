@@ -496,3 +496,85 @@
   overflow-y: auto;
   overflow-x: hidden;
 }
+
+/* === NumberField === */
+.number-field {
+  padding: 6px 0;
+}
+.number-field label {
+  display: block;
+  margin-bottom: 4px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.number-field-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.number-field-row input {
+  flex: 1;
+  height: 26px;
+  padding: 0 8px;
+  background: var(--bg-chrome-2);
+  border: 1px solid var(--border-mid);
+  border-radius: 3px;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  outline: none;
+  transition: border-color 200ms;
+}
+.number-field-row input:focus {
+  border-color: var(--border-strong);
+}
+.number-field-unit {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.number-field-error {
+  margin-top: 4px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: #ff7575;
+}
+.entity-editor-title {
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border-soft);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-primary);
+}
+.entity-editor-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 0;
+}
+.entity-editor-row label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.entity-editor-row select {
+  height: 26px;
+  padding: 0 8px;
+  background: var(--bg-chrome-2);
+  border: 1px solid var(--border-mid);
+  border-radius: 3px;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  outline: none;
+}

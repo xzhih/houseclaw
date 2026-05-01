@@ -1,6 +1,7 @@
 import type { ProjectStateV2, ProjectActionV2 } from "../../app/v2/projectReducer";
 import type { Wall } from "../../domain/v2/types";
 import { NumberField } from "../NumberField";
+import { ToggleRow } from "../chrome/ToggleRow";
 import { AnchorPicker } from "./AnchorPicker";
 import { MaterialPicker } from "./MaterialPicker";
 
@@ -49,18 +50,11 @@ export function WallEditor({ wall, project, dispatch }: WallEditorProps) {
           dispatch,
         )}
       />
-      <label className="entity-editor-checkbox">
-        <input
-          type="checkbox"
-          checked={wall.exterior}
-          onChange={(e) => dispatch({
-            type: "update-wall",
-            wallId: wall.id,
-            patch: { exterior: e.target.checked },
-          })}
-        />
-        外墙
-      </label>
+      <ToggleRow
+        label="EXTERIOR"
+        value={wall.exterior}
+        onChange={(exterior) => dispatch({ type: "update-wall", wallId: wall.id, patch: { exterior } })}
+      />
       <MaterialPicker
         label="材质"
         materials={project.materials}

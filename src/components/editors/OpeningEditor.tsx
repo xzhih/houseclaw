@@ -1,6 +1,7 @@
 import type { ProjectStateV2, ProjectActionV2 } from "../../app/v2/projectReducer";
 import type { Opening, OpeningType } from "../../domain/v2/types";
 import { NumberField } from "../NumberField";
+import { SelectRow } from "../chrome/SelectRow";
 import { MaterialPicker } from "./MaterialPicker";
 
 type OpeningEditorProps = {
@@ -9,10 +10,10 @@ type OpeningEditorProps = {
   dispatch: (action: ProjectActionV2) => void;
 };
 
-const TYPES: Array<{ id: OpeningType; label: string }> = [
-  { id: "door", label: "门" },
-  { id: "window", label: "窗" },
-  { id: "void", label: "空洞" },
+const TYPE_OPTIONS: Array<{ value: OpeningType; label: string }> = [
+  { value: "door", label: "DOOR" },
+  { value: "window", label: "WINDOW" },
+  { value: "void", label: "VOID" },
 ];
 
 function tryDispatch(
@@ -31,19 +32,16 @@ export function OpeningEditor({ opening, project, dispatch }: OpeningEditorProps
   return (
     <div className="entity-editor opening-editor">
       <div className="entity-editor-title">开洞 {opening.id} (墙 {opening.wallId})</div>
-      <div className="entity-editor-row">
-        <label>类型</label>
-        <select
-          value={opening.type}
-          onChange={(e) => dispatch({
-            type: "update-opening",
-            openingId: opening.id,
-            patch: { type: e.target.value as OpeningType },
-          })}
-        >
-          {TYPES.map((t) => (<option key={t.id} value={t.id}>{t.label}</option>))}
-        </select>
-      </div>
+      <SelectRow
+        label="TYPE"
+        value={opening.type}
+        options={TYPE_OPTIONS}
+        onChange={(type) => dispatch({
+          type: "update-opening",
+          openingId: opening.id,
+          patch: { type },
+        })}
+      />
       <NumberField
         label="距墙起点"
         value={opening.offset}
