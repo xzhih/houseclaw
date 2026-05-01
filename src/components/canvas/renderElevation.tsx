@@ -17,6 +17,7 @@ type RenderElevationProps = {
   onSelect: (selection: Selection) => void;
   activeTool?: string;
   handlers?: ElevationDragHandlers;
+  showStoreyDatums?: boolean;
 };
 
 export function renderElevation({
@@ -25,6 +26,7 @@ export function renderElevation({
   selection,
   onSelect,
   handlers,
+  showStoreyDatums = true,
 }: RenderElevationProps) {
   const { project: projectPoint } = mapping;
 
@@ -39,20 +41,22 @@ export function renderElevation({
 
   const sortedBands = [...projection.wallBands].sort((a, b) => b.depth - a.depth);
 
-  // Compute the elevation view's X span so storey datum lines stretch the
-  // full visible width regardless of whether walls exist on that level.
+  // Compute the elevation view's X span so storey datum lines stretch
+  // BEYOND the wall geometry on either side — embedded-in-wall datums
+  // look like a glitch, the convention is for them to overhang.
+  const DATUM_MARGIN = 1.4;
   const xs: number[] = [];
   for (const band of projection.wallBands) xs.push(band.x, band.x + band.width);
   for (const line of projection.slabLines) xs.push(line.start.x, line.end.x);
   for (const op of projection.openings) xs.push(op.x, op.x + op.width);
   for (const b of projection.balconies) xs.push(b.x, b.x + b.width);
   for (const poly of projection.roofPolygons) for (const v of poly.vertices) xs.push(v.x);
-  const datumMinX = xs.length ? Math.min(...xs) : 0;
-  const datumMaxX = xs.length ? Math.max(...xs) : 8;
+  const datumMinX = (xs.length ? Math.min(...xs) : 0) - DATUM_MARGIN;
+  const datumMaxX = (xs.length ? Math.max(...xs) : 8) + DATUM_MARGIN;
 
   return (
     <>
-      {projection.storeyLines.map((line) => {
+      {showStoreyDatums && projection.storeyLines.map((line) => {
         const left = projectPoint({ x: datumMinX, y: line.elevation });
         const right = projectPoint({ x: datumMaxX, y: line.elevation });
         return (

@@ -14,6 +14,8 @@ type PropertyPanelProps = {
   onSwitchProject: (id: string) => void;
   onAddProject: (project: HouseProject) => void;
   onRemoveProject: (id: string) => void;
+  showStoreyDatums: boolean;
+  onSetShowStoreyDatums: (visible: boolean) => void;
 };
 
 export function PropertyPanel({
@@ -23,10 +25,17 @@ export function PropertyPanel({
   onSwitchProject,
   onAddProject,
   onRemoveProject,
+  showStoreyDatums,
+  onSetShowStoreyDatums,
 }: PropertyPanelProps) {
   return (
     <aside aria-label="属性面板">
-      <StoreysSection project={project} dispatch={dispatch} />
+      <StoreysSection
+        project={project}
+        dispatch={dispatch}
+        showStoreyDatums={showStoreyDatums}
+        onSetShowStoreyDatums={onSetShowStoreyDatums}
+      />
       <SelectionSection project={project} dispatch={dispatch} />
       <MaterialsSection project={project} />
       <ExportSection />

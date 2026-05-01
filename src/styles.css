@@ -671,6 +671,21 @@ select {
 
 
 /* P4C-α: StoreysEditor */
+.storeys-datum-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0 10px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+  cursor: pointer;
+  user-select: none;
+}
+.storeys-datum-toggle input[type="checkbox"] {
+  accent-color: var(--text-primary);
+}
 .storeys-editor {
   font-size: 0.9em;
 }

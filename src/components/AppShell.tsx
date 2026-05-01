@@ -56,9 +56,30 @@ function isEditableTarget(target: EventTarget | null): boolean {
   return target.isContentEditable;
 }
 
+const STOREY_DATUMS_KEY = "houseclaw.ui.showStoreyDatums";
+
+function loadShowStoreyDatums(): boolean {
+  try {
+    const raw = localStorage.getItem(STOREY_DATUMS_KEY);
+    if (raw === null) return true;
+    return raw === "true";
+  } catch {
+    return true;
+  }
+}
+
 export function AppShell() {
   const { project, dispatch, undo, redo, reset } = useUndoableProject(init);
   const [catalog, setCatalog] = useState<WorkspaceCatalog>(BOOT_SNAPSHOT.catalog);
+  const [showStoreyDatums, setShowStoreyDatumsState] = useState<boolean>(loadShowStoreyDatums);
+  const setShowStoreyDatums = useCallback((v: boolean) => {
+    setShowStoreyDatumsState(v);
+    try {
+      localStorage.setItem(STOREY_DATUMS_KEY, String(v));
+    } catch {
+      // localStorage may be unavailable (private mode); the toggle still works in-session.
+    }
+  }, []);
   const isElevation = project.activeView.startsWith("elevation-");
   const is3D = project.mode === "3d";
 
@@ -212,12 +233,13 @@ export function AppShell() {
         )}
         <div className="chrome-main-canvas-wrap" aria-label="canvas">
           {is3D ? (
-            <Preview3D project={project} />
+            <Preview3D project={project} showStoreyDatums={showStoreyDatums} />
           ) : (
             <DrawingSurface2D
               project={project}
               onSelect={(selection) => dispatch({ type: "select", selection })}
               dispatch={dispatch}
+              showStoreyDatums={showStoreyDatums}
             />
           )}
         </div>
@@ -229,6 +251,8 @@ export function AppShell() {
             onSwitchProject={switchProject}
             onAddProject={addProject}
             onRemoveProject={removeProjectAction}
+            showStoreyDatums={showStoreyDatums}
+            onSetShowStoreyDatums={setShowStoreyDatums}
           />
         </div>
       </main>

@@ -10,6 +10,7 @@ import {
 
 type Preview3DProps = {
   project: ProjectState;
+  showStoreyDatums: boolean;
 };
 
 type LightingSliderProps = {
@@ -39,7 +40,7 @@ function LightingSlider({ label, value, min, max, step, format, onChange }: Ligh
   );
 }
 
-export function Preview3D({ project }: Preview3DProps) {
+export function Preview3D({ project, showStoreyDatums }: Preview3DProps) {
   const hostRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<MountedScene | null>(null);
   const projectRef = useRef(project);
@@ -60,6 +61,7 @@ export function Preview3D({ project }: Preview3DProps) {
 
     try {
       sceneRef.current = mountHouseScene(host, project, {
+        showStoreyDatums,
         onWalkExit: () => setCameraMode("orbit"),
         onDigitKey: (digit) => {
           // Explicit floor jump — update HUD AND teleport. Distinct from
@@ -105,6 +107,10 @@ export function Preview3D({ project }: Preview3DProps) {
   useEffect(() => {
     sceneRef.current?.setLighting(lighting);
   }, [lighting]);
+
+  useEffect(() => {
+    sceneRef.current?.setStoreyDatumsVisible(showStoreyDatums);
+  }, [showStoreyDatums]);
 
   const handleFloorButton = (storeyId: string) => {
     setActiveStoreyId(storeyId);

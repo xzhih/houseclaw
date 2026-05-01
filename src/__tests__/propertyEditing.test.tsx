@@ -11,6 +11,8 @@ function workspaceProps(activeId: string) {
     onSwitchProject: vi.fn(),
     onAddProject: vi.fn(),
     onRemoveProject: vi.fn(),
+    showStoreyDatums: true,
+    onSetShowStoreyDatums: vi.fn(),
   };
 }
 

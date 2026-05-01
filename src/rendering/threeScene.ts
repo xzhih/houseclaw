@@ -48,6 +48,7 @@ export type MountedSceneOptions = {
   onDigitKey?: (digit: number) => void;
   onCameraMove?: (cameraY: number) => void;
   lighting?: LightingParams;
+  showStoreyDatums?: boolean;
 };
 
 export type MountedScene = {
@@ -58,6 +59,7 @@ export type MountedScene = {
    * onCameraMove (walking up stairs must NOT teleport). */
   teleportToStorey(storeyId: string): void;
   setLighting(params: LightingParams): void;
+  setStoreyDatumsVisible(visible: boolean): void;
   dispose(): void;
 };
 
@@ -759,16 +761,17 @@ function createGround(bounds: SceneBounds) {
 
 /** Faint horizontal level rings at each storey above ground (z > 0).
  *  Anchors empty storeys in 3D so adding a level produces a visible
- *  reference even before any wall/slab is drawn there. The ring traces
- *  the building's footprint — same x/z extent as the walls, so empty
- *  storeys feel attached to the building instead of floating in space. */
+ *  reference even before any wall/slab is drawn there. Sits ~1.4m
+ *  outside the building bbox so it doesn't visually clip the wall
+ *  panels — embedded-in-wall lines look like a rendering bug. */
 function createStoreyLevelHelpers(project: HouseProject, bounds: SceneBounds) {
+  const MARGIN = 1.4;
   const width = Math.max(bounds.maxX - bounds.minX, 4);
   const depth = Math.max(bounds.maxZ - bounds.minZ, 4);
-  const minX = bounds.minX;
-  const maxX = bounds.minX + width;
-  const minZ = bounds.minZ;
-  const maxZ = bounds.minZ + depth;
+  const minX = bounds.minX - MARGIN;
+  const maxX = bounds.minX + width + MARGIN;
+  const minZ = bounds.minZ - MARGIN;
+  const maxZ = bounds.minZ + depth + MARGIN;
   const helpers: THREE.LineSegments[] = [];
   const geometries: THREE.BufferGeometry[] = [];
   const materials: THREE.Material[] = [];
@@ -889,6 +892,9 @@ export function mountHouseScene(
   }
   ground.receiveShadow = true;
 
+  const initialDatumsVisible = options.showStoreyDatums ?? true;
+  for (const helper of storeyHelpers) helper.visible = initialDatumsVisible;
+
   scene.add(
     ambient,
     keyLight,
@@ -972,10 +978,15 @@ export function mountHouseScene(
     fillLight.intensity = params.fillIntensity;
   };
 
+  const setStoreyDatumsVisible = (visible: boolean) => {
+    for (const helper of storeyHelpers) helper.visible = visible;
+  };
+
   return {
     setCameraMode,
     teleportToStorey,
     setLighting,
+    setStoreyDatumsVisible,
     dispose: () => {
       walkControls.dispose();
       currentOrbit?.dispose();

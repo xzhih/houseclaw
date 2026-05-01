@@ -40,6 +40,7 @@ type DrawingSurface2DProps = {
   project: ProjectState;
   onSelect: (selection: Selection) => void;
   dispatch: (action: ProjectAction) => void;
+  showStoreyDatums: boolean;
 };
 
 function planStoreyIdFromView(viewId: string, storeys: { id: string }[]): string | undefined {
@@ -48,7 +49,7 @@ function planStoreyIdFromView(viewId: string, storeys: { id: string }[]): string
   return storeys.find((s) => s.id === id)?.id;
 }
 
-export function DrawingSurface2D({ project, onSelect, dispatch }: DrawingSurface2DProps) {
+export function DrawingSurface2D({ project, onSelect, dispatch, showStoreyDatums }: DrawingSurface2DProps) {
   const svgRef = useRef<SVGSVGElement | null>(null);
   const { viewport, setViewport, isPanning, panHandlers } = useViewport(
     svgRef,
@@ -131,6 +132,7 @@ export function DrawingSurface2D({ project, onSelect, dispatch }: DrawingSurface
       selection: project.selection,
       onSelect,
       handlers: undefined, // assigned below after hook init
+      showStoreyDatums,
     });
   } else if (isRoofView) {
     const projection = projectRoofView(project);
@@ -179,6 +181,7 @@ export function DrawingSurface2D({ project, onSelect, dispatch }: DrawingSurface
       selection: project.selection,
       onSelect,
       handlers: elevationHandlers,
+      showStoreyDatums,
     });
   }
 
