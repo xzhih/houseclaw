@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildGridLines } from "../geometry/gridLines";
+import { buildGridLines } from "../geometry/v2/gridLines";
 
 describe("buildGridLines", () => {
   it("空 bounds 返回空数组", () => {

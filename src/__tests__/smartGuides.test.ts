@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { findAxisAlignedGuides, type Anchor } from "../geometry/smartGuides";
+import { findAxisAlignedGuides, type Anchor } from "../geometry/v2/smartGuides";
 
 const TOL = 0.2;
 

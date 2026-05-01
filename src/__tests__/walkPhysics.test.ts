@@ -6,7 +6,7 @@ import {
   type HorizontalProbe,
   type VerticalProbe,
 } from "../rendering/walkPhysics";
-import { computeStairConfig } from "../domain/stairs";
+import { computeStairConfig } from "../domain/v2/stairs";
 
 type AABB = { min: [number, number, number]; max: [number, number, number] };
 
