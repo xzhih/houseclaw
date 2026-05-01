@@ -578,3 +578,47 @@
   font-size: 12px;
   outline: none;
 }
+
+/* === Pickers (Anchor + Material) === */
+.anchor-picker {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 0;
+}
+.material-picker {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 0;
+}
+/* AnchorPicker uses className="anchor-picker-label"; MaterialPicker uses a bare <label> child */
+.anchor-picker-label,
+.material-picker > label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+.anchor-picker select,
+.anchor-picker input,
+.material-picker select {
+  height: 26px;
+  padding: 0 8px;
+  background: var(--bg-chrome-2);
+  border: 1px solid var(--border-mid);
+  border-radius: 3px;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  outline: none;
+  flex: 1;
+  min-width: 0;
+}
+.anchor-picker select:focus,
+.anchor-picker input:focus,
+.material-picker select:focus {
+  border-color: var(--border-strong);
+}
