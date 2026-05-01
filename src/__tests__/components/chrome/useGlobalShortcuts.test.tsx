@@ -42,4 +42,14 @@ describe("useGlobalShortcuts", () => {
     await user.keyboard("{Escape}");
     expect(onEsc).toHaveBeenCalledTimes(1);
   });
+
+  it("skips when Meta/Ctrl/Alt is held", async () => {
+    const user = userEvent.setup();
+    const onW = vi.fn();
+    render(<Harness map={{ w: onW }} />);
+    await user.keyboard("{Meta>}w{/Meta}");
+    await user.keyboard("{Control>}w{/Control}");
+    await user.keyboard("{Alt>}w{/Alt}");
+    expect(onW).not.toHaveBeenCalled();
+  });
 });
