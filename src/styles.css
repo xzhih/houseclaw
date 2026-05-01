@@ -704,7 +704,7 @@ select {
 }
 
 .plan-wall-panel {
-  fill: #263238;
+  fill: var(--canvas-stroke-default);
   stroke: none;
 }
 
@@ -926,18 +926,18 @@ select {
 
 .wall-endpoint-handle,
 .resize-handle {
-  fill: rgba(255, 255, 255, 0.35);
-  stroke: #c75300;
-  stroke-width: 2.5;
+  fill: #000;
+  stroke: #fff;
+  stroke-width: 1;
   cursor: grab;
 }
 
 .snap-indicator {
   fill: none;
-  stroke: #2563eb;
-  stroke-width: 2.5;
+  stroke: #000;
+  stroke-width: 1.5;
   pointer-events: none;
-  filter: drop-shadow(0 0 4px rgba(37, 99, 235, 0.6));
+  animation: pulse 1.4s infinite;
 }
 
 .smart-guide-line {
@@ -949,7 +949,7 @@ select {
 
 .wall-endpoint-handle:hover,
 .resize-handle:hover {
-  fill: rgba(255, 245, 236, 0.7);
+  fill: #333;
 }
 
 .wall-endpoint-handle:active,

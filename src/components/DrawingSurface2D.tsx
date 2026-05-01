@@ -22,7 +22,7 @@ import { renderRoofView } from "./canvas/renderRoofView";
 import { DEFAULT_VIEWPORT, useViewport } from "./canvas/useViewport";
 import { useCreateHandlers } from "./canvas/useCreateHandlers";
 import { CreatePreview } from "./canvas/createPreview";
-import type { Point2D } from "./canvas/types";
+import type { Point2D, DragReadout } from "./canvas/types";
 import { useDragHandlersV2, eventToWorldWith } from "./canvas/useDragHandlersV2";
 import {
   applyDragV2,
@@ -31,6 +31,9 @@ import {
   type WallSegment,
 } from "./canvas/dragMachineV2";
 import type { DragStateV2 } from "./canvas/dragStateV2";
+import { ContextChip, ContextChipAction } from "./chrome/ContextChip";
+import { DragReadoutChip } from "./chrome/DragReadoutChip";
+import { buildDefaultRoof } from "./chrome/buildDefaultRoof";
 
 type DrawingSurface2DProps = {
   project: ProjectStateV2;
@@ -53,6 +56,8 @@ export function DrawingSurface2D({ project, onSelect, dispatch }: DrawingSurface
   const [gridVisible, setGridVisible] = useState(true);
   const [cursorWorld, setCursorWorld] = useState<Point2D | null>(null);
   const [dragState, setDragState] = useState<DragStateV2 | null>(null);
+  const [readout, setReadout] = useState<DragReadout | null>(null);
+  const [readoutVisible, setReadoutVisible] = useState(false);
 
   const planStoreyId = planStoreyIdFromView(project.activeView, project.storeys);
   const elevationSide =
@@ -178,6 +183,10 @@ export function DrawingSurface2D({ project, onSelect, dispatch }: DrawingSurface
                   for (const action of outcome.actions) {
                     dispatch(action);
                   }
+                  if (outcome.dragReadout) {
+                    setReadout(outcome.dragReadout);
+                    setReadoutVisible(true);
+                  }
                 }
               }
             }
@@ -196,6 +205,8 @@ export function DrawingSurface2D({ project, onSelect, dispatch }: DrawingSurface
               const sel = selectionOnClickV2(dragState);
               if (sel) onSelect(sel);
             }
+            setReadoutVisible(false);
+            setTimeout(() => setReadout(null), 400);
             setDragState(null);
           }
         }}
@@ -248,6 +259,25 @@ export function DrawingSurface2D({ project, onSelect, dispatch }: DrawingSurface
           />
         ) : null}
       </svg>
+      <DragReadoutChip readout={readout} visible={readoutVisible} />
+      {project.activeTool === "roof" && planStoreyId ? (
+        <ContextChip>
+          PRESS ENTER · CREATE ROOF
+          <ContextChipAction
+            onClick={() => {
+              const roof = buildDefaultRoof(project);
+              if (!roof) return;
+              try {
+                dispatch({ type: "add-roof", roof });
+              } catch (e) {
+                console.warn("Failed to add roof:", e);
+              }
+            }}
+          >
+            CREATE
+          </ContextChipAction>
+        </ContextChip>
+      ) : null}
       {activeMapping ? <ScaleRuler mapping={activeMapping} viewport={viewport} /> : null}
       <ZoomControls
         viewport={viewport}
