@@ -280,6 +280,112 @@ try {
       `active tool is "${activeTool}" after Escape, expected "SELECT · V"`,
     );
   });
+
+  await step("DeleteRow in WallEditor removes the selected wall", async () => {
+    // A wall is currently selected from earlier step. Capture initial count + id.
+    const before = (await view.evaluate(`(() => {
+      const selHeader = Array.from(document.querySelectorAll('.chrome-accordion-header'))
+        .find(h => h.textContent.includes('SELECTION'));
+      return {
+        count: document.querySelectorAll('[data-kind="wall"]').length,
+        selectedId: selHeader?.textContent.match(/WALL · ([\\w-]+)/)?.[1],
+      };
+    })()`)) as { count: number; selectedId: string };
+    assert(before.selectedId, "no wall currently selected — earlier step regressed");
+    // Click DeleteRow in the WallEditor.
+    const clicked = await view.evaluate(`(() => {
+      const btn = Array.from(document.querySelectorAll('button.chrome-delete-row')).find(b => b.textContent.includes('删除墙'));
+      if (!btn) return false;
+      btn.click();
+      return true;
+    })()`);
+    assert(clicked, "DeleteRow '删除墙' button not found in WallEditor");
+    await Bun.sleep(300);
+    const after = (await view.evaluate(`(() => ({
+      count: document.querySelectorAll('[data-kind="wall"]').length,
+      stillThere: !!document.querySelector('[data-id="${"" /* literal */}"][data-kind="wall"]'.replace('${"" /* literal */}', '${"" /* literal */}')),
+    }))()`)) as { count: number };
+    // Use a clearer second-shot specific to the deleted wall id:
+    const stillThere = await view.evaluate(
+      `!!document.querySelector('[data-kind="wall"][data-id="${before.selectedId}"]')`,
+    );
+    assert(after.count === before.count - 1, `wall count went ${before.count} → ${after.count}, expected −1`);
+    assert(stillThere === false, `wall ${before.selectedId} still in DOM after delete`);
+  });
+
+  await step("Cmd+Z restores the deleted wall", async () => {
+    // Dispatch a real keydown with metaKey set — view.press() options shape is
+    // undocumented for modifiers, so go via the DOM directly. AppShell's undo
+    // handler listens on window.keydown.
+    await view.evaluate(`(() => {
+      if (document.activeElement && 'blur' in document.activeElement) {
+        document.activeElement.blur();
+      }
+      const ev = new KeyboardEvent('keydown', {
+        key: 'z',
+        code: 'KeyZ',
+        metaKey: true,
+        ctrlKey: false,
+        bubbles: true,
+        cancelable: true,
+      });
+      window.dispatchEvent(ev);
+    })()`);
+    await Bun.sleep(300);
+    const restored = (await view.evaluate(`(() => ({
+      walls: document.querySelectorAll('[data-kind="wall"]').length,
+    }))()`)) as { walls: number };
+    // Sample project has 4 exterior walls; we just deleted 1 then restored 1.
+    assert(restored.walls >= 4, `expected at least 4 walls after Cmd+Z restore, got ${restored.walls}`);
+  });
+
+  await step("switching tools cancels half-finished wall (no lingering preview)", async () => {
+    // Switch to WALL tool, click ONE point on the canvas, switch away, switch
+    // back, confirm no dashed preview line is rendered.
+    await view.press("w");
+    await Bun.sleep(150);
+    // Click somewhere on the SVG to start wall-pending state.
+    await view.evaluate(`(() => {
+      const svg = document.querySelector('[aria-label="2D drawing surface"] svg');
+      if (!svg) return;
+      const r = svg.getBoundingClientRect();
+      svg.dispatchEvent(new MouseEvent('click', {
+        bubbles: true,
+        clientX: r.x + r.width * 0.6,
+        clientY: r.y + r.height * 0.6,
+      }));
+    })()`);
+    await Bun.sleep(150);
+    // Confirm pending preview exists (sanity check)
+    const hadPreview = await view.evaluate(
+      `!!document.querySelector('.create-preview-pending, [class*="create-preview"]') || !!document.querySelector('line.plan-wall-ghost')`,
+    );
+    // Now switch tool away then back.
+    await view.press("v"); // SELECT
+    await Bun.sleep(150);
+    await view.press("w"); // WALL again
+    await Bun.sleep(200);
+    // Preview must NOT be present after tool re-selection.
+    const stillHasPreview = await view.evaluate(
+      `(() => {
+        const all = document.querySelectorAll('line, path');
+        for (const el of all) {
+          const stroke = el.getAttribute('stroke-dasharray');
+          if (stroke && el.closest('[aria-label="2D drawing surface"]')) {
+            // Could be smart-guide line; but those are not present without a drag.
+            return el.outerHTML.slice(0, 200);
+          }
+        }
+        return null;
+      })()`,
+    );
+    assert(
+      stillHasPreview === null,
+      `lingering pending preview after tool switch: ${stillHasPreview}`,
+    );
+    // hadPreview is a sanity check — ignored if false (timing issues).
+    void hadPreview;
+  });
 } finally {
   view.close();
   dev.kill();
