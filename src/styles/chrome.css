@@ -461,6 +461,30 @@
   border-color: transparent;
 }
 
+/* === PropertyPanel === */
+.chrome-panel-empty-hint {
+  padding: 4px 0;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.chrome-panel-missing {
+  padding: 4px 0;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-disabled);
+}
+.chrome-panel-entity-title {
+  margin-bottom: 8px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
 /* === Main body === */
 .chrome-main {
   flex: 1;
