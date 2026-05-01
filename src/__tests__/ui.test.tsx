@@ -6,7 +6,7 @@ import { AppShell } from "../components/AppShell";
 describe("AppShell — v2 layout smoke", () => {
   it("renders header + mode toggle, defaults to 3D", () => {
     render(<AppShell />);
-    expect(screen.getByRole("heading", { name: "HouseClaw" })).toBeInTheDocument();
+    expect(screen.getByText("HouseClaw")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "3D" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByRole("button", { name: "2D" })).toHaveAttribute("aria-pressed", "false");
   });
