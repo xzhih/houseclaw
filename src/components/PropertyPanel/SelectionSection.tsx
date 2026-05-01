@@ -12,7 +12,7 @@ type SelectionSectionProps = {
   dispatch: (action: ProjectActionV2) => void;
 };
 
-function describeSelection(_project: ProjectStateV2, sel: NonNullable<SelectionV2>): string {
+function describeSelection(sel: NonNullable<SelectionV2>): string {
   switch (sel.kind) {
     case "wall":
       return `WALL · ${sel.wallId}`;
@@ -82,7 +82,7 @@ export function SelectionSection({ project, dispatch }: SelectionSectionProps) {
   const sel = project.selection;
   const headerExtra = sel ? (
     <span style={{ marginLeft: 8, color: "var(--text-muted)" }}>
-      {`· ${describeSelection(project, sel)}`}
+      {`· ${describeSelection(sel)}`}
     </span>
   ) : (
     <span style={{ marginLeft: 8, color: "var(--text-disabled)" }}>· NONE</span>
