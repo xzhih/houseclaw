@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import type { ProjectActionV2, ProjectStateV2, SelectionV2 } from "../../app/v2/projectReducer";
 import type { Anchor, OpeningType, Point2 } from "../../domain/v2/types";
 
@@ -73,6 +73,13 @@ export function useCreateHandlers({
   const [state, setState] = useState<CreateState>({ kind: "idle" });
 
   const tool = project.activeTool;
+
+  // Switching tools (or storeys) cancels any half-finished create flow —
+  // otherwise a wall-pending dashed preview lingers when the user comes
+  // back to the wall tool, and slab vertices accumulate across sessions.
+  useEffect(() => {
+    setState({ kind: "idle" });
+  }, [tool, storeyId]);
 
   const handleCanvasClick = useCallback(
     (world: Point2, hit: HitObject | undefined): boolean => {
