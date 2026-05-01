@@ -1,96 +1,106 @@
 import type { Opening, Wall } from "../domain/types";
 import type { WallPanel, WallPanelRole } from "./types";
 
+const EPS = 1e-4;
+
 function wallLength(wall: Wall): number {
   return Math.hypot(wall.end.x - wall.start.x, wall.end.y - wall.start.y);
 }
 
-function positivePanel(panel: WallPanel): WallPanel | undefined {
-  if (![panel.x, panel.y, panel.width, panel.height].every(Number.isFinite)) {
-    return undefined;
-  }
-
-  const roundedPanel = {
-    ...panel,
-    x: Number(panel.x.toFixed(4)),
-    y: Number(panel.y.toFixed(4)),
-    width: Number(panel.width.toFixed(4)),
-    height: Number(panel.height.toFixed(4)),
-  };
-
-  if (roundedPanel.width <= 0 || roundedPanel.height <= 0) return undefined;
-
-  return roundedPanel;
+function round(n: number): number {
+  return Number(n.toFixed(4));
 }
 
-function gapRole(index: number, total: number): WallPanelRole {
-  if (index === 0) return "left";
-  if (index === total) return "right";
-  return "between";
+function makePanel(
+  role: WallPanelRole,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+): WallPanel | undefined {
+  if (![x, y, width, height].every(Number.isFinite)) return undefined;
+  const w = round(width);
+  const h = round(height);
+  if (w <= EPS || h <= EPS) return undefined;
+  return { role, x: round(x), y: round(y), width: w, height: h };
 }
 
+/** Build wall fill panels by subtracting opening rectangles from the
+ *  wall's [0..wallWidth] × [0..wallHeight] face.
+ *
+ *  Algorithm: sweep across the unique x-edges from openings, producing
+ *  one or more vertical strips. Within each strip, subtract the y-ranges
+ *  of openings active in that strip from [0..wallHeight]. The remaining
+ *  y-segments become solid panels.
+ *
+ *  Why this matters: stacked openings (e.g. windows at the same x on
+ *  different storeys) used to leave each other's holes covered by the
+ *  other's "above"/"below" stripe. Sweep + subtract handles that correctly. */
 export function buildWallPanels(
   wall: Wall,
   openings: Opening[],
   wallHeight: number,
 ): WallPanel[] {
   const wallWidth = wallLength(wall);
+  if (wallWidth <= EPS || wallHeight <= EPS) return [];
 
   if (openings.length === 0) {
-    const panel = positivePanel({
-      role: "full",
-      x: 0,
-      y: 0,
-      width: wallWidth,
-      height: wallHeight,
-    });
-
-    return panel ? [panel] : [];
+    const full = makePanel("full", 0, 0, wallWidth, wallHeight);
+    return full ? [full] : [];
   }
 
-  const sorted = [...openings].sort((a, b) => a.offset - b.offset);
-  const gaps: WallPanel[] = [];
-  let cursor = 0;
+  // Collect & dedupe x-edges, clamped to [0, wallWidth].
+  const xEdgesSet = new Set<number>();
+  xEdgesSet.add(0);
+  xEdgesSet.add(wallWidth);
+  for (const o of openings) {
+    const a = Math.max(0, Math.min(wallWidth, o.offset));
+    const b = Math.max(0, Math.min(wallWidth, o.offset + o.width));
+    xEdgesSet.add(round(a));
+    xEdgesSet.add(round(b));
+  }
+  const xEdges = [...xEdgesSet].sort((a, b) => a - b);
 
-  sorted.forEach((opening, index) => {
-    const gap = positivePanel({
-      role: gapRole(index, sorted.length),
-      x: cursor,
-      y: 0,
-      width: opening.offset - cursor,
-      height: wallHeight,
-    });
-    if (gap) gaps.push(gap);
-    cursor = opening.offset + opening.width;
-  });
+  const panels: WallPanel[] = [];
 
-  const tail = positivePanel({
-    role: gapRole(sorted.length, sorted.length),
-    x: cursor,
-    y: 0,
-    width: wallWidth - cursor,
-    height: wallHeight,
-  });
-  if (tail) gaps.push(tail);
+  for (let i = 0; i < xEdges.length - 1; i += 1) {
+    const xLo = xEdges[i];
+    const xHi = xEdges[i + 1];
+    const stripWidth = xHi - xLo;
+    if (stripWidth <= EPS) continue;
 
-  const stripes: WallPanel[] = sorted.flatMap((opening) => {
-    const below = positivePanel({
-      role: "below",
-      x: opening.offset,
-      y: 0,
-      width: opening.width,
-      height: opening.sillHeight,
-    });
-    const above = positivePanel({
-      role: "above",
-      x: opening.offset,
-      y: opening.sillHeight + opening.height,
-      width: opening.width,
-      height: wallHeight - (opening.sillHeight + opening.height),
-    });
+    // Openings active in this strip = those that fully span [xLo..xHi].
+    const active = openings.filter(
+      (o) => o.offset <= xLo + EPS && o.offset + o.width >= xHi - EPS,
+    );
 
-    return [below, above].filter((panel): panel is WallPanel => panel !== undefined);
-  });
+    if (active.length === 0) {
+      // Entire strip is solid full-height.
+      const full = makePanel("full", xLo, 0, stripWidth, wallHeight);
+      if (full) panels.push(full);
+      continue;
+    }
 
-  return [...gaps, ...stripes];
+    // Sort active openings by sillHeight, then walk the wall vertically
+    // emitting solid stripes between/around them.
+    const sorted = [...active].sort((a, b) => a.sillHeight - b.sillHeight);
+    let cursor = 0;
+    for (const o of sorted) {
+      const top = o.sillHeight + o.height;
+      if (o.sillHeight - cursor > EPS) {
+        const role: WallPanelRole = cursor === 0 ? "below" : "between";
+        const p = makePanel(role, xLo, cursor, stripWidth, o.sillHeight - cursor);
+        if (p) panels.push(p);
+      }
+      // Advance cursor past this opening, allowing for openings that
+      // overlap vertically (rare, but don't double-fill).
+      if (top > cursor) cursor = top;
+    }
+    if (wallHeight - cursor > EPS) {
+      const p = makePanel("above", xLo, cursor, stripWidth, wallHeight - cursor);
+      if (p) panels.push(p);
+    }
+  }
+
+  return panels;
 }
