@@ -676,56 +676,87 @@ select {
 }
 .storeys-editor-row {
   display: grid;
-  grid-template-columns: 60px 120px 120px 120px 32px;
-  gap: 8px;
+  grid-template-columns: 44px 1fr 1fr 1fr 24px;
+  gap: 6px;
   align-items: center;
-  padding: 4px 0;
+  padding: 3px 0;
 }
 .storeys-editor-header {
+  font-family: var(--font-mono);
+  font-size: 10px;
   font-weight: 500;
-  color: #666;
-  border-bottom: 1px solid #eee;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border-soft);
   padding-bottom: 6px;
-  margin-bottom: 6px;
+  margin-bottom: 4px;
 }
 .storey-id {
-  font-family: ui-monospace, monospace;
-  color: #888;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
 }
 .storeys-editor input[type="text"],
 .storeys-editor input[type="number"] {
-  padding: 3px 6px;
-  border: 1px solid #ccc;
+  height: 24px;
+  padding: 0 6px;
+  background: var(--bg-chrome-2);
+  border: 1px solid var(--border-mid);
   border-radius: 3px;
-  font-size: 0.95em;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  outline: none;
+  min-width: 0;
+  transition: border-color 200ms;
+}
+.storeys-editor input[type="text"]:focus,
+.storeys-editor input[type="number"]:focus {
+  border-color: var(--border-strong);
 }
 .storey-no-height {
   text-align: center;
-  color: #aaa;
+  font-family: var(--font-mono);
+  color: var(--text-disabled);
 }
 .storey-remove {
-  width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
   border: 1px solid transparent;
   background: transparent;
   border-radius: 3px;
   cursor: pointer;
-  color: #c00;
+  color: var(--text-muted);
+  font-size: 14px;
+  line-height: 1;
+  transition: color 200ms, background 200ms;
 }
 .storey-remove:hover {
-  border-color: #c00;
-  background: #fff5f5;
+  color: var(--text-primary);
+  background: rgba(255, 117, 117, 0.15);
 }
 .storey-add-button {
   margin-top: 8px;
-  padding: 4px 12px;
-  border: 1px dashed #999;
+  padding: 6px 12px;
+  border: 1px dashed var(--border-mid);
   background: transparent;
   border-radius: 3px;
   cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  transition: border-color 200ms, color 200ms, background 200ms;
 }
 .storey-add-button:hover {
-  border-color: #333;
+  border-color: var(--border-strong);
+  color: var(--text-primary);
+  background: var(--bg-chrome-2);
 }
 
 

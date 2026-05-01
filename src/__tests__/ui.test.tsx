@@ -56,17 +56,25 @@ describe("AppShell — v2 layout smoke", () => {
     expect(screen.getByRole("tab", { name: "FRONT" })).toBeInTheDocument();
   });
 
-  it("renders SELECT tool active by default with shortcut hint", () => {
+  it("renders SELECT tool active by default in 2D", async () => {
+    // Tool rail only mounts in 2D mode (it's useless in 3D).
+    const user = userEvent.setup();
     render(<AppShell />);
-    // SELECT button should be aria-pressed=true (default activeTool is "select")
-    // The button's aria-label is "SELECT · V" per IconRailButton design.
+    await user.click(screen.getByRole("button", { name: "2D" }));
     expect(screen.getByRole("button", { name: "SELECT · V" })).toHaveAttribute("aria-pressed", "true");
   });
 
-  it("switches tool to WALL via keyboard shortcut", async () => {
+  it("switches tool to WALL via keyboard shortcut in 2D", async () => {
     const user = userEvent.setup();
     render(<AppShell />);
+    await user.click(screen.getByRole("button", { name: "2D" }));
     await user.keyboard("w");
     expect(screen.getByRole("button", { name: "WALL · W" })).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("does NOT render tool rail in 3D mode", () => {
+    render(<AppShell />);
+    // 3D is default — tool rail should be absent.
+    expect(screen.queryByRole("button", { name: "SELECT · V" })).toBeNull();
   });
 });

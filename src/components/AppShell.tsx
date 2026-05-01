@@ -65,12 +65,14 @@ export function AppShell() {
       ) : null}
 
       <main className="chrome-main">
-        <ToolPalette
-          project={project}
-          activeTool={project.activeTool}
-          onChange={(toolId) => dispatch({ type: "set-tool", toolId })}
-          dispatch={dispatch}
-        />
+        {is3D ? null : (
+          <ToolPalette
+            project={project}
+            activeTool={project.activeTool}
+            onChange={(toolId) => dispatch({ type: "set-tool", toolId })}
+            dispatch={dispatch}
+          />
+        )}
         <div className="chrome-main-canvas-wrap" aria-label="canvas">
           {is3D ? (
             <Preview3D project={project} />
