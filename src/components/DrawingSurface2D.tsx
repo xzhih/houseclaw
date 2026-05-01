@@ -34,6 +34,7 @@ import type { DragStateV2 } from "./canvas/dragStateV2";
 import { ContextChip, ContextChipAction } from "./chrome/ContextChip";
 import { DragReadoutChip } from "./chrome/DragReadoutChip";
 import { buildDefaultRoof } from "./chrome/buildDefaultRoof";
+import { buildWallNetwork } from "../geometry/v2/wallNetwork";
 
 type DrawingSurface2DProps = {
   project: ProjectStateV2;
@@ -69,16 +70,24 @@ export function DrawingSurface2D({ project, onSelect, dispatch }: DrawingSurface
   let activeMapping = undefined as ReturnType<typeof createPointMapping> | undefined;
   let planProjection: ReturnType<typeof projectPlanV2> | undefined;
 
+  let planFootprints: Map<string, ReturnType<typeof buildWallNetwork>[number]> | undefined;
   if (planStoreyId) {
     const projection = projectPlanV2(project, planStoreyId);
     planProjection = projection;
     const mapping = createPointMapping(planBounds(projection));
     activeMapping = mapping;
+    // Compute footprints only for walls visible on this plan storey, so wall
+    // junctions don't cross-contaminate between floors.
+    const visibleIds = new Set(projection.wallSegments.map((w) => w.wallId));
+    const visibleWalls = project.walls.filter((w) => visibleIds.has(w.id));
+    const list = buildWallNetwork(visibleWalls, project.storeys);
+    planFootprints = new Map(list.map((f) => [f.wallId, f]));
     body = renderPlan({
       projection,
       mapping,
       selection: project.selection,
       onSelect,
+      footprints: planFootprints,
       handlers: undefined, // assigned below after hook init
     });
   } else if (elevationSide) {
@@ -128,6 +137,7 @@ export function DrawingSurface2D({ project, onSelect, dispatch }: DrawingSurface
       mapping: activeMapping,
       selection: project.selection,
       onSelect,
+      footprints: planFootprints,
       handlers: planHandlers,
     });
   } else if (elevationSide && activeMapping) {
