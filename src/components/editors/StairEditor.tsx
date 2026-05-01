@@ -1,6 +1,7 @@
 import type { ProjectStateV2, ProjectActionV2 } from "../../app/v2/projectReducer";
 import type { Stair, StairEdge, StairShape, StairTurn } from "../../domain/v2/types";
 import { NumberField } from "../NumberField";
+import { DeleteRow } from "../chrome/DeleteRow";
 import { AnchorPicker } from "./AnchorPicker";
 import { MaterialPicker } from "./MaterialPicker";
 
@@ -145,6 +146,13 @@ export function StairEditor({ stair, project, dispatch }: StairEditorProps) {
         materials={project.materials}
         value={stair.materialId}
         onChange={(materialId) => dispatch({ type: "update-stair", stairId: stair.id, patch: { materialId } })}
+      />
+      <DeleteRow
+        label="删除楼梯"
+        onConfirm={() => {
+          dispatch({ type: "remove-stair", stairId: stair.id });
+          dispatch({ type: "select", selection: undefined });
+        }}
       />
     </div>
   );

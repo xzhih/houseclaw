@@ -1,6 +1,7 @@
 import type { ProjectStateV2, ProjectActionV2 } from "../../app/v2/projectReducer";
 import type { Balcony } from "../../domain/v2/types";
 import { NumberField } from "../NumberField";
+import { DeleteRow } from "../chrome/DeleteRow";
 import { AnchorPicker } from "./AnchorPicker";
 import { MaterialPicker } from "./MaterialPicker";
 
@@ -86,6 +87,13 @@ export function BalconyEditor({ balcony, project, dispatch }: BalconyEditorProps
         value={balcony.railingMaterialId}
         kinds={["frame", "railing"]}
         onChange={(materialId) => dispatch({ type: "update-balcony", balconyId: balcony.id, patch: { railingMaterialId: materialId } })}
+      />
+      <DeleteRow
+        label="删除阳台"
+        onConfirm={() => {
+          dispatch({ type: "remove-balcony", balconyId: balcony.id });
+          dispatch({ type: "select", selection: undefined });
+        }}
       />
     </div>
   );

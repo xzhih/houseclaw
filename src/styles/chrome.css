@@ -627,3 +627,26 @@
   0%, 100% { opacity: 0.6; }
   50% { opacity: 1; }
 }
+
+/* === DeleteRow === */
+.chrome-delete-row {
+  display: block;
+  width: 100%;
+  margin-top: 12px;
+  padding: 6px 10px;
+  background: transparent;
+  border: 1px solid var(--border-mid);
+  border-radius: 3px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: border-color 200ms, color 200ms, background 200ms;
+}
+.chrome-delete-row:hover {
+  border-color: rgba(255, 117, 117, 0.6);
+  color: #ff7575;
+  background: rgba(255, 117, 117, 0.08);
+}

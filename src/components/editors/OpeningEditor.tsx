@@ -2,6 +2,7 @@ import type { ProjectStateV2, ProjectActionV2 } from "../../app/v2/projectReduce
 import type { Opening, OpeningType } from "../../domain/v2/types";
 import { NumberField } from "../NumberField";
 import { SelectRow } from "../chrome/SelectRow";
+import { DeleteRow } from "../chrome/DeleteRow";
 import { MaterialPicker } from "./MaterialPicker";
 
 type OpeningEditorProps = {
@@ -88,6 +89,13 @@ export function OpeningEditor({ opening, project, dispatch }: OpeningEditorProps
         value={opening.frameMaterialId}
         kinds={["frame"]}
         onChange={(materialId) => dispatch({ type: "update-opening", openingId: opening.id, patch: { frameMaterialId: materialId } })}
+      />
+      <DeleteRow
+        label="删除开洞"
+        onConfirm={() => {
+          dispatch({ type: "remove-opening", openingId: opening.id });
+          dispatch({ type: "select", selection: undefined });
+        }}
       />
     </div>
   );

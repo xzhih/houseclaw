@@ -1,6 +1,7 @@
 import type { ProjectStateV2, ProjectActionV2 } from "../../app/v2/projectReducer";
 import type { Roof, RoofEdgeKind } from "../../domain/v2/types";
 import { NumberField } from "../NumberField";
+import { DeleteRow } from "../chrome/DeleteRow";
 import { AnchorPicker } from "./AnchorPicker";
 import { MaterialPicker } from "./MaterialPicker";
 
@@ -81,6 +82,13 @@ export function RoofEditor({ roof, project, dispatch }: RoofEditorProps) {
           </div>
         ))}
       </div>
+      <DeleteRow
+        label="删除屋顶"
+        onConfirm={() => {
+          dispatch({ type: "remove-roof", roofId: roof.id });
+          dispatch({ type: "select", selection: undefined });
+        }}
+      />
     </div>
   );
 }

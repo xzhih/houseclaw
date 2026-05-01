@@ -2,6 +2,7 @@ import type { ProjectStateV2, ProjectActionV2 } from "../../app/v2/projectReduce
 import type { Wall } from "../../domain/v2/types";
 import { NumberField } from "../NumberField";
 import { ToggleRow } from "../chrome/ToggleRow";
+import { DeleteRow } from "../chrome/DeleteRow";
 import { AnchorPicker } from "./AnchorPicker";
 import { MaterialPicker } from "./MaterialPicker";
 
@@ -61,6 +62,13 @@ export function WallEditor({ wall, project, dispatch }: WallEditorProps) {
         value={wall.materialId}
         kinds={["wall", "decor"]}
         onChange={(materialId) => dispatch({ type: "update-wall", wallId: wall.id, patch: { materialId } })}
+      />
+      <DeleteRow
+        label="删除墙"
+        onConfirm={() => {
+          dispatch({ type: "remove-wall", wallId: wall.id });
+          dispatch({ type: "select", selection: undefined });
+        }}
       />
     </div>
   );

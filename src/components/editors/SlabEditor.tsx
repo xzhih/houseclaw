@@ -1,6 +1,7 @@
 import type { ProjectStateV2, ProjectActionV2 } from "../../app/v2/projectReducer";
 import type { Slab } from "../../domain/v2/types";
 import { NumberField } from "../NumberField";
+import { DeleteRow } from "../chrome/DeleteRow";
 import { AnchorPicker } from "./AnchorPicker";
 import { MaterialPicker } from "./MaterialPicker";
 
@@ -44,6 +45,13 @@ export function SlabEditor({ slab, project, dispatch }: SlabEditorProps) {
       <div className="entity-editor-readonly">
         多边形 {slab.polygon.length} 顶点{slab.holes && slab.holes.length ? `, ${slab.holes.length} 个 hole` : ""}
       </div>
+      <DeleteRow
+        label="删除楼板"
+        onConfirm={() => {
+          dispatch({ type: "remove-slab", slabId: slab.id });
+          dispatch({ type: "select", selection: undefined });
+        }}
+      />
     </div>
   );
 }
