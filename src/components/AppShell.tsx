@@ -1,5 +1,6 @@
-import { useReducer } from "react";
-import { withSessionDefaults, projectReducerV2, type ProjectStateV2 } from "../app/v2/projectReducer";
+import { useEffect } from "react";
+import { withSessionDefaults, type ProjectActionV2, type ProjectStateV2, type SelectionV2 } from "../app/v2/projectReducer";
+import { useUndoableProject } from "../app/v2/useUndoableProject";
 import { createV2SampleProject } from "../domain/v2/sampleProject";
 import { Preview3D } from "./Preview3D";
 import { DrawingSurface2D } from "./DrawingSurface2D";
@@ -12,10 +13,71 @@ function init(): ProjectStateV2 {
   return withSessionDefaults(createV2SampleProject());
 }
 
+/** Convert the current selection to a remove-* action. Called when the user
+ *  presses Delete/Backspace with something selected. Storey selections are
+ *  intentionally NOT mapped — those have their own removal UI in StoreysEditor. */
+function removeActionForSelection(sel: SelectionV2): ProjectActionV2 | undefined {
+  if (!sel) return undefined;
+  switch (sel.kind) {
+    case "wall":
+      return { type: "remove-wall", wallId: sel.wallId };
+    case "opening":
+      return { type: "remove-opening", openingId: sel.openingId };
+    case "balcony":
+      return { type: "remove-balcony", balconyId: sel.balconyId };
+    case "slab":
+      return { type: "remove-slab", slabId: sel.slabId };
+    case "roof":
+      return { type: "remove-roof", roofId: sel.roofId };
+    case "stair":
+      return { type: "remove-stair", stairId: sel.stairId };
+    default:
+      return undefined;
+  }
+}
+
+function isEditableTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  const tag = target.tagName;
+  if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return true;
+  return target.isContentEditable;
+}
+
 export function AppShell() {
-  const [project, dispatch] = useReducer(projectReducerV2, undefined, init);
+  const { project, dispatch, undo, redo } = useUndoableProject(init);
   const isElevation = project.activeView.startsWith("elevation-");
   const is3D = project.mode === "3d";
+
+  // Global keyboard: Cmd/Ctrl+Z = undo, Cmd/Ctrl+Shift+Z (or Cmd+Y) = redo,
+  // Delete/Backspace = remove current selection. All gated on no editable
+  // input being focused (so typing in NumberField doesn't trigger).
+  useEffect(() => {
+    const handler = (event: KeyboardEvent) => {
+      if (isEditableTarget(event.target)) return;
+      const meta = event.metaKey || event.ctrlKey;
+      if (meta && event.key.toLowerCase() === "z") {
+        event.preventDefault();
+        if (event.shiftKey) redo();
+        else undo();
+        return;
+      }
+      if (meta && event.key.toLowerCase() === "y") {
+        event.preventDefault();
+        redo();
+        return;
+      }
+      if (!meta && (event.key === "Delete" || event.key === "Backspace")) {
+        const action = removeActionForSelection(project.selection);
+        if (action) {
+          event.preventDefault();
+          dispatch(action);
+          dispatch({ type: "select", selection: undefined });
+        }
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [project.selection, dispatch, undo, redo]);
 
   return (
     <div className="app-root">
