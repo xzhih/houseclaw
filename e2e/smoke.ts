@@ -339,6 +339,47 @@ try {
     assert(restored.walls >= 4, `expected at least 4 walls after Cmd+Z restore, got ${restored.walls}`);
   });
 
+  await step("elevation: click without drag selects opening + shows 4 corner handles", async () => {
+    // Make sure we're on elevation
+    await view.evaluate(`(() => {
+      const tabs = Array.from(document.querySelectorAll('button.chrome-viewbar-tab'));
+      tabs.find(b => b.textContent.trim() === '立面')?.click();
+    })()`);
+    await Bun.sleep(400);
+    // Pure click: pointerdown + pointerup at same coord, NO movement.
+    // Earlier the world threshold was so tight (0.04m world) that 1-2px
+    // jitter would mark this as a drag and skip the selectionOnClickV2 path.
+    await view.evaluate(`(() => {
+      const o = document.querySelector('.elevation-opening');
+      const r = o.getBoundingClientRect();
+      const cx = r.x + r.width/2, cy = r.y + r.height/2;
+      o.dispatchEvent(new PointerEvent('pointerdown', {
+        bubbles: true, cancelable: true,
+        pointerId: 60, pointerType: 'mouse', button: 0, isPrimary: true,
+        clientX: cx, clientY: cy,
+      }));
+      const svg = document.querySelector('[aria-label="2D drawing surface"] svg');
+      svg.dispatchEvent(new PointerEvent('pointerup', {
+        bubbles: true, pointerId: 60, button: 0,
+        clientX: cx, clientY: cy,
+      }));
+    })()`);
+    await Bun.sleep(300);
+    const result = (await view.evaluate(`(() => ({
+      selectedKind: Array.from(document.querySelectorAll('.chrome-accordion-header'))
+        .find(h => h.textContent.includes('SELECTION'))?.textContent?.trim() ?? null,
+      handles: document.querySelectorAll('.resize-handle').length,
+    }))()`)) as { selectedKind: string; handles: number };
+    assert(
+      typeof result.selectedKind === "string" && result.selectedKind.includes("OPENING"),
+      `SELECTION header is "${result.selectedKind}" — click failed to select opening`,
+    );
+    assert(
+      result.handles === 4,
+      `expected 4 resize handles after selecting opening, got ${result.handles}`,
+    );
+  });
+
   await step("elevation: drag opening body horizontally moves it (regression: race-condition fix)", async () => {
     // Switch to 立面 view
     await view.evaluate(`(() => {

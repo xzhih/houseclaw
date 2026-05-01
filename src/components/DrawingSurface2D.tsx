@@ -26,7 +26,7 @@ import type { Point2D, DragReadout } from "./canvas/types";
 import { useDragHandlersV2, eventToWorldWith } from "./canvas/useDragHandlersV2";
 import {
   applyDragV2,
-  DRAG_MOVE_THRESHOLD_WORLD,
+  DRAG_MOVE_THRESHOLD_PX,
   selectionOnClickV2,
   type WallSegment,
 } from "./canvas/dragMachineV2";
@@ -63,11 +63,24 @@ export function DrawingSurface2D({ project, onSelect, dispatch }: DrawingSurface
   // first move event drops on the floor (intermittent "highlight but no drag"
   // behavior — symptoms vary with mouse speed).
   const dragStateRef = useRef<DragStateV2 | null>(null);
+  const dragStartPixelRef = useRef<{ x: number; y: number } | null>(null);
   const [dragState, setDragStateInner] = useState<DragStateV2 | null>(null);
-  const setDragState = useCallback((next: DragStateV2 | null) => {
-    dragStateRef.current = next;
-    setDragStateInner(next);
-  }, []);
+  // Two call shapes:
+  //   setDragState(next, startPixel) — from pointerdown (records pixel start)
+  //   setDragState(null)             — from pointerup/cancel (clears)
+  //   setDragState({ ...ds, moved: true }) — from pointermove (updates ds only)
+  const setDragState = useCallback(
+    (next: DragStateV2 | null, startPixel?: { x: number; y: number }) => {
+      dragStateRef.current = next;
+      setDragStateInner(next);
+      if (next === null) {
+        dragStartPixelRef.current = null;
+      } else if (startPixel) {
+        dragStartPixelRef.current = startPixel;
+      }
+    },
+    [],
+  );
   const [readout, setReadout] = useState<DragReadout | null>(null);
   const [readoutVisible, setReadoutVisible] = useState(false);
   const readoutTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -190,13 +203,16 @@ export function DrawingSurface2D({ project, onSelect, dispatch }: DrawingSurface
           // which case the closed-over `dragState` is still null.
           const ds = dragStateRef.current;
           if (ds && svgRef.current) {
-            const world = eventToWorldWith(svgRef.current, event, ds.mapping);
-            if (world) {
-              const dist = Math.hypot(
-                world.x - ds.startWorld.x,
-                world.y - ds.startWorld.y,
-              );
-              if (dist >= DRAG_MOVE_THRESHOLD_WORLD || ds.moved) {
+            // dragStartPixelRef was set by setDragState() at pointerdown (via
+            // useDragHandlersV2). Pixel-based threshold is zoom-independent —
+            // a normal click with 1-2px jitter no longer triggers a drag.
+            const startPx = dragStartPixelRef.current;
+            const pxDist = startPx
+              ? Math.hypot(event.clientX - startPx.x, event.clientY - startPx.y)
+              : 0;
+            if (pxDist >= DRAG_MOVE_THRESHOLD_PX || ds.moved) {
+              const world = eventToWorldWith(svgRef.current, event, ds.mapping);
+              if (world) {
                 if (!ds.moved) {
                   setDragState({ ...ds, moved: true } as DragStateV2);
                 }

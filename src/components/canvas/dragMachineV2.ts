@@ -7,7 +7,16 @@ import type { DragReadout, Point2D } from "./types";
 
 const PLAN_GRID_SIZE = 0.1;
 const PLAN_ENDPOINT_THRESHOLD = 0.2;
-export const DRAG_MOVE_THRESHOLD_WORLD = 0.04;
+/** Drag starts only after the pointer has moved this many pixels in screen
+ *  space. Pixel-based (not world-based) so behavior is consistent regardless
+ *  of zoom — a normal click with jittery mouse won't be misread as a drag,
+ *  and a deliberate drag at any zoom level crosses the threshold immediately.
+ *
+ *  Kept exported under the world-named symbol for backwards compatibility
+ *  with existing callers, but the value is now pixels and the consumer
+ *  computes pixel distance from event.clientX/Y. */
+export const DRAG_MOVE_THRESHOLD_WORLD = 0.04; // legacy export — unused by current consumer
+export const DRAG_MOVE_THRESHOLD_PX = 6;
 
 export type WallSegment = { start: Point2D; end: Point2D };
 

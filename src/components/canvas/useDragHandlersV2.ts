@@ -47,7 +47,10 @@ type Args = {
   planMapping: PointMapping | undefined;
   elevationMapping: PointMapping | undefined;
   svgRef: RefObject<SVGSVGElement | null>;
-  setDragState: (state: DragStateV2) => void;
+  /** Called on pointerdown when a drag begins. Receives the new drag state
+   *  and the pointer position in screen pixels, used by the parent to gate
+   *  the drag-start threshold by pixel distance (zoom-independent). */
+  setDragState: (state: DragStateV2, startPixel: { x: number; y: number }) => void;
 };
 
 export function useDragHandlersV2(args: Args): {
@@ -87,7 +90,7 @@ export function useDragHandlersV2(args: Args): {
     // the pointer isn't currently active, and we don't want to lose the drag
     // state in that case. If capture fails, drag still works via normal event
     // bubbling (parent SVG receives pointermove).
-    setDragState(next);
+    setDragState(next, { x: event.clientX, y: event.clientY });
     try {
       svgRef.current.setPointerCapture(event.pointerId);
     } catch {
