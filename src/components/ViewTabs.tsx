@@ -10,13 +10,18 @@ export function ViewTabs({ project, onChange }: ViewTabsProps) {
     id: `plan-${s.id}`,
     label: s.label,
   }));
+  const isElevation = project.activeView.startsWith("elevation-");
+  const isRoof = project.activeView === "roof";
+  const is3D = project.mode === "3d";
+
   return (
-    <div className="view-tabs" role="tablist">
+    <div className="chrome-viewbar" role="tablist">
       {planTabs.map((tab) => (
         <button
           key={tab.id}
           role="tab"
-          aria-selected={project.activeView === tab.id}
+          className="chrome-viewbar-tab"
+          aria-selected={!is3D && project.activeView === tab.id}
           onClick={() => onChange(tab.id)}
         >
           {tab.label}
@@ -24,17 +29,28 @@ export function ViewTabs({ project, onChange }: ViewTabsProps) {
       ))}
       <button
         role="tab"
-        aria-selected={project.activeView.startsWith("elevation-")}
+        className="chrome-viewbar-tab"
+        aria-selected={!is3D && isElevation}
         onClick={() => onChange("elevation-front")}
       >
         立面
       </button>
       <button
         role="tab"
-        aria-selected={project.activeView === "roof"}
+        className="chrome-viewbar-tab"
+        aria-selected={!is3D && isRoof}
         onClick={() => onChange("roof")}
       >
         屋顶
+      </button>
+      <span style={{ flex: 1 }} aria-hidden />
+      <button
+        role="tab"
+        className="chrome-viewbar-tab"
+        aria-selected={is3D}
+        onClick={() => onChange("3d")}
+      >
+        3D
       </button>
     </div>
   );

@@ -46,7 +46,14 @@ export function AppShell() {
 
       <ViewTabs
         project={project}
-        onChange={(viewId) => dispatch({ type: "set-view", viewId })}
+        onChange={(viewId) => {
+          if (viewId === "3d") {
+            dispatch({ type: "set-mode", mode: "3d" });
+          } else {
+            dispatch({ type: "set-mode", mode: "2d" });
+            dispatch({ type: "set-view", viewId });
+          }
+        }}
       />
       {isElevation ? (
         <ElevationSideTabs
