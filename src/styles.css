@@ -2013,3 +2013,5 @@ select {
 .editor-2d .storey-id {
   color: #555;
 }
+
+@import "./styles/chrome.css";
