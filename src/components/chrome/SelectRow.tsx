@@ -21,8 +21,10 @@ export function SelectRow<T extends string>({
           <button
             key={opt.value}
             type="button"
+            role="radio"
             className="chrome-select-pill"
-            aria-pressed={value === opt.value}
+            aria-checked={value === opt.value}
+            tabIndex={value === opt.value ? 0 : -1}
             onClick={() => onChange(opt.value)}
           >
             {opt.label}
