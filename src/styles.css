@@ -1,5 +1,21 @@
 @import "./styles/tokens.css";
 
+:root {
+  --canvas-bg: #fafafa;
+  --panel: rgba(20, 22, 28, 0.78);
+  --panel-strong: rgba(20, 22, 28, 0.92);
+  --panel-border: rgba(255, 255, 255, 0.12);
+  --panel-border-hover: rgba(255, 255, 255, 0.22);
+  --text: #ececec;
+  --accent-bg: rgba(255, 255, 255, 0.08);
+  --accent-bg-strong: rgba(255, 255, 255, 0.16);
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --pill: 999px;
+  --danger: #ff7575;
+}
+
 * {
   box-sizing: border-box;
 }
