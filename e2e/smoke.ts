@@ -339,6 +339,61 @@ try {
     assert(restored.walls >= 4, `expected at least 4 walls after Cmd+Z restore, got ${restored.walls}`);
   });
 
+  await step("elevation: drag opening body horizontally moves it (regression: race-condition fix)", async () => {
+    // Switch to 立面 view
+    await view.evaluate(`(() => {
+      const tabs = Array.from(document.querySelectorAll('button.chrome-viewbar-tab'));
+      tabs.find(b => b.textContent.trim() === '立面')?.click();
+    })()`);
+    await Bun.sleep(400);
+    // Capture initial position
+    const before = (await view.evaluate(`(() => {
+      const o = document.querySelector('.elevation-opening');
+      return { id: o?.getAttribute('aria-label'), x: parseFloat(o?.getAttribute('x') || '0') };
+    })()`)) as { id: string; x: number };
+    assert(before.id, "no elevation opening rendered");
+    // Synchronous fire: pointerdown + pointermove in same tick — emulates the
+    // "fast drag" case where React hasn't re-rendered between the two events.
+    // Pre-fix: handler closed over null dragState → drop. Post-fix: ref reads
+    // latest synchronously.
+    await view.evaluate(`(() => {
+      const o = document.querySelector('.elevation-opening');
+      const r = o.getBoundingClientRect();
+      const sx = r.x + r.width/2, sy = r.y + r.height/2;
+      o.dispatchEvent(new PointerEvent('pointerdown', {
+        bubbles: true, cancelable: true,
+        pointerId: 31, pointerType: 'mouse', button: 0, isPrimary: true,
+        clientX: sx, clientY: sy,
+      }));
+      // No yield — fire pointermove same tick.
+      const svg = document.querySelector('[aria-label="2D drawing surface"] svg');
+      svg.dispatchEvent(new PointerEvent('pointermove', {
+        bubbles: true, cancelable: true,
+        pointerId: 31, pointerType: 'mouse', button: 0,
+        clientX: sx + 80, clientY: sy,
+      }));
+      svg.dispatchEvent(new PointerEvent('pointerup', {
+        bubbles: true, pointerId: 31, button: 0,
+      }));
+    })()`);
+    await Bun.sleep(300);
+    const after = (await view.evaluate(`(() => {
+      const o = document.querySelector('.elevation-opening');
+      return { x: parseFloat(o?.getAttribute('x') || '0') };
+    })()`)) as { x: number };
+    const delta = after.x - before.x;
+    assert(
+      Math.abs(delta) >= 1,
+      `opening did not move on fast drag — race condition regression. before x=${before.x}, after x=${after.x}, delta=${delta}`,
+    );
+    // Switch back to 一层 for the next test
+    await view.evaluate(`(() => {
+      Array.from(document.querySelectorAll('button.chrome-viewbar-tab'))
+        .find(b => b.textContent.trim() === '一层')?.click();
+    })()`);
+    await Bun.sleep(400);
+  });
+
   await step("switching tools cancels half-finished wall (no lingering preview)", async () => {
     // Switch to WALL tool, click ONE point on the canvas, switch away, switch
     // back, confirm no dashed preview line is rendered.

@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import type { ProjectStateV2, SelectionV2 } from "../app/v2/projectReducer";
 import type { ProjectActionV2 } from "../app/v2/projectReducer";
 import { projectElevationV2 } from "../projection/v2/elevation";
@@ -56,7 +56,18 @@ export function DrawingSurface2D({ project, onSelect, dispatch }: DrawingSurface
   );
   const [gridVisible, setGridVisible] = useState(true);
   const [cursorWorld, setCursorWorld] = useState<Point2D | null>(null);
-  const [dragState, setDragState] = useState<DragStateV2 | null>(null);
+  // dragState lives in BOTH a ref (for synchronous read in pointermove) and
+  // useState (for React re-render of overlay UI like cursor / drag handles).
+  // pointerdown → pointermove can fire before React commits the next render,
+  // so the handler must read the ref to see the just-set state, otherwise the
+  // first move event drops on the floor (intermittent "highlight but no drag"
+  // behavior — symptoms vary with mouse speed).
+  const dragStateRef = useRef<DragStateV2 | null>(null);
+  const [dragState, setDragStateInner] = useState<DragStateV2 | null>(null);
+  const setDragState = useCallback((next: DragStateV2 | null) => {
+    dragStateRef.current = next;
+    setDragStateInner(next);
+  }, []);
   const [readout, setReadout] = useState<DragReadout | null>(null);
   const [readoutVisible, setReadoutVisible] = useState(false);
   const readoutTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -174,18 +185,22 @@ export function DrawingSurface2D({ project, onSelect, dispatch }: DrawingSurface
         onPointerMove={(event) => {
           panHandlers.onPointerMove(event);
 
-          if (dragState && svgRef.current) {
-            const world = eventToWorldWith(svgRef.current, event, dragState.mapping);
+          // Read latest dragState from ref — it may have been set in this same
+          // tick by a child element's pointerdown before React re-rendered, in
+          // which case the closed-over `dragState` is still null.
+          const ds = dragStateRef.current;
+          if (ds && svgRef.current) {
+            const world = eventToWorldWith(svgRef.current, event, ds.mapping);
             if (world) {
               const dist = Math.hypot(
-                world.x - dragState.startWorld.x,
-                world.y - dragState.startWorld.y,
+                world.x - ds.startWorld.x,
+                world.y - ds.startWorld.y,
               );
-              if (dist >= DRAG_MOVE_THRESHOLD_WORLD || dragState.moved) {
-                if (!dragState.moved) {
-                  setDragState({ ...dragState, moved: true } as DragStateV2);
+              if (dist >= DRAG_MOVE_THRESHOLD_WORLD || ds.moved) {
+                if (!ds.moved) {
+                  setDragState({ ...ds, moved: true } as DragStateV2);
                 }
-                const outcome = applyDragV2(dragState, world, {
+                const outcome = applyDragV2(ds, world, {
                   project,
                   planProjection,
                   otherWallSegmentsExclude,
@@ -212,12 +227,13 @@ export function DrawingSurface2D({ project, onSelect, dispatch }: DrawingSurface
         }}
         onPointerUp={(event) => {
           panHandlers.onPointerUp(event);
-          if (dragState) {
-            if (svgRef.current?.hasPointerCapture(dragState.pointerId)) {
-              svgRef.current.releasePointerCapture(dragState.pointerId);
+          const ds = dragStateRef.current;
+          if (ds) {
+            if (svgRef.current?.hasPointerCapture(ds.pointerId)) {
+              svgRef.current.releasePointerCapture(ds.pointerId);
             }
-            if (!dragState.moved) {
-              const sel = selectionOnClickV2(dragState);
+            if (!ds.moved) {
+              const sel = selectionOnClickV2(ds);
               if (sel) onSelect(sel);
             }
             setReadoutVisible(false);
@@ -230,9 +246,10 @@ export function DrawingSurface2D({ project, onSelect, dispatch }: DrawingSurface
           }
         }}
         onPointerCancel={(event) => {
-          if (dragState) {
-            if (svgRef.current?.hasPointerCapture(dragState.pointerId)) {
-              svgRef.current.releasePointerCapture(dragState.pointerId);
+          const ds = dragStateRef.current;
+          if (ds) {
+            if (svgRef.current?.hasPointerCapture(ds.pointerId)) {
+              svgRef.current.releasePointerCapture(ds.pointerId);
             }
             setDragState(null);
           }
@@ -240,7 +257,7 @@ export function DrawingSurface2D({ project, onSelect, dispatch }: DrawingSurface
         }}
         onClick={(event) => {
           // Skip click handling if we just finished a drag (pointerup already handled selection)
-          if (dragState) return;
+          if (dragStateRef.current) return;
 
           const target = event.target as SVGElement;
           const hitKind = target.getAttribute("data-kind");

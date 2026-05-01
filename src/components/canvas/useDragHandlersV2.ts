@@ -83,8 +83,18 @@ export function useDragHandlersV2(args: Args): {
     if (!next) return;
 
     event.stopPropagation();
-    svgRef.current.setPointerCapture(event.pointerId);
+    // Set state FIRST — pointerCapture can throw on synthetic events or when
+    // the pointer isn't currently active, and we don't want to lose the drag
+    // state in that case. If capture fails, drag still works via normal event
+    // bubbling (parent SVG receives pointermove).
     setDragState(next);
+    try {
+      svgRef.current.setPointerCapture(event.pointerId);
+    } catch {
+      // setPointerCapture is best-effort. Real-world cause: synthetic pointer
+      // events from test harness, or the pointer being released between
+      // pointerdown and this call.
+    }
   };
 
   const beginPlanDrag = (
