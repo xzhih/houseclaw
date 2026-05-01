@@ -435,6 +435,32 @@ try {
     await Bun.sleep(400);
   });
 
+  await step("ProjectSection exposes 新建 / 导入 / 导出 actions + autosaves", async () => {
+    // Expand PROJECT accordion section
+    await view.evaluate(`(() => {
+      const headers = Array.from(document.querySelectorAll('.chrome-accordion-header'));
+      headers.find(h => h.textContent.includes('PROJECT'))?.click();
+    })()`);
+    await Bun.sleep(300);
+    const buttons = (await view.evaluate(
+      `Array.from(document.querySelectorAll('.chrome-project-action')).map(b => b.textContent.trim())`,
+    )) as string[];
+    assert(
+      buttons.length === 3,
+      `expected 3 project action buttons, got ${buttons.length}: ${JSON.stringify(buttons)}`,
+    );
+    const labels = buttons.join(" | ");
+    assert(labels.includes("新建"), `missing 新建 button. labels: ${labels}`);
+    assert(labels.includes("导入"), `missing 导入 button. labels: ${labels}`);
+    assert(labels.includes("导出"), `missing 导出 button. labels: ${labels}`);
+
+    // Verify localStorage actually got written (autosave)
+    const saved = await view.evaluate(
+      `localStorage.getItem('houseclaw.v2.project')?.length ?? 0`,
+    );
+    assert(typeof saved === "number" && saved > 100, `localStorage autosave: got ${saved} bytes`);
+  });
+
   await step("switching tools cancels half-finished wall (no lingering preview)", async () => {
     // Switch to WALL tool, click ONE point on the canvas, switch away, switch
     // back, confirm no dashed preview line is rendered.

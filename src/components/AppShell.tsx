@@ -1,6 +1,10 @@
 import { useEffect } from "react";
 import { withSessionDefaults, type ProjectActionV2, type ProjectStateV2, type SelectionV2 } from "../app/v2/projectReducer";
 import { useUndoableProject } from "../app/v2/useUndoableProject";
+import {
+  loadProjectFromLocalStorage,
+  saveProjectToLocalStorage,
+} from "../app/v2/persistenceV2";
 import { createV2SampleProject } from "../domain/v2/sampleProject";
 import { Preview3D } from "./Preview3D";
 import { DrawingSurface2D } from "./DrawingSurface2D";
@@ -10,7 +14,10 @@ import { ElevationSideTabs } from "./ElevationSideTabs";
 import { PropertyPanel } from "./PropertyPanel";
 
 function init(): ProjectStateV2 {
-  return withSessionDefaults(createV2SampleProject());
+  // Prefer the user's last saved project from localStorage; fall back to the
+  // sample on first run or if storage is empty / corrupted.
+  const saved = loadProjectFromLocalStorage();
+  return withSessionDefaults(saved ?? createV2SampleProject());
 }
 
 /** Convert the current selection to a remove-* action. Called when the user
@@ -47,6 +54,14 @@ export function AppShell() {
   const { project, dispatch, undo, redo } = useUndoableProject(init);
   const isElevation = project.activeView.startsWith("elevation-");
   const is3D = project.mode === "3d";
+
+  // Auto-save to localStorage on any project change. session-only fields
+  // (mode/activeView/activeTool/selection) ride along but they're harmless
+  // — the saved JSON simply has them, and init() resets them via
+  // withSessionDefaults on next load.
+  useEffect(() => {
+    saveProjectToLocalStorage(project);
+  }, [project]);
 
   // Global keyboard: Cmd/Ctrl+Z = undo, Cmd/Ctrl+Shift+Z (or Cmd+Y) = redo,
   // Delete/Backspace = remove current selection. All gated on no editable

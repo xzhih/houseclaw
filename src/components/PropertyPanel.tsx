@@ -17,7 +17,7 @@ export function PropertyPanel({ project, dispatch }: PropertyPanelProps) {
       <SelectionSection project={project} dispatch={dispatch} />
       <MaterialsSection project={project} />
       <ExportSection />
-      <ProjectSection project={project} />
+      <ProjectSection project={project} dispatch={dispatch} />
     </aside>
   );
 }

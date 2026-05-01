@@ -650,3 +650,76 @@
   color: #ff7575;
   background: rgba(255, 117, 117, 0.08);
 }
+
+/* === ProjectSection === */
+.chrome-project-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 4px 0;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+}
+.chrome-project-row-key {
+  color: var(--text-muted);
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+.chrome-project-row-value {
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  word-break: break-all;
+}
+.chrome-project-name {
+  color: var(--text-primary);
+  background: transparent;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  text-align: right;
+  cursor: pointer;
+  text-decoration: underline dotted var(--border-mid);
+  text-underline-offset: 3px;
+}
+.chrome-project-name:hover {
+  text-decoration-color: var(--text-secondary);
+}
+.chrome-project-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 12px;
+}
+.chrome-project-action {
+  width: 100%;
+  padding: 6px 10px;
+  background: var(--bg-chrome-2);
+  border: 1px solid var(--border-mid);
+  border-radius: 3px;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: border-color 200ms, color 200ms, background 200ms;
+}
+.chrome-project-action:hover {
+  border-color: var(--border-strong);
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.09);
+}
+.chrome-project-error {
+  margin-top: 8px;
+  padding: 6px 8px;
+  background: rgba(255, 117, 117, 0.08);
+  border: 1px solid rgba(255, 117, 117, 0.4);
+  border-radius: 3px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: #ff9090;
+}
