@@ -5,11 +5,20 @@ import { PropertyPanel } from "../components/PropertyPanel";
 import { withSessionDefaults } from "../app/v2/projectReducer";
 import { createV2SampleProject } from "../domain/v2/sampleProject";
 
+function workspaceProps(activeId: string) {
+  return {
+    catalog: { activeId, projects: [{ id: activeId, name: "test" }] },
+    onSwitchProject: vi.fn(),
+    onAddProject: vi.fn(),
+    onRemoveProject: vi.fn(),
+  };
+}
+
 describe("PropertyPanel — v2 entity editing", () => {
   it("shows hint when no selection", () => {
     const project = withSessionDefaults(createV2SampleProject());
     const dispatch = vi.fn();
-    render(<PropertyPanel project={project} dispatch={dispatch} />);
+    render(<PropertyPanel project={project} dispatch={dispatch} {...workspaceProps(project.id)} />);
     expect(screen.getByText("在 2D 视图中点击对象以编辑属性")).toBeInTheDocument();
   });
 
@@ -18,7 +27,7 @@ describe("PropertyPanel — v2 entity editing", () => {
     const wallId = project.walls[0].id;
     const selected = { ...project, selection: { kind: "wall" as const, wallId } };
     const dispatch = vi.fn();
-    render(<PropertyPanel project={selected} dispatch={dispatch} />);
+    render(<PropertyPanel project={selected} dispatch={dispatch} {...workspaceProps(project.id)} />);
     expect(screen.getByText(`墙 ${wallId}`)).toBeInTheDocument();
     expect(screen.getByLabelText("厚度")).toBeInTheDocument();
   });
@@ -29,7 +38,7 @@ describe("PropertyPanel — v2 entity editing", () => {
     const wallId = project.walls[0].id;
     const selected = { ...project, selection: { kind: "wall" as const, wallId } };
     const dispatch = vi.fn();
-    render(<PropertyPanel project={selected} dispatch={dispatch} />);
+    render(<PropertyPanel project={selected} dispatch={dispatch} {...workspaceProps(project.id)} />);
 
     const input = screen.getByLabelText("厚度") as HTMLInputElement;
     await user.clear(input);
@@ -51,14 +60,14 @@ describe("PropertyPanel — v2 entity editing", () => {
       selection: { kind: "opening" as const, openingId: opening.id },
     };
     const dispatch = vi.fn();
-    render(<PropertyPanel project={selected} dispatch={dispatch} />);
+    render(<PropertyPanel project={selected} dispatch={dispatch} {...workspaceProps(project.id)} />);
     expect(screen.getByText(new RegExp(`开洞 ${opening.id}`))).toBeInTheDocument();
   });
 
   it("shows missing-entity message when selection points at deleted entity", () => {
     const project = withSessionDefaults(createV2SampleProject());
     const ghost = { ...project, selection: { kind: "wall" as const, wallId: "no-such-wall" } };
-    render(<PropertyPanel project={ghost} dispatch={vi.fn()} />);
+    render(<PropertyPanel project={ghost} dispatch={vi.fn()} {...workspaceProps(project.id)} />);
     expect(screen.getByText(/已被删除/)).toBeInTheDocument();
   });
 });

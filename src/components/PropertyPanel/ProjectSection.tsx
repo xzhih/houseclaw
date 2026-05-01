@@ -1,7 +1,11 @@
 import { useRef, useState } from "react";
 import type { ProjectActionV2, ProjectStateV2 } from "../../app/v2/projectReducer";
-import { withSessionDefaults } from "../../app/v2/projectReducer";
-import { createV2SampleProject } from "../../domain/v2/sampleProject";
+import type { HouseProject } from "../../domain/v2/types";
+import {
+  generateProjectId,
+  nextProjectName,
+  type WorkspaceCatalog,
+} from "../../app/v2/workspaceV2";
 import {
   downloadProjectJson,
   importProjectJson,
@@ -11,32 +15,54 @@ import { Accordion } from "../chrome/Accordion";
 type ProjectSectionProps = {
   project: ProjectStateV2;
   dispatch: (action: ProjectActionV2) => void;
+  catalog: WorkspaceCatalog;
+  onSwitchProject: (id: string) => void;
+  onAddProject: (project: HouseProject) => void;
+  onRemoveProject: (id: string) => void;
 };
 
-export function ProjectSection({ project, dispatch }: ProjectSectionProps) {
+function emptyProject(name: string): HouseProject {
+  return {
+    schemaVersion: 2,
+    id: generateProjectId(),
+    name,
+    storeys: [
+      { id: "1f", label: "一层", elevation: 0 },
+      { id: "2f", label: "二层", elevation: 3 },
+      { id: "roof", label: "屋面", elevation: 6 },
+    ],
+    walls: [],
+    slabs: [],
+    roofs: [],
+    openings: [],
+    balconies: [],
+    stairs: [],
+    materials: [
+      { id: "mat-wall-white", name: "白漆外墙", kind: "wall", color: "#f4efe6" },
+      { id: "mat-roof-tile", name: "深灰瓦", kind: "roof", color: "#3a3a3a" },
+      { id: "mat-frame-dark", name: "深灰窗框", kind: "frame", color: "#2a2a2a" },
+      { id: "mat-door-walnut", name: "深木门", kind: "frame", color: "#5b3a26" },
+      { id: "mat-slab-stone", name: "混凝土楼板", kind: "decor", color: "#bdbdbd" },
+    ],
+  };
+}
+
+export function ProjectSection({
+  project,
+  dispatch,
+  catalog,
+  onSwitchProject,
+  onAddProject,
+  onRemoveProject,
+}: ProjectSectionProps) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
 
+  const existingNames = catalog.projects.map((p) => p.name);
+
   const handleNew = () => {
-    if (
-      !confirm(
-        "新建空白项目?当前未导出的修改会丢失(Cmd+Z 仍可在新建后撤销回来)。",
-      )
-    ) {
-      return;
-    }
-    const fresh = withSessionDefaults({
-      ...createV2SampleProject(),
-      id: `proj-${Date.now().toString(36)}`,
-      name: "未命名项目",
-      walls: [],
-      slabs: [],
-      roofs: [],
-      openings: [],
-      balconies: [],
-      stairs: [],
-    });
-    dispatch({ type: "replace-project", project: fresh });
+    const name = nextProjectName(existingNames);
+    onAddProject(emptyProject(name));
   };
 
   const handleExport = () => {
@@ -50,13 +76,18 @@ export function ProjectSection({ project, dispatch }: ProjectSectionProps) {
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    event.target.value = ""; // reset so picking the same file twice still fires
+    event.target.value = "";
     if (!file) return;
     try {
       const text = await file.text();
       const imported = importProjectJson(text);
-      const next = withSessionDefaults(imported);
-      dispatch({ type: "replace-project", project: next });
+      // Always assign a fresh id so importing twice doesn't collide with an
+      // existing project in the catalog.
+      const fresh: HouseProject = {
+        ...imported,
+        id: generateProjectId(),
+      };
+      onAddProject(fresh);
       setImportError(null);
     } catch (e) {
       setImportError(e instanceof Error ? e.message : String(e));
@@ -72,36 +103,62 @@ export function ProjectSection({ project, dispatch }: ProjectSectionProps) {
     });
   };
 
+  const handleDelete = (id: string) => {
+    if (catalog.projects.length <= 1) {
+      setImportError("不能删除最后一个项目。");
+      return;
+    }
+    const entry = catalog.projects.find((p) => p.id === id);
+    if (!entry) return;
+    if (!confirm(`确认删除项目 "${entry.name}"?此操作不可撤销。`)) return;
+    onRemoveProject(id);
+    setImportError(null);
+  };
+
   return (
     <Accordion title="PROJECT">
-      <div className="chrome-project-row">
-        <span className="chrome-project-row-key">名称</span>
-        <button type="button" className="chrome-project-name" onClick={handleRename}>
-          {project.name || "未命名项目"}
-        </button>
-      </div>
-      <div className="chrome-project-row">
-        <span className="chrome-project-row-key">ID</span>
-        <span className="chrome-project-row-value">{project.id}</span>
-      </div>
-      <div className="chrome-project-row">
-        <span className="chrome-project-row-key">楼层</span>
-        <span className="chrome-project-row-value">{project.storeys.length}</span>
-      </div>
-      <div className="chrome-project-row">
-        <span className="chrome-project-row-key">墙</span>
-        <span className="chrome-project-row-value">{project.walls.length}</span>
+      <div className="chrome-project-list">
+        {catalog.projects.map((entry) => {
+          const active = entry.id === catalog.activeId;
+          return (
+            <div
+              key={entry.id}
+              className={`chrome-project-item${active ? " is-active" : ""}`}
+            >
+              <button
+                type="button"
+                className="chrome-project-item-name"
+                onClick={() => (active ? handleRename() : onSwitchProject(entry.id))}
+                title={active ? "点击重命名" : "切换到这个项目"}
+              >
+                {active ? "● " : "○ "}
+                {entry.name}
+              </button>
+              {!active ? (
+                <button
+                  type="button"
+                  className="chrome-project-item-delete"
+                  onClick={() => handleDelete(entry.id)}
+                  title={`删除 ${entry.name}`}
+                  aria-label={`删除项目 ${entry.name}`}
+                >
+                  ×
+                </button>
+              ) : null}
+            </div>
+          );
+        })}
       </div>
 
       <div className="chrome-project-actions">
         <button type="button" className="chrome-project-action" onClick={handleNew}>
-          + 新建
+          + 新建空项目
         </button>
         <button type="button" className="chrome-project-action" onClick={handleImportClick}>
           导入 JSON
         </button>
         <button type="button" className="chrome-project-action" onClick={handleExport}>
-          导出 JSON
+          导出当前 JSON
         </button>
       </div>
 
@@ -116,6 +173,15 @@ export function ProjectSection({ project, dispatch }: ProjectSectionProps) {
       {importError ? (
         <p className="chrome-project-error">{importError}</p>
       ) : null}
+
+      <div className="chrome-project-row" style={{ marginTop: 12 }}>
+        <span className="chrome-project-row-key">楼层</span>
+        <span className="chrome-project-row-value">{project.storeys.length}</span>
+      </div>
+      <div className="chrome-project-row">
+        <span className="chrome-project-row-key">墙</span>
+        <span className="chrome-project-row-value">{project.walls.length}</span>
+      </div>
     </Accordion>
   );
 }

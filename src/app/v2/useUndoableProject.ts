@@ -25,10 +25,13 @@ type UndoableState = {
 type UndoableAction =
   | { type: "do"; action: ProjectActionV2 }
   | { type: "undo" }
-  | { type: "redo" };
+  | { type: "redo" }
+  | { type: "reset"; project: ProjectStateV2 };
 
 function undoableReducer(state: UndoableState, action: UndoableAction): UndoableState {
   switch (action.type) {
+    case "reset":
+      return { past: [], current: action.project, future: [] };
     case "do": {
       const next = projectReducerV2(state.current, action.action);
       if (next === state.current) return state;
@@ -82,6 +85,10 @@ export type UndoableProject = {
   redo: () => void;
   canUndo: boolean;
   canRedo: boolean;
+  /** Replace the entire project state without polluting undo history.
+   *  Use when switching to a different project — the old project's history
+   *  shouldn't apply to the new one. */
+  reset: (project: ProjectStateV2) => void;
 };
 
 export function useUndoableProject(init: () => ProjectStateV2): UndoableProject {
@@ -97,12 +104,17 @@ export function useUndoableProject(init: () => ProjectStateV2): UndoableProject 
   );
   const undo = useCallback(() => raw({ type: "undo" }), []);
   const redo = useCallback(() => raw({ type: "redo" }), []);
+  const reset = useCallback(
+    (project: ProjectStateV2) => raw({ type: "reset", project }),
+    [],
+  );
 
   return {
     project: state.current,
     dispatch,
     undo,
     redo,
+    reset,
     canUndo: state.past.length > 0,
     canRedo: state.future.length > 0,
   };

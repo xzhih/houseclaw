@@ -723,3 +723,57 @@
   letter-spacing: 0.04em;
   color: #ff9090;
 }
+
+.chrome-project-list {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 8px;
+  border: 1px solid var(--border-soft);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.chrome-project-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border-bottom: 1px solid var(--border-soft);
+}
+.chrome-project-item:last-child {
+  border-bottom: 0;
+}
+.chrome-project-item-name {
+  flex: 1;
+  padding: 6px 10px;
+  background: transparent;
+  border: 0;
+  text-align: left;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background 200ms, color 200ms;
+}
+.chrome-project-item-name:hover {
+  background: var(--bg-chrome-2);
+  color: var(--text-primary);
+}
+.chrome-project-item.is-active .chrome-project-item-name {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.06);
+  cursor: text;
+}
+.chrome-project-item-delete {
+  width: 24px;
+  padding: 4px 0;
+  background: transparent;
+  border: 0;
+  color: var(--text-muted);
+  font-size: 14px;
+  cursor: pointer;
+  transition: color 200ms, background 200ms;
+}
+.chrome-project-item-delete:hover {
+  color: #ff7575;
+  background: rgba(255, 117, 117, 0.1);
+}

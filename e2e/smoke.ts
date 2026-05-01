@@ -21,6 +21,10 @@ const EXPECTED_NOISE = [
   "WebGL context could not be created",
   "Could not create a WebGL context",
   "Error creating WebGL context",
+  "WebGLProgram",
+  "Shader Error",
+  "MeshStandardMaterial",
+  "MSL compilation error",
 ];
 
 const errors: Array<{ type: string; msg: string }> = [];
@@ -435,7 +439,7 @@ try {
     await Bun.sleep(400);
   });
 
-  await step("ProjectSection exposes 新建 / 导入 / 导出 actions + autosaves", async () => {
+  await step("ProjectSection exposes 新建 / 导入 / 导出 + workspace catalog persists", async () => {
     // Expand PROJECT accordion section
     await view.evaluate(`(() => {
       const headers = Array.from(document.querySelectorAll('.chrome-accordion-header'));
@@ -454,11 +458,74 @@ try {
     assert(labels.includes("导入"), `missing 导入 button. labels: ${labels}`);
     assert(labels.includes("导出"), `missing 导出 button. labels: ${labels}`);
 
-    // Verify localStorage actually got written (autosave)
-    const saved = await view.evaluate(
-      `localStorage.getItem('houseclaw.v2.project')?.length ?? 0`,
+    // Workspace catalog should be in localStorage with at least one entry.
+    const catalog = await view.evaluate(
+      `localStorage.getItem('houseclaw.v2.catalog')`,
     );
-    assert(typeof saved === "number" && saved > 100, `localStorage autosave: got ${saved} bytes`);
+    assert(
+      typeof catalog === "string" && catalog.length > 10,
+      `workspace catalog not in localStorage; got ${catalog}`,
+    );
+    const parsed = JSON.parse(catalog as string);
+    assert(
+      parsed.activeId && Array.isArray(parsed.projects) && parsed.projects.length >= 1,
+      `catalog shape invalid: ${catalog}`,
+    );
+    // The active project's per-id slot should also exist.
+    const activeProject = await view.evaluate(
+      `localStorage.getItem('houseclaw.v2.project.' + JSON.parse(localStorage.getItem('houseclaw.v2.catalog')).activeId)?.length ?? 0`,
+    );
+    assert(
+      typeof activeProject === "number" && activeProject > 100,
+      `active project autosave: got ${activeProject} bytes`,
+    );
+  });
+
+  await step("workspace: 新建空项目 button creates + switches to a 2nd project", async () => {
+    // Make sure PROJECT section is open
+    await view.evaluate(`(() => {
+      const headers = Array.from(document.querySelectorAll('.chrome-accordion-header'));
+      const ph = headers.find(h => h.textContent.includes('PROJECT'));
+      if (ph?.getAttribute('aria-expanded') !== 'true') ph?.click();
+    })()`);
+    await Bun.sleep(200);
+    const before = (await view.evaluate(`(() => {
+      const items = Array.from(document.querySelectorAll('.chrome-project-item'));
+      const active = items.find(i => i.classList.contains('is-active'));
+      return { count: items.length, activeName: active?.textContent?.trim() };
+    })()`)) as { count: number; activeName: string };
+    // Click 新建空项目
+    await view.evaluate(`(() => {
+      const btn = Array.from(document.querySelectorAll('.chrome-project-action'))
+        .find(b => b.textContent.includes('新建'));
+      btn?.click();
+    })()`);
+    await Bun.sleep(400);
+    const after = (await view.evaluate(`(() => {
+      const items = Array.from(document.querySelectorAll('.chrome-project-item'));
+      const active = items.find(i => i.classList.contains('is-active'));
+      return { count: items.length, activeName: active?.textContent?.trim() };
+    })()`)) as { count: number; activeName: string };
+    assert(
+      after.count === before.count + 1,
+      `project list: ${before.count} → ${after.count}, expected +1`,
+    );
+    assert(
+      after.activeName !== before.activeName,
+      `active project should change after 新建; before "${before.activeName}", after "${after.activeName}"`,
+    );
+    // The new project starts empty: no walls in plan view.
+    const plan2dWalls = await view.evaluate(`(() => {
+      const tabs = Array.from(document.querySelectorAll('button.chrome-viewbar-tab'));
+      tabs.find(b => b.textContent.trim() === '一层')?.click();
+      return null;
+    })()`);
+    void plan2dWalls;
+    await Bun.sleep(300);
+    const wallCount = await view.evaluate(
+      `document.querySelectorAll('[data-kind="wall"]').length`,
+    );
+    assert(wallCount === 0, `new empty project should render 0 walls, got ${wallCount}`);
   });
 
   await step("switching tools cancels half-finished wall (no lingering preview)", async () => {

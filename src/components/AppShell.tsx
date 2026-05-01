@@ -1,11 +1,16 @@
-import { useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { withSessionDefaults, type ProjectActionV2, type ProjectStateV2, type SelectionV2 } from "../app/v2/projectReducer";
 import { useUndoableProject } from "../app/v2/useUndoableProject";
 import {
-  loadProjectFromLocalStorage,
-  saveProjectToLocalStorage,
-} from "../app/v2/persistenceV2";
-import { createV2SampleProject } from "../domain/v2/sampleProject";
+  initializeWorkspace,
+  saveCatalog,
+  saveProjectById,
+  switchToProject as wsSwitch,
+  addNewProject as wsAdd,
+  removeProject as wsRemove,
+  type WorkspaceCatalog,
+} from "../app/v2/workspaceV2";
+import type { HouseProject } from "../domain/v2/types";
 import { Preview3D } from "./Preview3D";
 import { DrawingSurface2D } from "./DrawingSurface2D";
 import { ToolPalette } from "./ToolPalette";
@@ -13,11 +18,12 @@ import { ViewTabs } from "./ViewTabs";
 import { ElevationSideTabs } from "./ElevationSideTabs";
 import { PropertyPanel } from "./PropertyPanel";
 
+// Boot the workspace once at module init. Subsequent operations go through
+// the workspace API (switch / add / remove) and update both localStorage
+// and the AppShell's `catalog` state.
+const BOOT_SNAPSHOT = initializeWorkspace();
 function init(): ProjectStateV2 {
-  // Prefer the user's last saved project from localStorage; fall back to the
-  // sample on first run or if storage is empty / corrupted.
-  const saved = loadProjectFromLocalStorage();
-  return withSessionDefaults(saved ?? createV2SampleProject());
+  return withSessionDefaults(BOOT_SNAPSHOT.project);
 }
 
 /** Convert the current selection to a remove-* action. Called when the user
@@ -51,17 +57,71 @@ function isEditableTarget(target: EventTarget | null): boolean {
 }
 
 export function AppShell() {
-  const { project, dispatch, undo, redo } = useUndoableProject(init);
+  const { project, dispatch, undo, redo, reset } = useUndoableProject(init);
+  const [catalog, setCatalog] = useState<WorkspaceCatalog>(BOOT_SNAPSHOT.catalog);
   const isElevation = project.activeView.startsWith("elevation-");
   const is3D = project.mode === "3d";
 
-  // Auto-save to localStorage on any project change. session-only fields
-  // (mode/activeView/activeTool/selection) ride along but they're harmless
-  // — the saved JSON simply has them, and init() resets them via
-  // withSessionDefaults on next load.
+  // Auto-save the active project to its workspace slot on every change.
+  // The catalog itself rarely changes (only on add/remove/rename) and is
+  // saved by the workspace API directly.
   useEffect(() => {
-    saveProjectToLocalStorage(project);
-  }, [project]);
+    saveProjectById(catalog.activeId, project);
+  }, [project, catalog.activeId]);
+
+  // Keep the catalog entry's `name` in sync with the project's actual name
+  // — user can rename via the project-section button which dispatches
+  // replace-project. Without this sync the catalog list shows stale names.
+  useEffect(() => {
+    const entry = catalog.projects.find((p) => p.id === catalog.activeId);
+    if (entry && entry.name !== project.name) {
+      const next: WorkspaceCatalog = {
+        ...catalog,
+        projects: catalog.projects.map((p) =>
+          p.id === catalog.activeId ? { ...p, name: project.name } : p,
+        ),
+      };
+      saveCatalog(next);
+      setCatalog(next);
+    }
+  }, [project.name, catalog]);
+
+  const switchProject = useCallback(
+    (id: string) => {
+      if (id === catalog.activeId) return;
+      // Persist current edits before switching — auto-save runs on next render
+      // but we want the just-typed value to land before navigating away.
+      saveProjectById(catalog.activeId, project);
+      const result = wsSwitch(catalog, id);
+      if (!result) return;
+      setCatalog(result.catalog);
+      reset(withSessionDefaults(result.project));
+    },
+    [catalog, project, reset],
+  );
+
+  const addProject = useCallback(
+    (draft: HouseProject) => {
+      saveProjectById(catalog.activeId, project);
+      const result = wsAdd(catalog, draft);
+      setCatalog(result.catalog);
+      reset(withSessionDefaults(result.project));
+    },
+    [catalog, project, reset],
+  );
+
+  const removeProjectAction = useCallback(
+    (id: string) => {
+      const result = wsRemove(catalog, id);
+      if (!result) return; // last project — refuse
+      setCatalog(result.catalog);
+      // If removing the active one, load the new active.
+      if (id === catalog.activeId) {
+        reset(withSessionDefaults(result.project));
+      }
+    },
+    [catalog, reset],
+  );
 
   // Global keyboard: Cmd/Ctrl+Z = undo, Cmd/Ctrl+Shift+Z (or Cmd+Y) = redo,
   // Delete/Backspace = remove current selection. All gated on no editable
@@ -162,7 +222,14 @@ export function AppShell() {
           )}
         </div>
         <div className="chrome-main-panel">
-          <PropertyPanel project={project} dispatch={dispatch} />
+          <PropertyPanel
+            project={project}
+            dispatch={dispatch}
+            catalog={catalog}
+            onSwitchProject={switchProject}
+            onAddProject={addProject}
+            onRemoveProject={removeProjectAction}
+          />
         </div>
       </main>
     </div>
