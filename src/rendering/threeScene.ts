@@ -759,38 +759,40 @@ function createGround(bounds: SceneBounds) {
 
 /** Faint horizontal level rings at each storey above ground (z > 0).
  *  Anchors empty storeys in 3D so adding a level produces a visible
- *  reference even before any wall/slab is drawn there. */
+ *  reference even before any wall/slab is drawn there. The ring traces
+ *  the building's footprint — same x/z extent as the walls, so empty
+ *  storeys feel attached to the building instead of floating in space. */
 function createStoreyLevelHelpers(project: HouseProject, bounds: SceneBounds) {
-  const width = bounds.maxX - bounds.minX;
-  const depth = bounds.maxZ - bounds.minZ;
-  const size = Math.max(width, depth, 8) * 1.6;
-  const centerX = (bounds.minX + bounds.maxX) / 2;
-  const centerZ = (bounds.minZ + bounds.maxZ) / 2;
+  const width = Math.max(bounds.maxX - bounds.minX, 4);
+  const depth = Math.max(bounds.maxZ - bounds.minZ, 4);
+  const minX = bounds.minX;
+  const maxX = bounds.minX + width;
+  const minZ = bounds.minZ;
+  const maxZ = bounds.minZ + depth;
   const helpers: THREE.LineSegments[] = [];
   const geometries: THREE.BufferGeometry[] = [];
   const materials: THREE.Material[] = [];
 
   for (const storey of project.storeys) {
     if (storey.elevation <= 0.001) continue;
-    const half = size / 2;
     const positions = new Float32Array([
-      centerX - half, storey.elevation, centerZ - half,
-      centerX + half, storey.elevation, centerZ - half,
-      centerX + half, storey.elevation, centerZ - half,
-      centerX + half, storey.elevation, centerZ + half,
-      centerX + half, storey.elevation, centerZ + half,
-      centerX - half, storey.elevation, centerZ + half,
-      centerX - half, storey.elevation, centerZ + half,
-      centerX - half, storey.elevation, centerZ - half,
+      minX, storey.elevation, minZ,
+      maxX, storey.elevation, minZ,
+      maxX, storey.elevation, minZ,
+      maxX, storey.elevation, maxZ,
+      maxX, storey.elevation, maxZ,
+      minX, storey.elevation, maxZ,
+      minX, storey.elevation, maxZ,
+      minX, storey.elevation, minZ,
     ]);
     const geom = new THREE.BufferGeometry();
     geom.setAttribute("position", new THREE.BufferAttribute(positions, 3));
     const mat = new THREE.LineDashedMaterial({
-      color: "#7e7d77",
-      dashSize: 0.4,
-      gapSize: 0.25,
+      color: "#5a5a5a",
+      dashSize: 0.25,
+      gapSize: 0.15,
       transparent: true,
-      opacity: 0.55,
+      opacity: 0.4,
     });
     const lines = new THREE.LineSegments(geom, mat);
     lines.computeLineDistances();
