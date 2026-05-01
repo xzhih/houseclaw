@@ -34,7 +34,17 @@ import {
 
 export type ModeV2 = "2d" | "3d";
 export type ViewIdV2 = string;
-export type ToolIdV2 = string;
+export type ToolIdV2 =
+  | "select"
+  | "wall"
+  | "door"
+  | "window"
+  | "opening"
+  | "balcony"
+  | "stair"
+  | "slab"
+  | "roof"
+  | "material";
 export type SelectionV2 =
   | { kind: "wall"; wallId: string }
   | { kind: "opening"; openingId: string }

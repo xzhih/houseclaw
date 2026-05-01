@@ -1,5 +1,5 @@
 import type { ComponentType, SVGProps } from "react";
-import type { ProjectActionV2, ProjectStateV2 } from "../app/v2/projectReducer";
+import type { ProjectActionV2, ProjectStateV2, ToolIdV2 } from "../app/v2/projectReducer";
 import { IconRailButton } from "./chrome/IconRailButton";
 import { useGlobalShortcuts } from "./chrome/useGlobalShortcuts";
 import {
@@ -16,7 +16,7 @@ import {
 } from "./chrome/icons";
 
 type ToolDef = {
-  id: string;
+  id: ToolIdV2;
   label: string;
   shortcut: string;
   Icon: ComponentType<SVGProps<SVGSVGElement>>;
@@ -41,8 +41,8 @@ const STRUCT_TOOLS: ToolDef[] = [
 
 type ToolPaletteProps = {
   project: ProjectStateV2;
-  activeTool: string;
-  onChange: (toolId: string) => void;
+  activeTool: ToolIdV2;
+  onChange: (toolId: ToolIdV2) => void;
   dispatch: (action: ProjectActionV2) => void;
 };
 
