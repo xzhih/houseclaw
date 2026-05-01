@@ -66,27 +66,31 @@
 
 **Files:**
 - Modify: `package.json`
-- Modify: `index.html`
+- Modify: `src/main.tsx`
 - Create: `src/styles/tokens.css`
 - Modify: `src/styles.css`
 
-- [ ] **Step 1: 安装 lucide-react**
+- [ ] **Step 1: 安装 lucide-react + 本地字体包**
 
 ```bash
-bun add lucide-react
+bun add lucide-react @fontsource/inter @fontsource/jetbrains-mono
 ```
 
-Expected: `package.json` 出现 `"lucide-react": "^x.y.z"`，`bun.lockb` 更新。
+Expected: `package.json` 出现三个新依赖；`bun.lockb` 更新。`@fontsource/*` 把 woff2 字体文件打到 `node_modules/`，import 时被 vite 编译进 bundle，无外部 CDN 请求。
 
-- [ ] **Step 2: 引入 JetBrains Mono web font**
+- [ ] **Step 2: 在 main.tsx 顶部 import 字体 css**
 
-修改 `index.html`，在 `<head>` 内 `<title>` 上方加：
+打开 `src/main.tsx`，在最上方（其它 import 之前）加：
 
-```html
-<link rel="preconnect" href="https://fonts.googleapis.com" />
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+```ts
+import "@fontsource/inter/400.css";
+import "@fontsource/inter/500.css";
+import "@fontsource/inter/600.css";
+import "@fontsource/jetbrains-mono/400.css";
+import "@fontsource/jetbrains-mono/500.css";
 ```
+
+不修改 `index.html`（不再走 CDN）。
 
 - [ ] **Step 3: 创建 tokens.css**
 
@@ -159,8 +163,8 @@ Expected: build 成功（不应出现 token import 失败）。
 - [ ] **Step 6: Commit**
 
 ```bash
-git add package.json bun.lockb index.html src/styles/tokens.css src/styles.css
-git commit -m "feat(chrome): 引入 lucide-react + JetBrains Mono + design tokens"
+git add package.json bun.lockb src/main.tsx src/styles/tokens.css src/styles.css
+git commit -m "feat(chrome): 引入 lucide-react + 本地字体包 (@fontsource) + design tokens"
 ```
 
 ---
