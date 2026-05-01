@@ -52,3 +52,148 @@
 .chrome-accordion-body-content {
   padding: 4px 16px 12px;
 }
+
+/* === SliderRow === */
+.chrome-slider-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 0;
+}
+.chrome-slider-row-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.chrome-slider-row-control {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.chrome-slider-row input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 112px;
+  height: 3px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  cursor: pointer;
+}
+.chrome-slider-row input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 8px rgba(255, 255, 255, 0.6), 0 0 16px rgba(255, 255, 255, 0.2);
+  cursor: pointer;
+  transition: box-shadow 200ms;
+}
+.chrome-slider-row input[type="range"]::-webkit-slider-thumb:hover {
+  box-shadow: 0 0 12px rgba(255, 255, 255, 0.9), 0 0 24px rgba(255, 255, 255, 0.35);
+}
+.chrome-slider-row input[type="range"]::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border: 0;
+  border-radius: 50%;
+  background: #fff;
+}
+.chrome-slider-row-value {
+  width: 48px;
+  text-align: right;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+/* === ToggleRow === */
+.chrome-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 0;
+}
+.chrome-toggle-row-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.chrome-toggle {
+  position: relative;
+  width: 36px;
+  height: 20px;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.15);
+  cursor: pointer;
+  transition: background 300ms, box-shadow 300ms;
+}
+.chrome-toggle[aria-pressed="true"] {
+  background: #fff;
+  box-shadow: 0 0 14px rgba(255, 255, 255, 0.45),
+              0 0 4px rgba(255, 255, 255, 0.7);
+}
+.chrome-toggle-thumb {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.4);
+  transition: left 300ms, background 300ms;
+}
+.chrome-toggle[aria-pressed="true"] .chrome-toggle-thumb {
+  left: 19px;
+  background: #000;
+}
+
+/* === SelectRow === */
+.chrome-select-row {
+  padding: 8px 0;
+}
+.chrome-select-row-label {
+  display: block;
+  margin-bottom: 8px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.chrome-select-row-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.chrome-select-pill {
+  padding: 6px 10px;
+  border: 1px solid var(--border-mid);
+  border-radius: 3px;
+  background: var(--bg-chrome-2);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: border-color 200ms, background 200ms, color 200ms, box-shadow 200ms;
+}
+.chrome-select-pill:hover {
+  border-color: var(--border-strong);
+  background: rgba(255, 255, 255, 0.09);
+  color: rgba(255, 255, 255, 0.8);
+}
+.chrome-select-pill[aria-pressed="true"] {
+  background: #fff;
+  color: #000;
+  box-shadow: var(--glow-active);
+  border-color: transparent;
+}
