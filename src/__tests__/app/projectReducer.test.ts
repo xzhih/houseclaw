@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createSampleProject } from "../../domain/sampleProject";
-import { projectReducer, withSessionDefaults } from "../../app/projectReducer";
+import { projectReducer, reducerErrorChannel, withSessionDefaults } from "../../app/projectReducer";
 
 describe("projectReducer", () => {
   it("set-mode toggles between 2d and 3d", () => {
@@ -41,5 +41,18 @@ describe("projectReducer", () => {
     expect(session.activeView).toBe("plan-1f");
     expect(session.activeTool).toBe("select");
     expect(session.selection).toBeUndefined();
+  });
+
+  it("returns previous state when a mutation throws — never crashes", () => {
+    const initial = withSessionDefaults(createSampleProject());
+    reducerErrorChannel.last = null;
+    // 1f↔2f swap inverts walls anchored bottom=1f, top=2f → invalid project.
+    const next = projectReducer(initial, {
+      type: "swap-storey-elevations",
+      aId: "1f",
+      bId: "2f",
+    });
+    expect(next).toBe(initial);
+    expect(reducerErrorChannel.last).toMatch(/Invalid/);
   });
 });

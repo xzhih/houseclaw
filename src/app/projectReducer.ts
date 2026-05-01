@@ -113,7 +113,13 @@ function mergeProject(state: ProjectState, updated: HouseProject): ProjectState 
   };
 }
 
-export function projectReducer(
+/** Side channel for surfacing reducer rejections to the UI. The reducer
+ *  itself can't `alert` or `dispatch` follow-ups (it runs during render),
+ *  so we stash the latest error here for components to read after dispatch.
+ *  Clear it when handled. */
+export const reducerErrorChannel: { last: string | null } = { last: null };
+
+function projectReducerInner(
   state: ProjectState,
   action: ProjectAction,
 ): ProjectState {
@@ -190,6 +196,26 @@ export function projectReducer(
       return mergeProject(state, updateStair(state, action.stairId, action.patch));
     case "remove-stair":
       return mergeProject(state, removeStair(state, action.stairId));
+  }
+}
+
+/** Reducer with a global try/catch — any mutation that throws (e.g. a
+ *  swap that would invert a wall) leaves state unchanged and stashes the
+ *  message in reducerErrorChannel for the UI to surface. Without this
+ *  the throw escapes through React's render and crashes the app. */
+export function projectReducer(
+  state: ProjectState,
+  action: ProjectAction,
+): ProjectState {
+  try {
+    return projectReducerInner(state, action);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    reducerErrorChannel.last = msg;
+    if (typeof console !== "undefined") {
+      console.warn(`[projectReducer] ${action.type} rejected:`, msg);
+    }
+    return state;
   }
 }
 

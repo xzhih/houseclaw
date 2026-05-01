@@ -1,4 +1,5 @@
 import type { ProjectState, ProjectAction } from "../app/projectReducer";
+import { swapStoreyElevations } from "../domain/mutations";
 
 type StoreysEditorProps = {
   project: ProjectState;
@@ -15,14 +16,17 @@ export function StoreysEditor({ project, dispatch }: StoreysEditorProps) {
   const sorted = [...project.storeys].sort((a, b) => a.elevation - b.elevation);
 
   const swapWith = (aId: string, bId: string) => {
+    // Pre-validate by running the mutation directly. The reducer can't surface
+    // its own throws synchronously (it runs during render), so we check here
+    // first and dispatch only if the resulting project would be valid.
     try {
-      dispatch({ type: "swap-storey-elevations", aId, bId });
+      swapStoreyElevations(project, aId, bId);
     } catch (err) {
-      // The swap would invert a wall/slab anchor pair — surface so the user
-      // knows why nothing happened (silent no-op is worse here).
-      const msg = err instanceof Error ? err.message : String(err);
-      alert(`无法调整顺序：${msg}`);
+      const raw = err instanceof Error ? err.message : String(err);
+      alert(`无法调整顺序：交换会让某些墙体或开孔不再合法。\n\n${raw}`);
+      return;
     }
+    dispatch({ type: "swap-storey-elevations", aId, bId });
   };
 
   return (
