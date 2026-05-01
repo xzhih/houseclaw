@@ -1,5 +1,5 @@
 import type { ProjectState, ProjectAction } from "../app/projectReducer";
-import { swapStoreyElevations } from "../domain/mutations";
+import { removeStorey, swapStoreyElevations } from "../domain/mutations";
 
 type StoreysEditorProps = {
   project: ProjectState;
@@ -15,10 +15,10 @@ function formatElevation(z: number): string {
 export function StoreysEditor({ project, dispatch }: StoreysEditorProps) {
   const sorted = [...project.storeys].sort((a, b) => a.elevation - b.elevation);
 
+  // Pre-validate by running the mutation directly. The reducer can't surface
+  // its own throws synchronously (it runs during render), so we check here
+  // first and dispatch only if the resulting project would still be valid.
   const swapWith = (aId: string, bId: string) => {
-    // Pre-validate by running the mutation directly. The reducer can't surface
-    // its own throws synchronously (it runs during render), so we check here
-    // first and dispatch only if the resulting project would be valid.
     try {
       swapStoreyElevations(project, aId, bId);
     } catch (err) {
@@ -27,6 +27,17 @@ export function StoreysEditor({ project, dispatch }: StoreysEditorProps) {
       return;
     }
     dispatch({ type: "swap-storey-elevations", aId, bId });
+  };
+
+  const removeWithCheck = (storeyId: string, label: string) => {
+    try {
+      removeStorey(project, storeyId);
+    } catch (err) {
+      const raw = err instanceof Error ? err.message : String(err);
+      alert(`无法删除「${label}」：\n\n${raw}`);
+      return;
+    }
+    dispatch({ type: "remove-storey", storeyId });
   };
 
   return (
@@ -118,9 +129,7 @@ export function StoreysEditor({ project, dispatch }: StoreysEditorProps) {
               <button
                 type="button"
                 className="storey-remove"
-                onClick={() =>
-                  dispatch({ type: "remove-storey", storeyId: storey.id })
-                }
+                onClick={() => removeWithCheck(storey.id, storey.label)}
                 title={`删除 ${storey.label}`}
               >
                 ×

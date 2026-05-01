@@ -104,18 +104,28 @@ export function removeStorey(project: HouseProject, storeyId: string): HouseProj
   findStorey(project, storeyId);
   const referencedByAnchor = (anchor: { kind: string; storeyId?: string }): boolean =>
     anchor.kind === "storey" && anchor.storeyId === storeyId;
-  const used =
-    project.walls.some(
-      (w) => referencedByAnchor(w.bottom) || referencedByAnchor(w.top),
-    ) ||
-    project.slabs.some((s) => referencedByAnchor(s.top)) ||
-    project.roofs.some((r) => referencedByAnchor(r.base)) ||
-    project.balconies.some((b) => referencedByAnchor(b.slabTop)) ||
-    project.stairs.some(
-      (st) => referencedByAnchor(st.from) || referencedByAnchor(st.to),
+  const refCounts: Record<string, number> = {};
+  const wallCount = project.walls.filter(
+    (w) => referencedByAnchor(w.bottom) || referencedByAnchor(w.top),
+  ).length;
+  const slabCount = project.slabs.filter((s) => referencedByAnchor(s.top)).length;
+  const roofCount = project.roofs.filter((r) => referencedByAnchor(r.base)).length;
+  const balconyCount = project.balconies.filter((b) => referencedByAnchor(b.slabTop)).length;
+  const stairCount = project.stairs.filter(
+    (st) => referencedByAnchor(st.from) || referencedByAnchor(st.to),
+  ).length;
+  if (wallCount) refCounts["墙"] = wallCount;
+  if (slabCount) refCounts["楼板"] = slabCount;
+  if (roofCount) refCounts["屋顶"] = roofCount;
+  if (balconyCount) refCounts["阳台"] = balconyCount;
+  if (stairCount) refCounts["楼梯"] = stairCount;
+  if (Object.keys(refCounts).length > 0) {
+    const detail = Object.entries(refCounts)
+      .map(([kind, n]) => `${n} 个${kind}`)
+      .join("、");
+    throw new EntityStateError(
+      `楼层 ${storeyId} 仍被 ${detail} 引用，先删除或改锚定后再删`,
     );
-  if (used) {
-    throw new EntityStateError(`Storey ${storeyId} is in use by anchored objects`);
   }
   const storeys = project.storeys.filter((s) => s.id !== storeyId);
   return assertValidProject({ ...project, storeys });

@@ -97,8 +97,8 @@ describe("removeStorey", () => {
     expect(next.storeys.find((s) => s.id === idToRemove)).toBeUndefined();
   });
 
-  it("throws when an object still references the storey", () => {
+  it("throws with details when an object still references the storey", () => {
     const project = createSampleProject();
-    expect(() => removeStorey(project, "1f")).toThrow(/in use/i);
+    expect(() => removeStorey(project, "1f")).toThrow(/墙/);
   });
 });
