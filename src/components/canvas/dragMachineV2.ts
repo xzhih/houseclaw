@@ -1,6 +1,6 @@
 import type { ProjectActionV2, ProjectStateV2 } from "../../app/v2/projectReducer";
 import { collectPlanAnchorsV2, findAxisAlignedGuides, type GuideMatch } from "../../geometry/v2/smartGuides";
-import { snapPlanPoint, snapToEndpoint } from "../../geometry/snapping";
+import { snapPlanPoint, snapToEndpoint } from "../../geometry/v2/snapping";
 import type { PlanProjectionV2 } from "../../projection/v2/types";
 import type { DragStateV2 } from "./dragStateV2";
 import type { DragReadout, Point2D } from "./types";

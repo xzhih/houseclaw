@@ -2,7 +2,7 @@ import type { PointerEvent, RefObject } from "react";
 import type { ProjectStateV2 } from "../../app/v2/projectReducer";
 import { resolveAnchor } from "../../domain/v2/anchors";
 import type { Wall } from "../../domain/v2/types";
-import { rotatePoint } from "../../domain/stairs";
+import { rotatePoint } from "../../domain/v2/stairs";
 import type { ElevationSide } from "../../projection/v2/types";
 import type {
   DragStateV2,

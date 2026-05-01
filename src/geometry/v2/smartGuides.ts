@@ -1,9 +1,31 @@
+import type { Point2D } from "../../components/canvas/types";
 import type { PlanProjectionV2, PlanWallSegmentV2 } from "../../projection/v2/types";
-import type { Anchor, GuideMatch } from "../smartGuides";
-import { findAxisAlignedGuides } from "../smartGuides";
 
-export type { Anchor, GuideMatch };
-export { findAxisAlignedGuides };
+export type Anchor = { x: number; y: number; sourceId: string };
+export type GuideMatch = { axis: "x" | "y"; pos: number; anchor: Anchor };
+
+export function findAxisAlignedGuides(
+  cursor: Point2D,
+  anchors: Anchor[],
+  tolerance: number,
+): GuideMatch[] {
+  let bestX: { delta: number; anchor: Anchor } | null = null;
+  let bestY: { delta: number; anchor: Anchor } | null = null;
+  for (const a of anchors) {
+    const dx = Math.abs(cursor.x - a.x);
+    if (dx < tolerance && (bestX === null || dx < bestX.delta)) {
+      bestX = { delta: dx, anchor: a };
+    }
+    const dy = Math.abs(cursor.y - a.y);
+    if (dy < tolerance && (bestY === null || dy < bestY.delta)) {
+      bestY = { delta: dy, anchor: a };
+    }
+  }
+  const out: GuideMatch[] = [];
+  if (bestX) out.push({ axis: "x", pos: bestX.anchor.x, anchor: bestX.anchor });
+  if (bestY) out.push({ axis: "y", pos: bestY.anchor.y, anchor: bestY.anchor });
+  return out;
+}
 
 /** Collect alignment anchors from a v2 plan projection. excludes uses tag:id form
  *  ("wall:abc", "opening:xyz", "balcony:b1", "stair:s1") to skip the dragged element. */

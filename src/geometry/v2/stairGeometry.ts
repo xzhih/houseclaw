@@ -1,5 +1,5 @@
-import { computeStairConfig, rotatePoint } from "../../domain/stairs";
-import type { StairConfig } from "../../domain/stairs";
+import { computeStairConfig, rotatePoint } from "../../domain/v2/stairs";
+import type { StairConfig } from "../../domain/v2/stairs";
 import type { Point2, Stair } from "../../domain/v2/types";
 import type { StairBoxV2, StairGeometryV2 } from "./types";
 

@@ -1,6 +1,6 @@
 import { resolveAnchor } from "../../domain/v2/anchors";
 import type { HouseProject, Storey } from "../../domain/v2/types";
-import { computeStairConfig } from "../../domain/stairs";
+import { computeStairConfig } from "../../domain/v2/stairs";
 import type {
   PlanBalconyGlyphV2,
   PlanOpeningGlyphV2,

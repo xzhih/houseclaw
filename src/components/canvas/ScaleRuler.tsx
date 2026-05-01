@@ -1,5 +1,5 @@
 import type { PointMapping, Viewport } from "./types";
-import { pickRulerLength } from "../../geometry/scaleRulerBucket";
+import { pickRulerLength } from "../../geometry/v2/scaleRulerBucket";
 
 type Props = {
   mapping: PointMapping;

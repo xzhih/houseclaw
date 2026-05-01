@@ -1,5 +1,5 @@
-import { rotatePoint } from "../../domain/stairs";
-import type { Point2, ViewId } from "../../domain/types";
+import { rotatePoint } from "../../domain/v2/stairs";
+import type { Point2 } from "../../domain/v2/types";
 import type {
   ElevationProjectionV2,
   ElevationSide,
@@ -16,7 +16,7 @@ export const SURFACE_WIDTH = 720;
 export const SURFACE_HEIGHT = 520;
 export const SURFACE_PADDING = 48;
 
-export const ELEVATION_SIDE_BY_VIEW: Partial<Record<ViewId, ElevationSide>> = {
+export const ELEVATION_SIDE_BY_VIEW: Record<string, ElevationSide> = {
   "elevation-front": "front",
   "elevation-back": "back",
   "elevation-left": "left",

@@ -1,5 +1,5 @@
 import type { SelectionV2 } from "../../app/v2/projectReducer";
-import type { ToolId } from "../../domain/types";
+
 import type {
   ElevationBalconyRectV2,
   ElevationProjectionV2,
@@ -15,7 +15,7 @@ type RenderElevationProps = {
   mapping: PointMapping;
   selection: SelectionV2 | undefined;
   onSelect: (selection: SelectionV2) => void;
-  activeTool?: ToolId;
+  activeTool?: string;
   handlers?: ElevationDragHandlers;
 };
 

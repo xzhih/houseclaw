@@ -1,5 +1,5 @@
 import type { PointerEvent } from "react";
-import type { GuideMatch } from "../../geometry/smartGuides";
+import type { GuideMatch } from "../../geometry/v2/smartGuides";
 import type { Point2D, PointMapping } from "./types";
 
 export type { GuideMatch };

@@ -1,8 +1,7 @@
 import type { KeyboardEvent, PointerEvent } from "react";
 import type { SelectionV2 } from "../../app/v2/projectReducer";
-import { rotatePoint } from "../../domain/stairs";
-import type { ToolId } from "../../domain/types";
-import { slicePanelFootprint, type WallFootprint } from "../../geometry/wallNetwork";
+import { rotatePoint } from "../../domain/v2/stairs";
+import { slicePanelFootprint, type WallFootprint } from "../../geometry/v2/wallNetwork";
 import type {
   PlanBalconyGlyphV2,
   PlanOpeningGlyphV2,
@@ -44,7 +43,7 @@ export function renderSelectableBalcony(
   balconyId: string,
   selected: boolean,
   onSelect: OnSelect,
-  _activeTool: ToolId | undefined,
+  _activeTool: string | undefined,
   props: { className: string; points?: string; x?: number; y?: number; width?: number; height?: number },
   onPointerDown?: (event: PointerEvent<SVGElement>) => void,
 ) {
@@ -78,7 +77,7 @@ type RenderPlanProps = {
   mapping: PointMapping;
   selection: SelectionV2;
   onSelect: OnSelect;
-  activeTool?: ToolId;
+  activeTool?: string;
   footprints?: Map<string, WallFootprint>;
   snapHit?: Point2D | null;
   handlers?: PlanDragHandlers;
