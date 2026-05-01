@@ -58,6 +58,7 @@ export function DrawingSurface2D({ project, onSelect, dispatch }: DrawingSurface
   const [dragState, setDragState] = useState<DragStateV2 | null>(null);
   const [readout, setReadout] = useState<DragReadout | null>(null);
   const [readoutVisible, setReadoutVisible] = useState(false);
+  const readoutTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const planStoreyId = planStoreyIdFromView(project.activeView, project.storeys);
   const elevationSide =
@@ -184,6 +185,10 @@ export function DrawingSurface2D({ project, onSelect, dispatch }: DrawingSurface
                     dispatch(action);
                   }
                   if (outcome.dragReadout) {
+                    if (readoutTimerRef.current) {
+                      clearTimeout(readoutTimerRef.current);
+                      readoutTimerRef.current = null;
+                    }
                     setReadout(outcome.dragReadout);
                     setReadoutVisible(true);
                   }
@@ -206,7 +211,11 @@ export function DrawingSurface2D({ project, onSelect, dispatch }: DrawingSurface
               if (sel) onSelect(sel);
             }
             setReadoutVisible(false);
-            setTimeout(() => setReadout(null), 400);
+            if (readoutTimerRef.current) clearTimeout(readoutTimerRef.current);
+            readoutTimerRef.current = setTimeout(() => {
+              setReadout(null);
+              readoutTimerRef.current = null;
+            }, 400);
             setDragState(null);
           }
         }}

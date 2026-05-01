@@ -941,7 +941,7 @@ select {
 }
 
 .smart-guide-line {
-  stroke: #ff8a3d;
+  stroke: rgba(0, 0, 0, 0.4);
   stroke-dasharray: 4 3;
   fill: none;
   vector-effect: non-scaling-stroke;
