@@ -64,6 +64,13 @@ export function DrawingSurface2D({ project, onSelect, dispatch }: DrawingSurface
   // behavior — symptoms vary with mouse speed).
   const dragStateRef = useRef<DragStateV2 | null>(null);
   const dragStartPixelRef = useRef<{ x: number; y: number } | null>(null);
+  // Timestamp of the last pointerup that ended a drag/click on a real object.
+  // The SVG-level onClick uses this to skip "clear selection on background
+  // click" when the click event is actually fallout from a child's pointer
+  // sequence — Chrome retargets click to the captor (the SVG) when
+  // setPointerCapture was set on it, which would otherwise immediately
+  // clear the selection that pointerup just set.
+  const lastObjectInteractionRef = useRef(0);
   const [dragState, setDragStateInner] = useState<DragStateV2 | null>(null);
   // Two call shapes:
   //   setDragState(next, startPixel) — from pointerdown (records pixel start)
@@ -252,6 +259,11 @@ export function DrawingSurface2D({ project, onSelect, dispatch }: DrawingSurface
               const sel = selectionOnClickV2(ds);
               if (sel) onSelect(sel);
             }
+            // Mark that we just ended an interaction on a real object —
+            // the upcoming click event must NOT be treated as "clicked
+            // background to deselect" (Chrome retargets click to the
+            // captor SVG, which would otherwise wipe the just-set selection).
+            lastObjectInteractionRef.current = Date.now();
             setReadoutVisible(false);
             if (readoutTimerRef.current) clearTimeout(readoutTimerRef.current);
             readoutTimerRef.current = setTimeout(() => {
@@ -274,6 +286,14 @@ export function DrawingSurface2D({ project, onSelect, dispatch }: DrawingSurface
         onClick={(event) => {
           // Skip click handling if we just finished a drag (pointerup already handled selection)
           if (dragStateRef.current) return;
+
+          // Skip if we JUST ended an object-level pointer interaction —
+          // Chrome retargets click to the captor SVG when setPointerCapture
+          // was set, and event.target ends up === event.currentTarget even
+          // though the user clicked a child rect. Without this guard the
+          // background-click branch would wipe the selection that pointerup
+          // just set.
+          if (Date.now() - lastObjectInteractionRef.current < 300) return;
 
           const target = event.target as SVGElement;
           const hitKind = target.getAttribute("data-kind");
