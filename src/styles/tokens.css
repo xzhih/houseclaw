@@ -1,0 +1,45 @@
+/* src/styles/tokens.css */
+:root {
+  --bg-canvas: #fafafa;
+  --bg-chrome: #000000;
+  --bg-chrome-2: rgba(255, 255, 255, 0.04);
+
+  --border-soft: rgba(255, 255, 255, 0.07);
+  --border-mid: rgba(255, 255, 255, 0.12);
+  --border-strong: rgba(255, 255, 255, 0.22);
+
+  --text-primary: #ffffff;
+  --text-secondary: rgba(255, 255, 255, 0.65);
+  --text-muted: rgba(255, 255, 255, 0.45);
+  --text-disabled: rgba(255, 255, 255, 0.25);
+
+  --canvas-stroke-default: #1f1f1f;
+  --canvas-stroke-hover: #000000;
+  --canvas-stroke-selected: #000000;
+  --canvas-ghost-shadow: rgba(0, 0, 0, 0.08);
+
+  --glow-active: 0 0 12px rgba(255, 255, 255, 0.25);
+  --glow-strong: 0 0 8px rgba(255, 255, 255, 0.6),
+                 0 0 16px rgba(255, 255, 255, 0.2);
+
+  --header-h: 40px;
+  --viewbar-h: 36px;
+  --rail-w: 48px;
+  --panel-w: 320px;
+
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+.mono-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.mono-num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+}
