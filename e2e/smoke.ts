@@ -450,11 +450,12 @@ try {
       `Array.from(document.querySelectorAll('.chrome-project-action')).map(b => b.textContent.trim())`,
     )) as string[];
     assert(
-      buttons.length === 3,
-      `expected 3 project action buttons, got ${buttons.length}: ${JSON.stringify(buttons)}`,
+      buttons.length === 4,
+      `expected 4 project action buttons, got ${buttons.length}: ${JSON.stringify(buttons)}`,
     );
     const labels = buttons.join(" | ");
-    assert(labels.includes("新建"), `missing 新建 button. labels: ${labels}`);
+    assert(labels.includes("空项目"), `missing 新建空项目 button. labels: ${labels}`);
+    assert(labels.includes("示例项目"), `missing 新建示例项目 button. labels: ${labels}`);
     assert(labels.includes("导入"), `missing 导入 button. labels: ${labels}`);
     assert(labels.includes("导出"), `missing 导出 button. labels: ${labels}`);
 

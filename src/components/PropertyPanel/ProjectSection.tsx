@@ -10,6 +10,7 @@ import {
   downloadProjectJson,
   importProjectJson,
 } from "../../app/persistence";
+import { createShowcaseProject } from "../../domain/showcaseProject";
 import { Accordion } from "../chrome/Accordion";
 
 type ProjectSectionProps = {
@@ -63,6 +64,15 @@ export function ProjectSection({
   const handleNew = () => {
     const name = nextProjectName(existingNames);
     onAddProject(emptyProject(name));
+  };
+
+  const handleNewShowcase = () => {
+    const showcase = createShowcaseProject();
+    // Avoid name collision with any existing project (e.g. another showcase).
+    const name = existingNames.includes(showcase.name)
+      ? nextProjectName(existingNames)
+      : showcase.name;
+    onAddProject({ ...showcase, name });
   };
 
   const handleExport = () => {
@@ -153,6 +163,9 @@ export function ProjectSection({
       <div className="chrome-project-actions">
         <button type="button" className="chrome-project-action" onClick={handleNew}>
           + 新建空项目
+        </button>
+        <button type="button" className="chrome-project-action" onClick={handleNewShowcase}>
+          + 新建示例项目（三层中式）
         </button>
         <button type="button" className="chrome-project-action" onClick={handleImportClick}>
           导入 JSON
