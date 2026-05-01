@@ -265,3 +265,80 @@
 .chrome-icon-rail-button:hover .chrome-icon-rail-tooltip {
   opacity: 1;
 }
+
+/* === Canvas chips (overlay on light canvas) === */
+.chrome-context-chip {
+  position: absolute;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 8px 14px;
+  background: var(--bg-chrome);
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  box-shadow: var(--glow-active);
+  pointer-events: auto;
+  user-select: none;
+  z-index: 30;
+}
+.chrome-context-chip-action {
+  margin-left: 8px;
+  padding: 2px 8px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--border-mid);
+  border-radius: 2px;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  cursor: pointer;
+  transition: background 150ms;
+}
+.chrome-context-chip-action:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.chrome-readout-chip {
+  position: absolute;
+  bottom: 24px;
+  right: 24px;
+  min-width: 180px;
+  padding: 10px 14px;
+  background: var(--bg-chrome);
+  border: 1px solid var(--border-mid);
+  border-radius: 4px;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 400ms;
+  z-index: 30;
+}
+.chrome-readout-chip[data-visible="true"] {
+  opacity: 1;
+  transition: opacity 0ms;
+}
+.chrome-readout-chip-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+}
+.chrome-readout-chip-key {
+  color: var(--text-muted);
+}
+.chrome-readout-chip-value {
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+.chrome-readout-chip-divider {
+  height: 1px;
+  margin: 6px 0;
+  background: var(--border-soft);
+}
