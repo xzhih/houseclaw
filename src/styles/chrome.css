@@ -197,3 +197,71 @@
   box-shadow: var(--glow-active);
   border-color: transparent;
 }
+
+/* === IconRail === */
+.chrome-icon-rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: var(--rail-w);
+  background: var(--bg-chrome);
+  border-right: 1px solid var(--border-soft);
+  padding: 8px 0;
+  gap: 4px;
+}
+.chrome-icon-rail-divider {
+  width: 24px;
+  height: 1px;
+  margin: 4px 0;
+  background: var(--border-soft);
+}
+.chrome-icon-rail-button {
+  position: relative;
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background 200ms, color 200ms, box-shadow 200ms;
+}
+.chrome-icon-rail-button svg {
+  width: 18px;
+  height: 18px;
+}
+.chrome-icon-rail-button:hover {
+  background: var(--bg-chrome-2);
+  color: rgba(255, 255, 255, 0.8);
+}
+.chrome-icon-rail-button[aria-pressed="true"] {
+  background: #fff;
+  color: #000;
+  box-shadow: var(--glow-active);
+}
+.chrome-icon-rail-tooltip {
+  position: absolute;
+  left: calc(100% + 8px);
+  top: 50%;
+  transform: translateY(-50%);
+  padding: 4px 8px;
+  background: #0a0a0c;
+  border: 1px solid var(--border-mid);
+  border-radius: 3px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 200ms 800ms;
+  z-index: 50;
+}
+.chrome-icon-rail-button:hover .chrome-icon-rail-tooltip {
+  opacity: 1;
+}
