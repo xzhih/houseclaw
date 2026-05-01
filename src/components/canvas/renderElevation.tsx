@@ -39,8 +39,48 @@ export function renderElevation({
 
   const sortedBands = [...projection.wallBands].sort((a, b) => b.depth - a.depth);
 
+  // Compute the elevation view's X span so storey datum lines stretch the
+  // full visible width regardless of whether walls exist on that level.
+  const xs: number[] = [];
+  for (const band of projection.wallBands) xs.push(band.x, band.x + band.width);
+  for (const line of projection.slabLines) xs.push(line.start.x, line.end.x);
+  for (const op of projection.openings) xs.push(op.x, op.x + op.width);
+  for (const b of projection.balconies) xs.push(b.x, b.x + b.width);
+  for (const poly of projection.roofPolygons) for (const v of poly.vertices) xs.push(v.x);
+  const datumMinX = xs.length ? Math.min(...xs) : 0;
+  const datumMaxX = xs.length ? Math.max(...xs) : 8;
+
   return (
     <>
+      {projection.storeyLines.map((line) => {
+        const left = projectPoint({ x: datumMinX, y: line.elevation });
+        const right = projectPoint({ x: datumMaxX, y: line.elevation });
+        return (
+          <g key={`storey-${line.storeyId}`} className="elevation-storey-datum">
+            <line
+              x1={left.x}
+              y1={left.y}
+              x2={right.x}
+              y2={right.y}
+              stroke="rgba(127, 127, 127, 0.55)"
+              strokeWidth={1}
+              strokeDasharray="6 4"
+              pointerEvents="none"
+            />
+            <text
+              x={left.x - 6}
+              y={left.y + 4}
+              textAnchor="end"
+              fontSize={11}
+              fill="rgba(60, 60, 60, 0.75)"
+              pointerEvents="none"
+            >
+              {line.label} {line.elevation >= 0 ? "+" : "−"}
+              {Math.abs(line.elevation).toFixed(3)}
+            </text>
+          </g>
+        );
+      })}
       {sortedBands.map((band) => {
         const topLeft = projectPoint({ x: band.x, y: band.y + band.height });
         const bottomRight = projectPoint({ x: band.x + band.width, y: band.y });

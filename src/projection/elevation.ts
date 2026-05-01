@@ -8,6 +8,7 @@ import type {
   ElevationRoofPolygon,
   ElevationSide,
   ElevationSlabLine,
+  ElevationStoreyLine,
   ElevationWallBand,
 } from "./types";
 
@@ -160,6 +161,12 @@ export function projectElevation(
     }
   }
 
+  const storeyLines: ElevationStoreyLine[] = storeys.map((s) => ({
+    storeyId: s.id,
+    label: s.label,
+    elevation: s.elevation,
+  }));
+
   return {
     viewId: `elevation-${side}`,
     side,
@@ -168,5 +175,6 @@ export function projectElevation(
     openings,
     balconies,
     roofPolygons,
+    storeyLines,
   };
 }

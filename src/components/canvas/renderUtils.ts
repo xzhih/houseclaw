@@ -160,9 +160,22 @@ export function elevationBounds(projection: ElevationProjection): Bounds {
       yValues.push(v.y);
     }
   }
+  // Include storey elevations so empty storeys still extend the view —
+  // otherwise adding a storey above all walls would be invisible.
+  for (const line of projection.storeyLines) {
+    yValues.push(line.elevation);
+  }
 
-  if (xValues.length === 0 || yValues.length === 0) {
+  if (xValues.length === 0 && yValues.length === 0) {
     return { minX: 0, maxX: 1, minY: 0, maxY: 1 };
+  }
+  // Storey-only fallback: when there's no wall/slab geometry yet, give the
+  // storey lines a default horizontal span so the labels are visible.
+  if (xValues.length === 0) {
+    xValues.push(0, 8);
+  }
+  if (yValues.length === 0) {
+    yValues.push(0, 3);
   }
 
   return {

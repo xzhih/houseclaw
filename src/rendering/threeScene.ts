@@ -170,7 +170,7 @@ function projectBounds(project: HouseProject): SceneBounds {
   }, wallBounds);
 }
 
-function refineBoundsMaxY(bounds: SceneBounds, geometry: HouseGeometry): SceneBounds {
+function refineBoundsMaxY(bounds: SceneBounds, geometry: HouseGeometry, project: HouseProject): SceneBounds {
   let maxY = bounds.maxY;
   for (const wall of geometry.walls) {
     maxY = Math.max(maxY, wall.topZ);
@@ -182,6 +182,11 @@ function refineBoundsMaxY(bounds: SceneBounds, geometry: HouseGeometry): SceneBo
     for (const panel of roof.panels) {
       for (const v of panel.vertices) maxY = Math.max(maxY, v.z);
     }
+  }
+  // Storeys above all geometry should still be in frame, so the camera
+  // doesn't crop empty levels the user just added.
+  for (const storey of project.storeys) {
+    maxY = Math.max(maxY, storey.elevation);
   }
   return { ...bounds, maxY };
 }
@@ -752,6 +757,51 @@ function createGround(bounds: SceneBounds) {
   return { ground, grid, groundGeometry, groundMaterial };
 }
 
+/** Faint horizontal level rings at each storey above ground (z > 0).
+ *  Anchors empty storeys in 3D so adding a level produces a visible
+ *  reference even before any wall/slab is drawn there. */
+function createStoreyLevelHelpers(project: HouseProject, bounds: SceneBounds) {
+  const width = bounds.maxX - bounds.minX;
+  const depth = bounds.maxZ - bounds.minZ;
+  const size = Math.max(width, depth, 8) * 1.6;
+  const centerX = (bounds.minX + bounds.maxX) / 2;
+  const centerZ = (bounds.minZ + bounds.maxZ) / 2;
+  const helpers: THREE.LineSegments[] = [];
+  const geometries: THREE.BufferGeometry[] = [];
+  const materials: THREE.Material[] = [];
+
+  for (const storey of project.storeys) {
+    if (storey.elevation <= 0.001) continue;
+    const half = size / 2;
+    const positions = new Float32Array([
+      centerX - half, storey.elevation, centerZ - half,
+      centerX + half, storey.elevation, centerZ - half,
+      centerX + half, storey.elevation, centerZ - half,
+      centerX + half, storey.elevation, centerZ + half,
+      centerX + half, storey.elevation, centerZ + half,
+      centerX - half, storey.elevation, centerZ + half,
+      centerX - half, storey.elevation, centerZ + half,
+      centerX - half, storey.elevation, centerZ - half,
+    ]);
+    const geom = new THREE.BufferGeometry();
+    geom.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+    const mat = new THREE.LineDashedMaterial({
+      color: "#7e7d77",
+      dashSize: 0.4,
+      gapSize: 0.25,
+      transparent: true,
+      opacity: 0.55,
+    });
+    const lines = new THREE.LineSegments(geom, mat);
+    lines.computeLineDistances();
+    helpers.push(lines);
+    geometries.push(geom);
+    materials.push(mat);
+  }
+
+  return { helpers, geometries, materials };
+}
+
 // ─── Public API ───────────────────────────────────────────────────────────────
 
 export function mountHouseScene(
@@ -765,7 +815,7 @@ export function mountHouseScene(
   const houseGeometry: HouseGeometry = buildSceneGeometry(project);
 
   let bounds = projectBounds(project);
-  bounds = refineBoundsMaxY(bounds, houseGeometry);
+  bounds = refineBoundsMaxY(bounds, houseGeometry, project);
 
   const { camera, center, distance } = createCamera(bounds, width / height);
 
@@ -776,6 +826,7 @@ export function mountHouseScene(
   const { meshes: roofMeshes, materials: roofMaterials } = createRoofMeshes(project, houseGeometry);
   const { meshes: balconyMeshes, materials: balconyMaterials } = createBalconyMeshes(project, houseGeometry);
   const { ground, grid, groundGeometry, groundMaterial } = createGround(bounds);
+  const { helpers: storeyHelpers, geometries: storeyHelperGeometries, materials: storeyHelperMaterials } = createStoreyLevelHelpers(project, bounds);
 
   const buildingCenter = new THREE.Vector3(
     (bounds.minX + bounds.maxX) / 2,
@@ -843,6 +894,7 @@ export function mountHouseScene(
     fillLight,
     ground,
     grid,
+    ...storeyHelpers,
     ...meshes,
   );
 
@@ -933,6 +985,8 @@ export function mountHouseScene(
       const gridMaterial = grid.material;
       if (Array.isArray(gridMaterial)) gridMaterial.forEach((m) => m.dispose());
       else gridMaterial.dispose();
+      for (const g of storeyHelperGeometries) g.dispose();
+      for (const m of storeyHelperMaterials) m.dispose();
       renderer.dispose();
       renderer.forceContextLoss();
       host.replaceChildren();

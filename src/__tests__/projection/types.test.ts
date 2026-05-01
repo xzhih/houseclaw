@@ -48,6 +48,7 @@ describe("v2 projection types", () => {
       openings: [],
       balconies: [],
       roofPolygons: [],
+      storeyLines: [],
     };
 
     const edge: RoofViewEdgeStroke = {

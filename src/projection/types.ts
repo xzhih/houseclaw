@@ -117,6 +117,14 @@ export type ElevationRoofPolygon = {
   depth: number;
 };
 
+/** Horizontal datum drawn at each storey elevation — the architectural
+ *  level marker (e.g. "1F ±0.000") so empty storeys are still visible. */
+export type ElevationStoreyLine = {
+  storeyId: string;
+  label: string;
+  elevation: number;
+};
+
 export type ElevationProjection = {
   viewId: ElevationViewId;
   side: ElevationSide;
@@ -125,6 +133,7 @@ export type ElevationProjection = {
   openings: ElevationOpeningRect[];
   balconies: ElevationBalconyRect[];
   roofPolygons: ElevationRoofPolygon[];
+  storeyLines: ElevationStoreyLine[];
 };
 
 // ──────────────────── Roof view ────────────────────
